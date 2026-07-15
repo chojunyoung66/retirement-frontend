@@ -3,7 +3,7 @@ import store from '../store/store';
 import { signOut } from '../store/auth-slice';
 
 const client = axios.create({
-  baseURL: 'http://localhost:3000/api',
+  baseURL: 'https://retirement-backend-1.onrender.com/api',
 });
 
 // 요청 인터셉터: Authorization 헤더에 토큰 추가
