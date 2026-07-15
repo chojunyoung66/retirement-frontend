@@ -1,0 +1,469 @@
+import { http, delay, HttpResponse } from "msw";
+import { getLocalStorage, setLocalStorage } from "../utils/local-storage";
+import database, { type Database } from "./database";
+
+const loadedDatabase: Database = getLocalStorage<Database>("mockDatabase") ?? database;
+
+const handlers = [
+  // 회원가입
+  http.post("/api/auth/signup", async ({ request }) => {
+    await delay(500);
+
+    const body = (await request.json()) as {
+      email: string;
+      password: string;
+      name: string;
+    };
+    const { email, password, name } = body;
+
+    // 이미 존재하는 사용자 확인
+    if (loadedDatabase.users.some((user) => user.email === email)) {
+      return HttpResponse.json(
+        { code: "DUPLICATE_EMAIL", message: "이미 존재하는 이메일입니다" },
+        { status: 409 }
+      );
+    }
+
+    // 새 사용자 생성
+    const newUser = {
+      id: Math.max(0, ...loadedDatabase.users.map((u) => u.id)) + 1,
+      email,
+      password,
+      name,
+    };
+    loadedDatabase.users.push(newUser);
+    setLocalStorage("mockDatabase", loadedDatabase);
+
+    // 토큰 생성
+    const token = crypto.randomUUID();
+    loadedDatabase.sessions.push({ token, userId: newUser.id, email });
+    setLocalStorage("mockDatabase", loadedDatabase);
+
+    return HttpResponse.json(
+      {
+        success: true,
+        data: {
+          id: newUser.id,
+          email: newUser.email,
+          name: newUser.name,
+          token,
+        },
+      },
+      { status: 201 }
+    );
+  }),
+
+  // 로그인
+  http.post("/api/auth/signin", async ({ request }) => {
+    await delay(500);
+
+    const body = (await request.json()) as { email: string; password: string };
+    const { email, password } = body;
+
+    // 사용자 찾기
+    const user = loadedDatabase.users.find((u) => u.email === email);
+    if (!user || user.password !== password) {
+      return HttpResponse.json(
+        { code: "INVALID_CREDENTIALS", message: "이메일 또는 비밀번호가 올바르지 않습니다" },
+        { status: 401 }
+      );
+    }
+
+    // 토큰 생성
+    const token = crypto.randomUUID();
+    loadedDatabase.sessions.push({ token, userId: user.id, email: user.email });
+    setLocalStorage("mockDatabase", loadedDatabase);
+
+    return HttpResponse.json(
+      {
+        success: true,
+        data: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          token,
+        },
+      },
+      { status: 200 }
+    );
+  }),
+
+  // 사용자 정보 조회
+  http.get("/api/users/me", async ({ request }) => {
+    await delay(500);
+
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader) {
+      return HttpResponse.json(
+        { code: "INVALID_TOKEN", message: "토큰이 없습니다" },
+        { status: 401 }
+      );
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    if (!session) {
+      return HttpResponse.json(
+        { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" },
+        { status: 401 }
+      );
+    }
+
+    const user = loadedDatabase.users.find((u) => u.id === session.userId);
+    if (!user) {
+      return HttpResponse.json(
+        { code: "USER_NOT_FOUND", message: "사용자를 찾을 수 없습니다" },
+        { status: 404 }
+      );
+    }
+
+    return HttpResponse.json(
+      { success: true, data: { id: user.id, email: user.email, name: user.name } },
+      { status: 200 }
+    );
+  }),
+
+  // 정년 목표 조회
+  http.get("/api/retirement-goals", async ({ request }) => {
+    await delay(300);
+
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    if (!session) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const goal = loadedDatabase.retirementGoals.find((g) => g.userId === session.userId);
+    if (!goal) {
+      return HttpResponse.json(
+        { code: "RETIREMENT_GOAL_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    return HttpResponse.json({ success: true, data: goal }, { status: 200 });
+  }),
+
+  // 정년 목표 생성
+  http.post("/api/retirement-goals", async ({ request }) => {
+    await delay(300);
+
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    if (!session) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const body = (await request.json()) as Record<string, unknown>;
+
+    const newGoal = {
+      id: Math.max(0, ...loadedDatabase.retirementGoals.map((g) => g.id)) + 1,
+      userId: session.userId,
+      ...body,
+    } as typeof loadedDatabase.retirementGoals[0];
+    loadedDatabase.retirementGoals.push(newGoal);
+    setLocalStorage("mockDatabase", loadedDatabase);
+
+    return HttpResponse.json(
+      { success: true, data: newGoal },
+      { status: 201 }
+    );
+  }),
+
+  // 정년 목표 업데이트
+  http.patch("/api/retirement-goals", async ({ request }) => {
+    await delay(300);
+
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    if (!session) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const goal = loadedDatabase.retirementGoals.find((g) => g.userId === session.userId);
+    if (!goal) {
+      return HttpResponse.json(
+        { code: "RETIREMENT_GOAL_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    const body = (await request.json()) as Record<string, unknown>;
+    Object.assign(goal, body);
+    setLocalStorage("mockDatabase", loadedDatabase);
+
+    return HttpResponse.json({ success: true, data: goal }, { status: 200 });
+  }),
+
+  // 포트폴리오 목록 조회
+  http.get("/api/pension-portfolios", async ({ request }) => {
+    await delay(300);
+
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    if (!session) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const portfolios = loadedDatabase.portfolios.filter((p) => p.userId === session.userId);
+    return HttpResponse.json({ success: true, data: portfolios }, { status: 200 });
+  }),
+
+  // 포트폴리오 생성
+  http.post("/api/pension-portfolios", async ({ request }) => {
+    await delay(300);
+
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    if (!session) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const body = (await request.json()) as Record<string, unknown>;
+
+    const newPortfolio = {
+      id: Math.max(0, ...loadedDatabase.portfolios.map((p) => p.id)) + 1,
+      userId: session.userId,
+      ...body,
+    } as typeof loadedDatabase.portfolios[0];
+    loadedDatabase.portfolios.push(newPortfolio);
+    setLocalStorage("mockDatabase", loadedDatabase);
+
+    return HttpResponse.json(
+      { success: true, data: newPortfolio },
+      { status: 201 }
+    );
+  }),
+
+  // 포트폴리오 조회
+  http.get("/api/pension-portfolios/:id", async ({ params, request }) => {
+    await delay(300);
+
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    if (!session) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const id = Number(params.id);
+    const portfolio = loadedDatabase.portfolios.find((p) => p.id === id);
+    if (!portfolio) {
+      return HttpResponse.json({ code: "PORTFOLIO_NOT_FOUND" }, { status: 404 });
+    }
+
+    return HttpResponse.json({ success: true, data: portfolio }, { status: 200 });
+  }),
+
+  // 포트폴리오 업데이트
+  http.patch("/api/pension-portfolios/:id", async ({ params, request }) => {
+    await delay(300);
+
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    if (!session) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const id = Number(params.id);
+    const portfolio = loadedDatabase.portfolios.find((p) => p.id === id);
+    if (!portfolio) {
+      return HttpResponse.json({ code: "PORTFOLIO_NOT_FOUND" }, { status: 404 });
+    }
+
+    const body = (await request.json()) as Record<string, unknown>;
+    Object.assign(portfolio, body);
+    setLocalStorage("mockDatabase", loadedDatabase);
+
+    return HttpResponse.json({ success: true, data: portfolio }, { status: 200 });
+  }),
+
+  // 포트폴리오 삭제
+  http.delete("/api/pension-portfolios/:id", async ({ params, request }) => {
+    await delay(300);
+
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    if (!session) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const id = Number(params.id);
+    const index = loadedDatabase.portfolios.findIndex((p) => p.id === id);
+    if (index === -1) {
+      return HttpResponse.json({ code: "PORTFOLIO_NOT_FOUND" }, { status: 404 });
+    }
+
+    loadedDatabase.portfolios.splice(index, 1);
+    setLocalStorage("mockDatabase", loadedDatabase);
+
+    return HttpResponse.json({ success: true }, { status: 200 });
+  }),
+
+  // 건강보험 시뮬레이션 생성
+  http.post("/api/simulations/health-insurance", async ({ request }) => {
+    await delay(500);
+
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    if (!session) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const body = (await request.json()) as Record<string, unknown>;
+
+    const newSimulation = {
+      id: Math.max(0, ...loadedDatabase.simulations.map((s) => s.id)) + 1,
+      userId: session.userId,
+      type: "HEALTH_INSURANCE" as const,
+      inputData: (body.inputData as Record<string, unknown>) ?? {},
+      outputData: { monthlyPremium: 450000, yearlyPremium: 5400000 },
+      createdAt: new Date().toISOString(),
+    } as typeof loadedDatabase.simulations[0];
+    loadedDatabase.simulations.push(newSimulation);
+    setLocalStorage("mockDatabase", loadedDatabase);
+
+    return HttpResponse.json(
+      { success: true, data: newSimulation },
+      { status: 201 }
+    );
+  }),
+
+  // 최신 건강보험 시뮬레이션 조회
+  http.get("/api/simulations/health-insurance/latest", async ({ request }) => {
+    await delay(300);
+
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    if (!session) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const simulation = [...loadedDatabase.simulations]
+      .filter((s) => s.userId === session.userId && s.type === "HEALTH_INSURANCE")
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+
+    if (!simulation) {
+      return HttpResponse.json(
+        { code: "HEALTH_INSURANCE_SIMULATION_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    return HttpResponse.json({ success: true, data: simulation }, { status: 200 });
+  }),
+
+  // ISA 시뮬레이션 생성
+  http.post("/api/simulations/isa", async ({ request }) => {
+    await delay(500);
+
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    if (!session) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const body = (await request.json()) as Record<string, unknown>;
+
+    const newSimulation = {
+      id: Math.max(0, ...loadedDatabase.simulations.map((s) => s.id)) + 1,
+      userId: session.userId,
+      type: "ISA" as const,
+      inputData: (body.inputData as Record<string, unknown>) ?? {},
+      outputData: { taxBenefit: 50000, taxBenefitRate: 0.075 },
+      createdAt: new Date().toISOString(),
+    } as typeof loadedDatabase.simulations[0];
+    loadedDatabase.simulations.push(newSimulation);
+    setLocalStorage("mockDatabase", loadedDatabase);
+
+    return HttpResponse.json(
+      { success: true, data: newSimulation },
+      { status: 201 }
+    );
+  }),
+
+  // 최신 ISA 시뮬레이션 조회
+  http.get("/api/simulations/isa/latest", async ({ request }) => {
+    await delay(300);
+
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    if (!session) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const simulation = [...loadedDatabase.simulations]
+      .filter((s) => s.userId === session.userId && s.type === "ISA")
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+
+    if (!simulation) {
+      return HttpResponse.json(
+        { code: "ISA_SIMULATION_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    return HttpResponse.json({ success: true, data: simulation }, { status: 200 });
+  }),
+];
+
+export default handlers;
