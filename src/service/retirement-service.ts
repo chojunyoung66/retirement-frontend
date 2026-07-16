@@ -205,9 +205,9 @@ export function generateRecommendations(
     });
   }
 
-  // 보험료 절감 (보험료가 있을 때만, 15% 절감 목표)
+  // 보험료 절감 (보험료가 있을 때만, 15% 절감 목표, 입력 합산 초과 불가)
   if (totalInsurance > 0) {
-    const delta = snap(Math.min(totalInsurance * 0.15, 200000));
+    const delta = Math.min(snap(Math.min(totalInsurance * 0.15, 200000)), totalInsurance);
     items.push({
       label: `보험료 월 ${wan(delta)}만원 절감`,
       delta,
