@@ -180,6 +180,35 @@ const handlers = [
     );
   }),
 
+  // 정년 목표 삭제 (실제 백엔드 URL로 인터셉트)
+  http.delete("https://retirement-backend-1.onrender.com/api/retirement-goals/me", async ({ request }) => {
+    await delay(300);
+
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    if (!session) {
+      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+    }
+
+    const index = loadedDatabase.retirementGoals.findIndex((g) => g.userId === session.userId);
+    if (index === -1) {
+      return HttpResponse.json(
+        { code: "RETIREMENT_GOAL_NOT_FOUND" },
+        { status: 404 }
+      );
+    }
+
+    loadedDatabase.retirementGoals.splice(index, 1);
+    setLocalStorage("mockDatabase", loadedDatabase);
+
+    return HttpResponse.json({ success: true }, { status: 200 });
+  }),
+
   // 정년 목표 업데이트
   http.patch("/api/retirement-goals", async ({ request }) => {
     await delay(300);

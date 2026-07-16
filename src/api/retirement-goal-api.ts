@@ -82,3 +82,15 @@ export const updateRetirementGoal = async (
     throw err;
   }
 };
+
+// 정년 목표 삭제
+export const deleteRetirementGoal = async (): Promise<void> => {
+  try {
+    await client.delete('/retirement-goals/me');
+  } catch (err: unknown) {
+    if (isAxiosError(err)) {
+      throw new ApiError(err.response?.data?.error?.code || 'UNKNOWN_ERROR');
+    }
+    throw err;
+  }
+};

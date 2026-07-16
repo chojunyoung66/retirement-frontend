@@ -3,6 +3,7 @@ import {
   getRetirementGoal,
   createRetirementGoal,
   updateRetirementGoal,
+  deleteRetirementGoal,
   type RetirementGoal,
   type CreateRetirementGoalRequest,
   type UpdateRetirementGoalRequest,
@@ -114,6 +115,24 @@ export function useRetirementGoal() {
     []
   );
 
+  // 정년 목표 삭제
+  const deleteGoal = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await deleteRetirementGoal();
+      setGoal(null);
+    } catch (err) {
+      const message = err instanceof ApiError
+        ? `삭제 실패: ${err.errorCode}`
+        : '정년 목표 삭제 중 오류가 발생했습니다';
+      setError(message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   return {
     goal,
     isLoading,
@@ -122,5 +141,6 @@ export function useRetirementGoal() {
     createGoal,
     updateGoal,
     saveGoal,
+    deleteGoal,
   };
 }

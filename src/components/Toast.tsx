@@ -4,14 +4,14 @@ import type { RootState, AppDispatch } from '../store/store';
 import { hideToast } from '../store/toast-slice';
 
 export default function Toast() {
-  const message = useSelector((s: RootState) => s.toast.message);
+  const { message, persistent } = useSelector((s: RootState) => s.toast);
   const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
-    if (!message) return;
+    if (!message || persistent) return;
     const id = window.setTimeout(() => dispatch(hideToast()), 3000);
     return () => window.clearTimeout(id);
-  }, [message, dispatch]);
+  }, [message, persistent, dispatch]);
 
   if (!message) return null;
 

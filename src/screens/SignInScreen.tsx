@@ -6,7 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { ApiError } from '../api/client';
 import Input from '../components/Input';
 import Button from '../components/Button';
-import { showToast } from '../store/toast-slice';
+import { showToast, showPersistentToast } from '../store/toast-slice';
 import type { AppDispatch } from '../store/store';
 
 function getAuthErrorMessage(code: string): string {
@@ -48,6 +48,7 @@ export default function SignInScreen() {
       return;
     }
 
+    dispatch(showPersistentToast('로그인 중...'));
     try {
       await login(result.data);
       dispatch(showToast('로그인되었어요'));
