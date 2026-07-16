@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { useDiagnosis } from '../hooks/useDiagnosis';
@@ -106,6 +106,13 @@ interface SavedGoalCardProps {
 }
 
 function SavedGoalCard({ goal, isLoading, onDelete }: SavedGoalCardProps) {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setReady(true), 400);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <div className="card" style={{ marginTop: 16 }}>
       <div className="card-title">서버 저장 목표</div>
@@ -130,7 +137,7 @@ function SavedGoalCard({ goal, isLoading, onDelete }: SavedGoalCardProps) {
         <span className="item-row-value">{formatWan(goal.retirementAsset)}</span>
       </div>
       <div className="mt-16">
-        <Button variant="secondary" onClick={onDelete} disabled={isLoading}>
+        <Button variant="secondary" onClick={onDelete} disabled={isLoading || !ready}>
           {isLoading ? '삭제 중...' : '삭제하기'}
         </Button>
       </div>
