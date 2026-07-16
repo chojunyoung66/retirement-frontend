@@ -109,7 +109,7 @@ function SavedGoalCard({ goal, isLoading, onDelete }: SavedGoalCardProps) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setReady(true), 400);
+    const timer = setTimeout(() => setReady(true), 1000);
     return () => clearTimeout(timer);
   }, []);
 
