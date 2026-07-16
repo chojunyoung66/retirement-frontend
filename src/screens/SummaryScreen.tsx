@@ -14,29 +14,37 @@ export default function SummaryScreen() {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   const { state } = useDiagnosis();
-  const { fetchGoal, deleteGoal, isLoading } = useRetirementGoal();
+  const { fetchGoal, deleteGoal } = useRetirementGoal();
   const projection = state.projection;
 
   const [serverGoal, setServerGoal] = useState<RetirementGoal | null>(null);
+  const [fetchLoading, setFetchLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const handleLoad = async () => {
+    setFetchLoading(true);
     try {
       const goal = await fetchGoal();
       setServerGoal(goal);
       dispatch(showToast('저장된 목표를 불러왔어요'));
     } catch {
       dispatch(showToast('불러오기 실패: 저장된 데이터가 없어요'));
+    } finally {
+      setFetchLoading(false);
     }
   };
 
   const handleDelete = async () => {
     if (!window.confirm('저장된 목표를 삭제할까요?')) return;
+    setDeleteLoading(true);
     try {
       await deleteGoal();
       setServerGoal(null);
       dispatch(showToast('저장된 목표를 삭제했어요'));
     } catch {
       dispatch(showToast('삭제에 실패했어요'));
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -50,8 +58,8 @@ export default function SummaryScreen() {
         <div className="card">
           <div className="card-title">저장된 결과가 없어요</div>
           <div className="mt-16">
-            <Button onClick={handleLoad} disabled={isLoading}>
-              {isLoading ? '불러오는 중...' : '불러오기'}
+            <Button onClick={handleLoad} disabled={fetchLoading}>
+              {fetchLoading ? '불러오는 중...' : '불러오기'}
             </Button>
           </div>
           <div className="mt-8">
@@ -59,7 +67,7 @@ export default function SummaryScreen() {
           </div>
         </div>
 
-        {serverGoal && <SavedGoalCard goal={serverGoal} isLoading={isLoading} onDelete={handleDelete} />}
+        {serverGoal && <SavedGoalCard goal={serverGoal} isLoading={deleteLoading} onDelete={handleDelete} />}
       </div>
     );
   }
@@ -89,12 +97,12 @@ export default function SummaryScreen() {
         <Button onClick={handlePdf}>PDF로 저장하기</Button>
       </div>
       <div className="mt-8">
-        <Button variant="secondary" onClick={handleLoad} disabled={isLoading}>
-          {isLoading ? '불러오는 중...' : '불러오기'}
+        <Button variant="secondary" onClick={handleLoad} disabled={fetchLoading}>
+          {fetchLoading ? '불러오는 중...' : '불러오기'}
         </Button>
       </div>
 
-      {serverGoal && <SavedGoalCard goal={serverGoal} isLoading={isLoading} onDelete={handleDelete} />}
+      {serverGoal && <SavedGoalCard goal={serverGoal} isLoading={deleteLoading} onDelete={handleDelete} />}
     </div>
   );
 }
