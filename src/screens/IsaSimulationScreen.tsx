@@ -75,7 +75,7 @@ export default function IsaSimulationScreen() {
         onChange={(v) => setAnnualContribution(v.replace(/[^0-9]/g, ''))}
         placeholder="예: 2000"
         suffix="만원"
-        max={1000}
+        max={10000}
         error={formError}
       />
       <Input

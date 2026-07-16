@@ -94,7 +94,7 @@ export default function IrpSimulationScreen() {
         onChange={(v) => setAnnualContribution(v.replace(/[^0-9]/g, ""))}
         placeholder="예: 700"
         suffix="만원"
-        max={1000}
+        max={1800}
       />
       <Input
         label="기대 수익률"
@@ -119,7 +119,7 @@ export default function IrpSimulationScreen() {
         onChange={(v) => setAnnualIncome(v.replace(/[^0-9]/g, ""))}
         placeholder="예: 5000"
         suffix="만원"
-        max={1000}
+        max={500000}
         error={formError}
       />
 
