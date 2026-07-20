@@ -37,8 +37,14 @@ export function getLivingExpenseGuide(
 }
 
 export function calculateProjection(state: DiagnosisState): ProjectionResult {
+  const retirementAge = 60;
+  const pensionStartAge = getPensionStartAge(state.birthYear ?? null);
+  // 퇴직 시점(60세)에 국민연금 개시 연령에 도달했을 때만 수입에 포함
+  const nationalPensionAmount =
+    pensionStartAge <= retirementAge ? state.pension.national : 0;
+
   const totalIncome =
-    state.pension.national + state.pension.retirement + state.pension.personal;
+    nationalPensionAmount + state.pension.retirement + state.pension.personal;
   const totalExpense =
     state.livingExpense.desiredMonthly +
     state.medicalExpense.healthInsurance +
@@ -46,7 +52,7 @@ export function calculateProjection(state: DiagnosisState): ProjectionResult {
   const gap = totalIncome - totalExpense;
 
   const incomeItems = [
-    { label: '국민연금', amount: state.pension.national },
+    { label: '국민연금', amount: nationalPensionAmount },
     { label: '퇴직연금', amount: state.pension.retirement },
     { label: '개인연금', amount: state.pension.personal },
   ].filter((i) => i.amount > 0);
