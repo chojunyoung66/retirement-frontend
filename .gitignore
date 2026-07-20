@@ -29,7 +29,7 @@ Thumbs.db
 # TypeScript
 *.tsbuildinfo
 
-# OMC state
-.omc/state/
+# OMC (로컬 경로·세션 메타데이터·비용 정보 포함 — 저장소에 포함 금지)
+.omc/
 .vercel
 .env*
