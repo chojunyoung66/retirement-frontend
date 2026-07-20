@@ -64,13 +64,9 @@ export function calculateProjection(state: DiagnosisState): ProjectionResult {
     { label: '민영보험료', amount: state.medicalExpense.privateInsurance },
   ].filter((i) => i.amount > 0);
 
-  const causeAnalysis =
-    gap < 0
-      ? [
-          { cause: '연금 수입 부족', weight: 60 },
-          { cause: '생활비 설정', weight: 40 },
-        ]
-      : [];
+  // 생활비 초과분(권장 생활비 대비)이 부족액에서 차지하는 비율을 실제 데이터로 산정
+  // (권장 생활비 이내면 부족 원인을 전부 연금 수입 부족으로 귀속)
+  const causeAnalysis = gap < 0 ? buildCauseAnalysis(state, -gap) : [];
 
   return {
     totalIncome,
@@ -81,6 +77,26 @@ export function calculateProjection(state: DiagnosisState): ProjectionResult {
     causeAnalysis,
     simulations: [],
   };
+}
+
+// 부족액(shortfall) 중 "생활비 설정"(권장 생활비 초과분)이 설명하는 비율을 계산하고,
+// 나머지를 "연금 수입 부족"으로 귀속한다. 두 가중치의 합은 항상 100.
+function buildCauseAnalysis(
+  state: DiagnosisState,
+  shortfall: number,
+): import('../domain/plan').CauseItem[] {
+  const excessLivingExpense = Math.max(
+    0,
+    state.livingExpense.desiredMonthly - state.livingExpense.guideRecommended,
+  );
+  const livingExpenseWeight =
+    shortfall > 0 ? Math.min(100, Math.round((excessLivingExpense / shortfall) * 100)) : 0;
+  const pensionWeight = 100 - livingExpenseWeight;
+
+  return [
+    { cause: '연금 수입 부족', weight: pensionWeight },
+    { cause: '생활비 설정', weight: livingExpenseWeight },
+  ];
 }
 
 export interface YearlyProjection {
