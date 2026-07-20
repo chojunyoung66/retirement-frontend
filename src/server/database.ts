@@ -38,7 +38,7 @@ export type Portfolio = {
 export type Simulation = {
   id: number;
   userId: number;
-  type: "HEALTH_INSURANCE" | "ISA";
+  type: "HEALTH_INSURANCE" | "ISA" | "NATIONAL_PENSION" | "IRP" | "SEVERANCE_PAY" | "UNEMPLOYMENT_BENEFIT";
   inputData: Record<string, unknown>;
   outputData: Record<string, unknown>;
   createdAt: string;
@@ -90,8 +90,17 @@ const database: Database = {
       id: 1,
       userId: 1,
       type: "HEALTH_INSURANCE",
-      inputData: { income: 50000000 },
-      outputData: { monthlyPremium: 450000, yearlyPremium: 5400000 },
+      inputData: { pensionIncome: 14400000 },
+      outputData: {
+        recognizedAnnualIncome: 8400000,
+        recognizedMonthlyIncome: 700000,
+        incomePremium: 26040,
+        propertyPremium: 0,
+        carPremium: 0,
+        canBeDependent: true,
+        estimatedMonthlyPremium: 28890,
+        notice: "월 소득 인정액이 336만원 이하이므로 피부양자 조건을 충족합니다.",
+      },
       createdAt: new Date().toISOString(),
     },
   ],

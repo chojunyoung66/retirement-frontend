@@ -367,15 +367,9 @@ const handlers = [
   http.post("/api/simulations/health-insurance", async ({ request }) => {
     await delay(500);
 
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
     if (!session) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
 
     const body = (await request.json()) as Record<string, unknown>;
@@ -384,32 +378,32 @@ const handlers = [
       id: Math.max(0, ...loadedDatabase.simulations.map((s) => s.id)) + 1,
       userId: session.userId,
       type: "HEALTH_INSURANCE" as const,
-      inputData: (body.inputData as Record<string, unknown>) ?? {},
-      outputData: { monthlyPremium: 450000, yearlyPremium: 5400000 },
+      inputData: body,
+      outputData: {
+        recognizedAnnualIncome: 8400000,
+        recognizedMonthlyIncome: 700000,
+        incomePremium: 26040,
+        propertyPremium: 0,
+        carPremium: 0,
+        canBeDependent: true,
+        estimatedMonthlyPremium: 28890,
+        notice: "월 소득 인정액이 336만원 이하이므로 피부양자 조건을 충족합니다.",
+      },
       createdAt: new Date().toISOString(),
     } as typeof loadedDatabase.simulations[0];
     loadedDatabase.simulations.push(newSimulation);
     setLocalStorage("mockDatabase", loadedDatabase);
 
-    return HttpResponse.json(
-      { success: true, data: newSimulation },
-      { status: 201 }
-    );
+    return HttpResponse.json({ success: true, data: newSimulation }, { status: 201 });
   }),
 
   // 최신 건강보험 시뮬레이션 조회
   http.get("/api/simulations/health-insurance/latest", async ({ request }) => {
     await delay(300);
 
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
     if (!session) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
 
     const simulation = [...loadedDatabase.simulations]
@@ -418,7 +412,7 @@ const handlers = [
 
     if (!simulation) {
       return HttpResponse.json(
-        { code: "HEALTH_INSURANCE_SIMULATION_NOT_FOUND" },
+        { error: { code: "HEALTH_INSURANCE_SIMULATION_NOT_FOUND", message: "저장된 결과가 없습니다" } },
         { status: 404 }
       );
     }
@@ -430,15 +424,9 @@ const handlers = [
   http.post("/api/simulations/isa", async ({ request }) => {
     await delay(500);
 
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
     if (!session) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
 
     const body = (await request.json()) as Record<string, unknown>;
@@ -447,32 +435,27 @@ const handlers = [
       id: Math.max(0, ...loadedDatabase.simulations.map((s) => s.id)) + 1,
       userId: session.userId,
       type: "ISA" as const,
-      inputData: (body.inputData as Record<string, unknown>) ?? {},
-      outputData: { taxBenefit: 50000, taxBenefitRate: 0.075 },
+      inputData: body,
+      outputData: {
+        expectedProfit: 15000000,
+        estimatedTaxSaving: 1125000,
+        notice: "ISA 계좌 만기 해지 시 비과세 한도 초과분에 9.9% 분리과세가 적용됩니다.",
+      },
       createdAt: new Date().toISOString(),
     } as typeof loadedDatabase.simulations[0];
     loadedDatabase.simulations.push(newSimulation);
     setLocalStorage("mockDatabase", loadedDatabase);
 
-    return HttpResponse.json(
-      { success: true, data: newSimulation },
-      { status: 201 }
-    );
+    return HttpResponse.json({ success: true, data: newSimulation }, { status: 201 });
   }),
 
   // 최신 ISA 시뮬레이션 조회
   http.get("/api/simulations/isa/latest", async ({ request }) => {
     await delay(300);
 
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
     if (!session) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
 
     const simulation = [...loadedDatabase.simulations]
@@ -481,7 +464,219 @@ const handlers = [
 
     if (!simulation) {
       return HttpResponse.json(
-        { code: "ISA_SIMULATION_NOT_FOUND" },
+        { error: { code: "ISA_SIMULATION_NOT_FOUND", message: "저장된 결과가 없습니다" } },
+        { status: 404 }
+      );
+    }
+
+    return HttpResponse.json({ success: true, data: simulation }, { status: 200 });
+  }),
+
+  // 국민연금 시뮬레이션 생성
+  http.post("/api/simulations/national-pension", async ({ request }) => {
+    await delay(500);
+
+    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    if (!session) {
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
+    }
+
+    const body = (await request.json()) as Record<string, unknown>;
+
+    const newSimulation = {
+      id: Math.max(0, ...loadedDatabase.simulations.map((s) => s.id)) + 1,
+      userId: session.userId,
+      type: "NATIONAL_PENSION" as const,
+      inputData: body,
+      outputData: {
+        estimatedMonthlyPension: 980000,
+        pensionStartAge: 65,
+        notice: "1969년 이후 출생자의 국민연금 수급 개시 연령은 만 65세입니다.",
+      },
+      createdAt: new Date().toISOString(),
+    } as typeof loadedDatabase.simulations[0];
+    loadedDatabase.simulations.push(newSimulation);
+    setLocalStorage("mockDatabase", loadedDatabase);
+
+    return HttpResponse.json({ success: true, data: newSimulation }, { status: 201 });
+  }),
+
+  // 최신 국민연금 시뮬레이션 조회
+  http.get("/api/simulations/national-pension/latest", async ({ request }) => {
+    await delay(300);
+
+    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    if (!session) {
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
+    }
+
+    const simulation = [...loadedDatabase.simulations]
+      .filter((s) => s.userId === session.userId && s.type === "NATIONAL_PENSION")
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+
+    if (!simulation) {
+      return HttpResponse.json(
+        { error: { code: "NATIONAL_PENSION_SIMULATION_NOT_FOUND", message: "저장된 결과가 없습니다" } },
+        { status: 404 }
+      );
+    }
+
+    return HttpResponse.json({ success: true, data: simulation }, { status: 200 });
+  }),
+
+  // IRP 시뮬레이션 생성
+  http.post("/api/simulations/irp", async ({ request }) => {
+    await delay(500);
+
+    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    if (!session) {
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
+    }
+
+    const body = (await request.json()) as Record<string, unknown>;
+
+    const newSimulation = {
+      id: Math.max(0, ...loadedDatabase.simulations.map((s) => s.id)) + 1,
+      userId: session.userId,
+      type: "IRP" as const,
+      inputData: body,
+      outputData: {
+        expectedBalance: 280000000,
+        annualTaxCredit: 924000,
+        totalTaxCredit: 18480000,
+        notice: "연 소득 5,500만원 이하 기준 세액공제율 16.5%가 적용됩니다.",
+      },
+      createdAt: new Date().toISOString(),
+    } as typeof loadedDatabase.simulations[0];
+    loadedDatabase.simulations.push(newSimulation);
+    setLocalStorage("mockDatabase", loadedDatabase);
+
+    return HttpResponse.json({ success: true, data: newSimulation }, { status: 201 });
+  }),
+
+  // 최신 IRP 시뮬레이션 조회
+  http.get("/api/simulations/irp/latest", async ({ request }) => {
+    await delay(300);
+
+    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    if (!session) {
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
+    }
+
+    const simulation = [...loadedDatabase.simulations]
+      .filter((s) => s.userId === session.userId && s.type === "IRP")
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+
+    if (!simulation) {
+      return HttpResponse.json(
+        { error: { code: "IRP_SIMULATION_NOT_FOUND", message: "저장된 결과가 없습니다" } },
+        { status: 404 }
+      );
+    }
+
+    return HttpResponse.json({ success: true, data: simulation }, { status: 200 });
+  }),
+
+  // 퇴직금 시뮬레이션 생성
+  http.post("/api/simulations/severance-pay", async ({ request }) => {
+    await delay(500);
+
+    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    if (!session) {
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
+    }
+
+    const body = (await request.json()) as Record<string, unknown>;
+
+    const newSimulation = {
+      id: Math.max(0, ...loadedDatabase.simulations.map((s) => s.id)) + 1,
+      userId: session.userId,
+      type: "SEVERANCE_PAY" as const,
+      inputData: body,
+      outputData: {
+        severancePay: 72000000,
+        incomeTax: 3600000,
+        afterTaxAmount: 68400000,
+        notice: "근속연수 공제와 환산급여 공제 후 산출된 퇴직소득세 기준입니다.",
+      },
+      createdAt: new Date().toISOString(),
+    } as typeof loadedDatabase.simulations[0];
+    loadedDatabase.simulations.push(newSimulation);
+    setLocalStorage("mockDatabase", loadedDatabase);
+
+    return HttpResponse.json({ success: true, data: newSimulation }, { status: 201 });
+  }),
+
+  // 최신 퇴직금 시뮬레이션 조회
+  http.get("/api/simulations/severance-pay/latest", async ({ request }) => {
+    await delay(300);
+
+    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    if (!session) {
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
+    }
+
+    const simulation = [...loadedDatabase.simulations]
+      .filter((s) => s.userId === session.userId && s.type === "SEVERANCE_PAY")
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+
+    if (!simulation) {
+      return HttpResponse.json(
+        { error: { code: "SEVERANCE_PAY_SIMULATION_NOT_FOUND", message: "저장된 결과가 없습니다" } },
+        { status: 404 }
+      );
+    }
+
+    return HttpResponse.json({ success: true, data: simulation }, { status: 200 });
+  }),
+
+  // 실업급여 시뮬레이션 생성
+  http.post("/api/simulations/unemployment-benefit", async ({ request }) => {
+    await delay(500);
+
+    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    if (!session) {
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
+    }
+
+    const body = (await request.json()) as Record<string, unknown>;
+
+    const newSimulation = {
+      id: Math.max(0, ...loadedDatabase.simulations.map((s) => s.id)) + 1,
+      userId: session.userId,
+      type: "UNEMPLOYMENT_BENEFIT" as const,
+      inputData: body,
+      outputData: {
+        benefitDays: 270,
+        dailyBenefit: 66000,
+        monthlyBenefit: 1980000,
+        totalBenefit: 17820000,
+        notice: "50세 이상 고용보험 10년 이상 가입자 기준 소정급여일수 270일이 적용됩니다.",
+      },
+      createdAt: new Date().toISOString(),
+    } as typeof loadedDatabase.simulations[0];
+    loadedDatabase.simulations.push(newSimulation);
+    setLocalStorage("mockDatabase", loadedDatabase);
+
+    return HttpResponse.json({ success: true, data: newSimulation }, { status: 201 });
+  }),
+
+  // 최신 실업급여 시뮬레이션 조회
+  http.get("/api/simulations/unemployment-benefit/latest", async ({ request }) => {
+    await delay(300);
+
+    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    if (!session) {
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
+    }
+
+    const simulation = [...loadedDatabase.simulations]
+      .filter((s) => s.userId === session.userId && s.type === "UNEMPLOYMENT_BENEFIT")
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+
+    if (!simulation) {
+      return HttpResponse.json(
+        { error: { code: "UNEMPLOYMENT_BENEFIT_SIMULATION_NOT_FOUND", message: "저장된 결과가 없습니다" } },
         { status: 404 }
       );
     }
