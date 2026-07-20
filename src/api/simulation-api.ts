@@ -78,7 +78,12 @@ export const createHealthInsuranceSimulation = async (
   inputData: HealthInsuranceInput,
 ): Promise<Simulation> => {
   try {
-    const res = await client.post("/simulations/health-insurance", inputData);
+    const parsedReq = healthInsuranceInputSchema.safeParse(inputData);
+    if (!parsedReq.success) {
+      throw new ApiError("VALIDATION_ERROR");
+    }
+
+    const res = await client.post("/simulations/health-insurance", parsedReq.data);
     const parsed = simulationSchema.safeParse(res.data.data);
     if (!parsed.success) {
       throw new Error("유효하지 않은 응답 형식입니다");
@@ -115,7 +120,12 @@ export const createIsaSimulation = async (
   inputData: IsaInput,
 ): Promise<Simulation> => {
   try {
-    const res = await client.post("/simulations/isa", inputData);
+    const parsedReq = isaInputSchema.safeParse(inputData);
+    if (!parsedReq.success) {
+      throw new ApiError("VALIDATION_ERROR");
+    }
+
+    const res = await client.post("/simulations/isa", parsedReq.data);
     const parsed = simulationSchema.safeParse(res.data.data);
     if (!parsed.success) {
       throw new Error("유효하지 않은 응답 형식입니다");
@@ -151,7 +161,12 @@ export const createNationalPensionSimulation = async (
   inputData: NationalPensionInput,
 ): Promise<Simulation> => {
   try {
-    const res = await client.post("/simulations/national-pension", inputData);
+    const parsedReq = nationalPensionInputSchema.safeParse(inputData);
+    if (!parsedReq.success) {
+      throw new ApiError("VALIDATION_ERROR");
+    }
+
+    const res = await client.post("/simulations/national-pension", parsedReq.data);
     const parsed = simulationSchema.safeParse(res.data.data);
     if (!parsed.success) {
       throw new Error("유효하지 않은 응답 형식입니다");
@@ -188,7 +203,12 @@ export const createIrpSimulation = async (
   inputData: IrpInput,
 ): Promise<Simulation> => {
   try {
-    const res = await client.post("/simulations/irp", inputData);
+    const parsedReq = irpInputSchema.safeParse(inputData);
+    if (!parsedReq.success) {
+      throw new ApiError("VALIDATION_ERROR");
+    }
+
+    const res = await client.post("/simulations/irp", parsedReq.data);
     const parsed = simulationSchema.safeParse(res.data.data);
     if (!parsed.success) {
       throw new Error("유효하지 않은 응답 형식입니다");
@@ -224,7 +244,12 @@ export const createSeverancePaySimulation = async (
   inputData: SeverancePayInput,
 ): Promise<Simulation> => {
   try {
-    const res = await client.post("/simulations/severance-pay", inputData);
+    const parsedReq = severancePayInputSchema.safeParse(inputData);
+    if (!parsedReq.success) {
+      throw new ApiError("VALIDATION_ERROR");
+    }
+
+    const res = await client.post("/simulations/severance-pay", parsedReq.data);
     const parsed = simulationSchema.safeParse(res.data.data);
     if (!parsed.success) {
       throw new Error("유효하지 않은 응답 형식입니다");
@@ -261,7 +286,10 @@ export const createUnemploymentBenefitSimulation = async (
   inputData: UnemploymentBenefitInput,
 ): Promise<Simulation> => {
   try {
-    const res = await client.post("/simulations/unemployment-benefit", inputData);
+    const parsedReq = unemploymentBenefitInputSchema.safeParse(inputData);
+    if (!parsedReq.success) throw new ApiError("VALIDATION_ERROR");
+
+    const res = await client.post("/simulations/unemployment-benefit", parsedReq.data);
     const parsed = simulationSchema.safeParse(res.data.data);
     if (!parsed.success) throw new Error("유효하지 않은 응답 형식입니다");
     return parsed.data;

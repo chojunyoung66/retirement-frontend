@@ -33,7 +33,12 @@ export const createRetirementGoal = async (
   data: CreateRetirementGoalRequest
 ): Promise<RetirementGoal> => {
   try {
-    const res = await client.post('/retirement-goals', data);
+    const parsedReq = createRetirementGoalReqSchema.safeParse(data);
+    if (!parsedReq.success) {
+      throw new ApiError('VALIDATION_ERROR');
+    }
+
+    const res = await client.post('/retirement-goals', parsedReq.data);
     const parsed = retirementGoalSchema.safeParse(res.data.data);
     if (!parsed.success) {
       throw new Error('유효하지 않은 응답 형식입니다');
@@ -69,7 +74,12 @@ export const updateRetirementGoal = async (
   data: UpdateRetirementGoalRequest
 ): Promise<RetirementGoal> => {
   try {
-    const res = await client.patch('/retirement-goals/me', data);
+    const parsedReq = updateRetirementGoalReqSchema.safeParse(data);
+    if (!parsedReq.success) {
+      throw new ApiError('VALIDATION_ERROR');
+    }
+
+    const res = await client.patch('/retirement-goals/me', parsedReq.data);
     const parsed = retirementGoalSchema.safeParse(res.data.data);
     if (!parsed.success) {
       throw new Error('유효하지 않은 응답 형식입니다');

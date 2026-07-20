@@ -15,9 +15,10 @@ function getAuthErrorMessage(code: string): string {
   return '로그인 중 오류가 발생했습니다';
 }
 
+// 회원가입/API 요청 스키마(8자 이상)와 동일하게 통일
 const signInSchema = z.object({
   email: z.string().email({ message: '올바른 이메일 형식이 아니에요' }),
-  password: z.string().min(6, { message: '비밀번호는 6자 이상이어야 해요' }),
+  password: z.string().min(8, { message: '비밀번호는 8자 이상이어야 해요' }),
 });
 
 interface LocationState {
@@ -81,7 +82,7 @@ export default function SignInScreen() {
         type="password"
         value={password}
         onChange={setPassword}
-        placeholder="6자 이상"
+        placeholder="8자 이상"
         error={errors.password}
       />
 

@@ -2,6 +2,7 @@ import { http, delay, HttpResponse } from "msw";
 import { getLocalStorage, setLocalStorage } from "../utils/local-storage";
 import database, { type Database } from "./database";
 import { resolveSession, isOwner } from "./auth-utils";
+import { isPortfolioItemArray, isValidAllocationSum } from "./portfolio-validation";
 
 const loadedDatabase: Database = getLocalStorage<Database>("mockDatabase") ?? database;
 
@@ -276,6 +277,13 @@ const handlers = [
 
     const body = (await request.json()) as Record<string, unknown>;
 
+    if (!isPortfolioItemArray(body.items) || !isValidAllocationSum(body.items)) {
+      return HttpResponse.json(
+        { error: { code: "INVALID_ALLOCATION_SUM", message: "포트폴리오 비중 합계는 100%여야 합니다" } },
+        { status: 400 }
+      );
+    }
+
     const newPortfolio = {
       id: Math.max(0, ...loadedDatabase.portfolios.map((p) => p.id)) + 1,
       userId: session.userId,
@@ -332,6 +340,17 @@ const handlers = [
     }
 
     const body = (await request.json()) as Record<string, unknown>;
+
+    if (
+      body.items !== undefined &&
+      (!isPortfolioItemArray(body.items) || !isValidAllocationSum(body.items))
+    ) {
+      return HttpResponse.json(
+        { error: { code: "INVALID_ALLOCATION_SUM", message: "포트폴리오 비중 합계는 100%여야 합니다" } },
+        { status: 400 }
+      );
+    }
+
     Object.assign(portfolio, body);
     setLocalStorage("mockDatabase", loadedDatabase);
 
