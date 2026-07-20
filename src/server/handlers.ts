@@ -125,24 +125,24 @@ const handlers = [
   }),
 
   // 정년 목표 조회
-  http.get("/api/retirement-goals", async ({ request }) => {
+  http.get("/api/retirement-goals/me", async ({ request }) => {
     await delay(300);
 
     const authHeader = request.headers.get("Authorization");
     if (!authHeader) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "토큰이 없습니다" } }, { status: 401 });
     }
 
     const token = authHeader.replace("Bearer ", "");
     const session = loadedDatabase.sessions.find((s) => s.token === token);
     if (!session) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
 
     const goal = loadedDatabase.retirementGoals.find((g) => g.userId === session.userId);
     if (!goal) {
       return HttpResponse.json(
-        { code: "RETIREMENT_GOAL_NOT_FOUND" },
+        { error: { code: "RETIREMENT_GOAL_NOT_FOUND", message: "정년 목표를 찾을 수 없습니다" } },
         { status: 404 }
       );
     }
@@ -156,13 +156,13 @@ const handlers = [
 
     const authHeader = request.headers.get("Authorization");
     if (!authHeader) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "토큰이 없습니다" } }, { status: 401 });
     }
 
     const token = authHeader.replace("Bearer ", "");
     const session = loadedDatabase.sessions.find((s) => s.token === token);
     if (!session) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
 
     const body = (await request.json()) as Record<string, unknown>;
@@ -181,25 +181,25 @@ const handlers = [
     );
   }),
 
-  // 정년 목표 삭제 (실제 백엔드 URL로 인터셉트)
-  http.delete("https://retirement-backend-1.onrender.com/api/retirement-goals/me", async ({ request }) => {
+  // 정년 목표 삭제
+  http.delete("/api/retirement-goals/me", async ({ request }) => {
     await delay(300);
 
     const authHeader = request.headers.get("Authorization");
     if (!authHeader) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "토큰이 없습니다" } }, { status: 401 });
     }
 
     const token = authHeader.replace("Bearer ", "");
     const session = loadedDatabase.sessions.find((s) => s.token === token);
     if (!session) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
 
     const index = loadedDatabase.retirementGoals.findIndex((g) => g.userId === session.userId);
     if (index === -1) {
       return HttpResponse.json(
-        { code: "RETIREMENT_GOAL_NOT_FOUND" },
+        { error: { code: "RETIREMENT_GOAL_NOT_FOUND", message: "정년 목표를 찾을 수 없습니다" } },
         { status: 404 }
       );
     }
@@ -211,24 +211,24 @@ const handlers = [
   }),
 
   // 정년 목표 업데이트
-  http.patch("/api/retirement-goals", async ({ request }) => {
+  http.patch("/api/retirement-goals/me", async ({ request }) => {
     await delay(300);
 
     const authHeader = request.headers.get("Authorization");
     if (!authHeader) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "토큰이 없습니다" } }, { status: 401 });
     }
 
     const token = authHeader.replace("Bearer ", "");
     const session = loadedDatabase.sessions.find((s) => s.token === token);
     if (!session) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+      return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
 
     const goal = loadedDatabase.retirementGoals.find((g) => g.userId === session.userId);
     if (!goal) {
       return HttpResponse.json(
-        { code: "RETIREMENT_GOAL_NOT_FOUND" },
+        { error: { code: "RETIREMENT_GOAL_NOT_FOUND", message: "정년 목표를 찾을 수 없습니다" } },
         { status: 404 }
       );
     }
