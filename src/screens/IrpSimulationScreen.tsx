@@ -91,16 +91,16 @@ export default function IrpSimulationScreen() {
         label="연간 납입액"
         type="number"
         value={annualContribution}
-        onChange={(v) => setAnnualContribution(v.replace(/[^0-9]/g, ""))}
+        onChange={setAnnualContribution}
         placeholder="예: 700"
         suffix="만원"
         max={1800}
       />
       <Input
         label="기대 수익률"
-        type="number"
+        type="decimal"
         value={expectedReturnRate}
-        onChange={(v) => setExpectedReturnRate(v.replace(/[^0-9.]/g, ""))}
+        onChange={setExpectedReturnRate}
         placeholder="예: 5"
         suffix="%"
       />
@@ -108,7 +108,7 @@ export default function IrpSimulationScreen() {
         label="투자 기간"
         type="number"
         value={investmentYears}
-        onChange={(v) => setInvestmentYears(v.replace(/[^0-9]/g, ""))}
+        onChange={setInvestmentYears}
         placeholder="예: 20"
         suffix="년"
       />
@@ -116,10 +116,9 @@ export default function IrpSimulationScreen() {
         label="연 소득"
         type="number"
         value={annualIncome}
-        onChange={(v) => setAnnualIncome(v.replace(/[^0-9]/g, ""))}
+        onChange={setAnnualIncome}
         placeholder="예: 5000"
         suffix="만원"
-        max={500000}
         error={formError}
       />
 

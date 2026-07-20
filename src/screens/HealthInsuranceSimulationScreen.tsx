@@ -28,12 +28,10 @@ function WonInput({
           type="number"
           value={value}
           onChange={(e) => {
-            const v = e.target.value.replace(/[^0-9]/g, '');
-            onChange(Number(v) > 1000 ? '1000' : v);
+            onChange(e.target.value.replace(/[^0-9]/g, ''));
           }}
           onKeyDown={(e) => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault(); }}
           placeholder="0"
-          max={1000}
           style={{ flex: 1 }}
         />
         <span style={{ whiteSpace: 'nowrap', color: '#666' }}>만원/년</span>
@@ -63,8 +61,8 @@ export default function HealthInsuranceSimulationScreen() {
       toWon(pensionIncome) + toWon(laborIncome) + toWon(businessIncome) +
       toWon(interestDividendIncome) + toWon(otherIncome);
 
-    if (totalIncome === 0 && toWon(propertyValue) === 0) {
-      setFormError('소득 또는 재산 중 하나 이상 입력하세요');
+    if (totalIncome === 0 && toWon(propertyValue) === 0 && toWon(carValue) === 0) {
+      setFormError('소득, 재산, 차량 중 하나 이상 입력하세요');
       return;
     }
 

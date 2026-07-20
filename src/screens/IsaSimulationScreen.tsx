@@ -11,6 +11,7 @@ function formatWan(won: number): string {
 export default function IsaSimulationScreen() {
   const { isaSimulation, createIsa, fetchLatestIsa, isLoading, error } = useSimulation();
 
+  // 입력 단위: 만원 / API 전송 단위: 원 (handleSubmit에서 ×10000 변환)
   const [annualContribution, setAnnualContribution] = useState('');
   const [expectedReturnRate, setExpectedReturnRate] = useState('');
   const [investmentYears, setInvestmentYears] = useState('');
@@ -72,17 +73,17 @@ export default function IsaSimulationScreen() {
         label="연간 납입액"
         type="number"
         value={annualContribution}
-        onChange={(v) => setAnnualContribution(v.replace(/[^0-9]/g, ''))}
+        onChange={setAnnualContribution}
         placeholder="예: 2000"
         suffix="만원"
-        max={10000}
+        max={2000}
         error={formError}
       />
       <Input
         label="기대 수익률"
-        type="number"
+        type="decimal"
         value={expectedReturnRate}
-        onChange={(v) => setExpectedReturnRate(v.replace(/[^0-9.]/g, ''))}
+        onChange={setExpectedReturnRate}
         placeholder="예: 5"
         suffix="%"
       />
@@ -90,7 +91,7 @@ export default function IsaSimulationScreen() {
         label="투자 기간"
         type="number"
         value={investmentYears}
-        onChange={(v) => setInvestmentYears(v.replace(/[^0-9]/g, ''))}
+        onChange={setInvestmentYears}
         placeholder="예: 10"
         suffix="년"
       />

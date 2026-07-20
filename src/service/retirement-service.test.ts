@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateProjection,
   calculateLongTermProjection,
+  type UnemploymentBenefitOption,
 } from './retirement-service';
 import type { DiagnosisState } from '../domain/plan';
 
@@ -133,5 +134,34 @@ describe('calculateLongTermProjection — 65세 개시 성장 계수', () => {
       (state.pension.retirement + state.pension.personal) * Math.pow(1.02, 6),
     );
     expect(rows[6].monthlyIncome).toBe(expectedNational + expectedOther);
+  });
+});
+
+// ─── 실업급여 반영 규칙 — 60세(year 1)에만, 월평균 환산 ──────────────────────
+
+describe('calculateLongTermProjection — 실업급여', () => {
+  const ub: UnemploymentBenefitOption = { monthlyAmount: 1980000, durationMonths: 9 };
+
+  it('198만원 × 9개월 → 60세 월 수입에 1,485,000원 추가', () => {
+    const state = makeState({ birthYear: 1969 });
+    const rows = calculateLongTermProjection(state, 20, 0, 0, ub);
+    // 월평균 = 1,980,000 * 9 / 12 = 1,485,000
+    expect(rows[0].unemploymentBenefitIncome).toBe(1485000);
+  });
+
+  it('실업급여는 60세(rows[0])에만 반영', () => {
+    const state = makeState({ birthYear: 1969 });
+    const rows = calculateLongTermProjection(state, 20, 0, 0, ub);
+    expect(rows[1].unemploymentBenefitIncome).toBeUndefined();
+    expect(rows[2].unemploymentBenefitIncome).toBeUndefined();
+  });
+
+  it('실업급여 포함 시 monthlyIncome 차이가 ubIncome과 일치', () => {
+    const state = makeState({ birthYear: 1969 });
+    const withUb = calculateLongTermProjection(state, 20, 0, 0, ub);
+    const withoutUb = calculateLongTermProjection(state, 20, 0, 0);
+    expect(withUb[0].monthlyIncome - withoutUb[0].monthlyIncome).toBe(1485000);
+    // 2년차 이후는 동일
+    expect(withUb[1].monthlyIncome).toBe(withoutUb[1].monthlyIncome);
   });
 });

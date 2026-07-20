@@ -22,14 +22,15 @@ export default function CashFlowPlanScreen() {
   const [inflationRate, setInflationRate] = useState(0.02);
   const [pensionGrowthRate, setPensionGrowthRate] = useState(0.02);
   const [includeUnemployment, setIncludeUnemployment] = useState(false);
-  const [ubMonthly, setUbMonthly] = useState('198');
-  const [ubMonths, setUbMonths] = useState('9');
+  const [ubMonthly, setUbMonthly] = useState('');
+  const [ubMonths, setUbMonths] = useState('');
 
   const unemploymentBenefit = useMemo(() => {
     if (!includeUnemployment) return undefined;
     const monthly = Number(ubMonthly) * 10000;
-    const months = Math.min(9, Math.max(1, Number(ubMonths) || 9));
-    return monthly > 0 ? { monthlyAmount: monthly, durationMonths: months } : undefined;
+    const months = Number(ubMonths);
+    if (monthly <= 0 || months <= 0) return undefined;
+    return { monthlyAmount: monthly, durationMonths: Math.min(9, months) };
   }, [includeUnemployment, ubMonthly, ubMonths]);
 
   const data = useMemo(
@@ -130,7 +131,7 @@ export default function CashFlowPlanScreen() {
                   }}
                   onKeyDown={(e) => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault(); }}
                   className="cfp-ub-input"
-                  placeholder="198"
+                  placeholder="예: 198"
                   max={198}
                 />
                 <span className="cfp-ub-unit">만원/월 (최대 198)</span>
@@ -145,7 +146,7 @@ export default function CashFlowPlanScreen() {
                   }}
                   onKeyDown={(e) => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault(); }}
                   className="cfp-ub-input cfp-ub-input-sm"
-                  placeholder="9"
+                  placeholder="예: 9"
                   min={1}
                   max={9}
                 />
