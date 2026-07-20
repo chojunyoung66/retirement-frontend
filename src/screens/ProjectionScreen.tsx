@@ -66,14 +66,17 @@ export default function ProjectionScreen() {
       try {
         await saveGoal({
           birthYear: state.birthYear,
-          retirementYear: state.birthYear + 65,
+          retirementYear: state.birthYear + 60,
           monthlyLivingExpense: state.livingExpense.desiredMonthly,
           nationalPension: state.pension.national,
+          // TODO: 백엔드 계약에 monthlyRetirementPension 필드 추가 후 분리 필요
+          // 현재는 월 퇴직연금액을 retirementAsset에 임시 저장
           retirementAsset: state.pension.retirement,
         });
         dispatch(showToast('진단 결과를 서버에 저장했어요'));
       } catch {
-        dispatch(showToast('서버 저장에 실패했어요 (로컬에는 저장됨)'));
+        dispatch(showToast('서버 저장에 실패했어요. 다시 시도해 주세요.'));
+        return;
       }
     } else {
       dispatch(showToast('진단 결과를 저장했어요'));
