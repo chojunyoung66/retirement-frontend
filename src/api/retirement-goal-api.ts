@@ -5,6 +5,7 @@ import client, { ApiError } from './client';
 // 정년 목표 데이터 스키마
 const retirementGoalSchema = z.object({
   id: z.number(),
+  userId: z.number(),
   birthYear: z.number(),
   retirementYear: z.number(),
   monthlyLivingExpense: z.number(),
