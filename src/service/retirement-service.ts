@@ -37,7 +37,8 @@ export function getLivingExpenseGuide(
 }
 
 export function calculateProjection(state: DiagnosisState): ProjectionResult {
-  const retirementAge = 60;
+  // 정년(retirementAge) 미지정 시 기본값 60세 — 정년 연장 정책 반영 시 state로 주입
+  const retirementAge = state.retirementAge ?? 60;
   const pensionStartAge = getPensionStartAge(state.birthYear ?? null);
   // 퇴직 시점(60세)에 국민연금 개시 연령에 도달했을 때만 수입에 포함
   const nationalPensionAmount =
@@ -115,7 +116,8 @@ export function calculateLongTermProjection(
   pensionGrowthRate = 0.02,
   unemploymentBenefit?: UnemploymentBenefitOption,
 ): YearlyProjection[] {
-  const retirementAge = 60;
+  // 정년(retirementAge) 미지정 시 기본값 60세 — 정년 연장 정책 반영 시 state로 주입
+  const retirementAge = state.retirementAge ?? 60;
   const pensionStartAge = getPensionStartAge(state.birthYear ?? null);
   const baseNational = state.pension.national;
   const baseOther = state.pension.retirement + state.pension.personal;
@@ -172,8 +174,13 @@ export function generateRecommendations(
   twentyYearGap: number,
 ): import('../domain/plan').SimulationItem[] {
   const MONTHS = 240;
+  // 퇴직 시점에 국민연금이 아직 개시되지 않았다면 추천 산정 기준에서 제외 (calculateProjection과 동일 규칙)
+  const retirementAge = state.retirementAge ?? 60;
+  const pensionStartAge = getPensionStartAge(state.birthYear ?? null);
+  const nationalPensionAmount =
+    pensionStartAge <= retirementAge ? state.pension.national : 0;
   const totalIncome =
-    state.pension.national + state.pension.retirement + state.pension.personal;
+    nationalPensionAmount + state.pension.retirement + state.pension.personal;
   const totalInsurance =
     state.medicalExpense.healthInsurance + state.medicalExpense.privateInsurance;
   const { desiredMonthly } = state.livingExpense;

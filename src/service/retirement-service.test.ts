@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateProjection,
   calculateLongTermProjection,
+  generateRecommendations,
   type UnemploymentBenefitOption,
 } from './retirement-service';
 import type { DiagnosisState } from '../domain/plan';
@@ -11,6 +12,7 @@ function makeState(overrides: Partial<DiagnosisState> = {}): DiagnosisState {
     diagnosisType: 'individual',
     householdSize: 1,
     birthYear: null,
+    retirementAge: null,
     incomeStatus: 'retired',
     pension: { national: 1000000, retirement: 500000, personal: 200000 },
     livingExpense: { desiredMonthly: 2000000, guideMinimum: 1200000, guideRecommended: 1800000 },
@@ -134,6 +136,61 @@ describe('calculateLongTermProjection — 65세 개시 성장 계수', () => {
       (state.pension.retirement + state.pension.personal) * Math.pow(1.02, 6),
     );
     expect(rows[6].monthlyIncome).toBe(expectedNational + expectedOther);
+  });
+});
+
+// ─── 정년(retirementAge) 하드코딩 제거 — 정년 65세 정책 대응 ────────────────
+
+describe('retirementAge 파라미터화 — 정년 연장 정책 대응', () => {
+  it('retirementAge를 지정하지 않으면 기존과 동일하게 60세로 계산(하위 호환)', () => {
+    const state = makeState({ birthYear: 1950 }); // pensionStartAge=60
+    const result = calculateProjection(state);
+    expect(result.totalIncome).toBe(
+      state.pension.national + state.pension.retirement + state.pension.personal,
+    );
+  });
+
+  it('retirementAge=65로 지정하면 65세 개시자(1969년생)도 퇴직 시점에 국민연금 포함', () => {
+    const state = makeState({ birthYear: 1969, retirementAge: 65 });
+    const result = calculateProjection(state);
+    const hasNational = result.incomeItems.some((i) => i.label === '국민연금');
+    expect(hasNational).toBe(true);
+    expect(result.totalIncome).toBe(
+      state.pension.national + state.pension.retirement + state.pension.personal,
+    );
+  });
+
+  it('retirementAge=65 지정 시 20년 표의 첫 행이 65세부터 시작', () => {
+    const state = makeState({ birthYear: 1969, retirementAge: 65 });
+    const rows = calculateLongTermProjection(state, 5);
+    expect(rows[0].age).toBe(65);
+    expect(rows[0].nationalPensionStarted).toBe(true);
+  });
+});
+
+// ─── generateRecommendations — 국민연금 개시연령 반영 ───────────────────────
+
+describe('generateRecommendations — 국민연금 개시연령 반영', () => {
+  it('퇴직 시점에 국민연금이 미개시 상태면 연금 수입 관련 추천에서 제외', () => {
+    // 1969년생(65세 개시) + 정년 60세 퇴직 → 퇴직 시점엔 국민연금 미개시
+    const state = makeState({
+      birthYear: 1969,
+      pension: { national: 1000000, retirement: 0, personal: 0 },
+    });
+    const recs = generateRecommendations(state, -100000000);
+    const pensionRec = recs.find((r) => r.label.includes('연금'));
+    expect(pensionRec).toBeUndefined();
+  });
+
+  it('퇴직 시점에 국민연금이 개시된 상태면 연금 수입 관련 추천에 포함', () => {
+    // 1950년생(60세 개시) + 정년 60세 퇴직 → 퇴직 시점에 국민연금 개시됨
+    const state = makeState({
+      birthYear: 1950,
+      pension: { national: 1000000, retirement: 0, personal: 0 },
+    });
+    const recs = generateRecommendations(state, -100000000);
+    const pensionRec = recs.find((r) => r.label.includes('연금'));
+    expect(pensionRec).toBeDefined();
   });
 });
 

@@ -12,6 +12,7 @@ const initialState: DiagnosisState = {
   diagnosisType: 'individual',
   householdSize: 2,
   birthYear: null,
+  retirementAge: null,
   incomeStatus: '',
   pension: { national: 0, retirement: 0, personal: 0 },
   livingExpense: { desiredMonthly: 0, guideMinimum: 0, guideRecommended: 0 },

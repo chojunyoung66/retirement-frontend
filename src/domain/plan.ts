@@ -48,6 +48,8 @@ export interface DiagnosisState {
   diagnosisType: DiagnosisType;
   householdSize: number;
   birthYear: number | null;
+  // null이면 계산 로직에서 기본값(60세)을 적용. 정년 연장 정책 반영 시 UI에서 설정.
+  retirementAge: number | null;
   incomeStatus: IncomeStatus;
   pension: PensionState;
   livingExpense: LivingExpenseState;
