@@ -14,7 +14,7 @@ client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-    console.log(`[API] ${method} ${url} - Token attached (${token.substring(0, 20)}...)`);
+//    console.log(`[API] ${method} ${url} - Token attached (${token.substring(0, 20)}...)`);
   } else {
     console.warn(`[API] ${method} ${url} - No token available`);
   }

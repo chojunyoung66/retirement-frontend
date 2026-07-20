@@ -1,6 +1,7 @@
 import { http, delay, HttpResponse } from "msw";
 import { getLocalStorage, setLocalStorage } from "../utils/local-storage";
 import database, { type Database } from "./database";
+import { resolveSession, isOwner } from "./auth-utils";
 
 const loadedDatabase: Database = getLocalStorage<Database>("mockDatabase") ?? database;
 
@@ -293,13 +294,7 @@ const handlers = [
   http.get("/api/pension-portfolios/:id", async ({ params, request }) => {
     await delay(300);
 
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
     if (!session) {
       return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
     }
@@ -308,6 +303,10 @@ const handlers = [
     const portfolio = loadedDatabase.portfolios.find((p) => p.id === id);
     if (!portfolio) {
       return HttpResponse.json({ code: "PORTFOLIO_NOT_FOUND" }, { status: 404 });
+    }
+
+    if (!isOwner(portfolio, session.userId)) {
+      return HttpResponse.json({ code: "FORBIDDEN" }, { status: 403 });
     }
 
     return HttpResponse.json({ success: true, data: portfolio }, { status: 200 });
@@ -317,13 +316,7 @@ const handlers = [
   http.patch("/api/pension-portfolios/:id", async ({ params, request }) => {
     await delay(300);
 
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
     if (!session) {
       return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
     }
@@ -332,6 +325,10 @@ const handlers = [
     const portfolio = loadedDatabase.portfolios.find((p) => p.id === id);
     if (!portfolio) {
       return HttpResponse.json({ code: "PORTFOLIO_NOT_FOUND" }, { status: 404 });
+    }
+
+    if (!isOwner(portfolio, session.userId)) {
+      return HttpResponse.json({ code: "FORBIDDEN" }, { status: 403 });
     }
 
     const body = (await request.json()) as Record<string, unknown>;
@@ -345,13 +342,7 @@ const handlers = [
   http.delete("/api/pension-portfolios/:id", async ({ params, request }) => {
     await delay(300);
 
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
     if (!session) {
       return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
     }
@@ -360,6 +351,10 @@ const handlers = [
     const index = loadedDatabase.portfolios.findIndex((p) => p.id === id);
     if (index === -1) {
       return HttpResponse.json({ code: "PORTFOLIO_NOT_FOUND" }, { status: 404 });
+    }
+
+    if (!isOwner(loadedDatabase.portfolios[index], session.userId)) {
+      return HttpResponse.json({ code: "FORBIDDEN" }, { status: 403 });
     }
 
     loadedDatabase.portfolios.splice(index, 1);

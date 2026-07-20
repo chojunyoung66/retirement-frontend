@@ -31,3 +31,5 @@ Thumbs.db
 
 # OMC state
 .omc/state/
+.vercel
+.env*
