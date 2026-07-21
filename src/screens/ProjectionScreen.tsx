@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useDiagnosis } from '../hooks/useDiagnosis';
 import { useRetirementGoal } from '../hooks/useRetirementGoal';
 import { calculateLongTermProjection, generateRecommendations } from '../service/retirement-service';
@@ -8,12 +8,24 @@ import Button from '../components/Button';
 import SummaryCard from '../components/SummaryCard';
 import { formatWan } from '../utils/format';
 import { showToast } from '../store/toast-slice';
-import type { AppDispatch } from '../store/store';
+import { ApiError } from '../api/client';
+import type { AppDispatch, RootState } from '../store/store';
+
+function getSaveErrorMessage(code: string): string {
+  if (code === 'UNAUTHORIZED') return '로그인이 필요해요. 다시 로그인해주세요';
+  if (code === 'INVALID_BIRTH_YEAR') return '출생연도가 올바르지 않아요. 진단을 다시 진행해주세요';
+  if (code === 'INVALID_RETIREMENT_YEAR') return '정년연도 설정이 올바르지 않아요. 진단을 다시 진행해주세요';
+  if (code === 'INVALID_MONTHLY_EXPENSE') return '월 생활비 정보가 올바르지 않아요. 진단을 다시 진행해주세요';
+  if (code === 'INVALID_NATIONAL_PENSION') return '국민연금 정보가 올바르지 않아요. 진단을 다시 진행해주세요';
+  if (code === 'INVALID_RETIREMENT_ASSET') return '퇴직연금 정보가 올바르지 않아요. 진단을 다시 진행해주세요';
+  return '저장에 실패했어요. 잠시 후 다시 시도해주세요';
+}
 
 export default function ProjectionScreen() {
   const navigate = useNavigate();
   const { state } = useDiagnosis();
   const dispatch = useDispatch<AppDispatch>();
+  const isLoggedIn = useSelector((s: RootState) => !!s.auth.token);
   const { saveGoal, isLoading: isSaving } = useRetirementGoal();
 
   const projection = state.projection;
@@ -63,6 +75,12 @@ export default function ProjectionScreen() {
 
   const handleSave = async () => {
     if (state.birthYear) {
+      if (!isLoggedIn) {
+        dispatch(showToast('로그인 후 결과를 저장할 수 있어요'));
+        navigate('/signin', { state: { from: '/result' } });
+        return;
+      }
+
       try {
         await saveGoal({
           birthYear: state.birthYear,
@@ -73,9 +91,12 @@ export default function ProjectionScreen() {
           // 현재는 월 퇴직연금액을 retirementAsset에 임시 저장
           retirementAsset: state.pension.retirement,
         });
-        dispatch(showToast('진단 결과를 서버에 저장했어요'));
-      } catch {
-        dispatch(showToast('서버 저장에 실패했어요. 다시 시도해 주세요.'));
+        dispatch(showToast('진단 결과를 저장했어요'));
+      } catch (err) {
+        const message = err instanceof ApiError
+          ? getSaveErrorMessage(err.errorCode)
+          : '일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요';
+        dispatch(showToast(message));
         return;
       }
     } else {
