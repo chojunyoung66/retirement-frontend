@@ -38,7 +38,12 @@ export const createPortfolio = async (
   data: CreatePortfolioRequest
 ): Promise<Portfolio> => {
   try {
-    const res = await client.post('/pension-portfolios', data);
+    const parsedReq = createPortfolioReqSchema.safeParse(data);
+    if (!parsedReq.success) {
+      throw new ApiError('VALIDATION_ERROR');
+    }
+
+    const res = await client.post('/pension-portfolios', parsedReq.data);
     const parsed = portfolioSchema.safeParse(res.data.data);
     if (!parsed.success) {
       throw new Error('유효하지 않은 응답 형식입니다');
@@ -92,7 +97,12 @@ export const updatePortfolio = async (
   data: UpdatePortfolioRequest
 ): Promise<Portfolio> => {
   try {
-    const res = await client.patch(`/pension-portfolios/${id}`, data);
+    const parsedReq = updatePortfolioReqSchema.safeParse(data);
+    if (!parsedReq.success) {
+      throw new ApiError('VALIDATION_ERROR');
+    }
+
+    const res = await client.patch(`/pension-portfolios/${id}`, parsedReq.data);
     const parsed = portfolioSchema.safeParse(res.data.data);
     if (!parsed.success) {
       throw new Error('유효하지 않은 응답 형식입니다');

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   calculateProjection,
   calculateLongTermProjection,
+  generateRecommendations,
   type UnemploymentBenefitOption,
 } from './retirement-service';
 import type { DiagnosisState } from '../domain/plan';
@@ -11,6 +12,7 @@ function makeState(overrides: Partial<DiagnosisState> = {}): DiagnosisState {
     diagnosisType: 'individual',
     householdSize: 1,
     birthYear: null,
+    retirementAge: null,
     incomeStatus: 'retired',
     pension: { national: 1000000, retirement: 500000, personal: 200000 },
     livingExpense: { desiredMonthly: 2000000, guideMinimum: 1200000, guideRecommended: 1800000 },
@@ -134,6 +136,139 @@ describe('calculateLongTermProjection — 65세 개시 성장 계수', () => {
       (state.pension.retirement + state.pension.personal) * Math.pow(1.02, 6),
     );
     expect(rows[6].monthlyIncome).toBe(expectedNational + expectedOther);
+  });
+});
+
+// ─── causeAnalysis — 생활비 초과분 기준 데이터 기반 가중치 ──────────────────
+
+describe('calculateProjection — causeAnalysis 가중치', () => {
+  it('희망 생활비가 권장 생활비 이하면 원인을 전부 연금 수입 부족으로 귀속', () => {
+    const state = makeState({
+      birthYear: 1969, // 퇴직 시점(60세) 국민연금 미개시 → 부족 발생
+      pension: { national: 1000000, retirement: 0, personal: 100000 },
+      livingExpense: { desiredMonthly: 1800000, guideMinimum: 1200000, guideRecommended: 1800000 },
+      medicalExpense: { healthInsurance: 0, privateInsurance: 0 },
+    });
+    const result = calculateProjection(state);
+    expect(result.gap).toBeLessThan(0);
+    expect(result.causeAnalysis).toEqual([
+      { cause: '연금 수입 부족', weight: 100 },
+      { cause: '생활비 설정', weight: 0 },
+    ]);
+  });
+
+  it('생활비 초과분이 부족액을 전부 설명하면 원인을 전부 생활비 설정으로 귀속', () => {
+    const state = makeState({
+      birthYear: 1950, // 퇴직 시점(60세) 국민연금 개시됨 → 소득은 충분
+      pension: { national: 1000000, retirement: 500000, personal: 0 },
+      livingExpense: { desiredMonthly: 1600000, guideMinimum: 1000000, guideRecommended: 1200000 },
+      medicalExpense: { healthInsurance: 0, privateInsurance: 0 },
+    });
+    const result = calculateProjection(state);
+    // totalIncome=1,500,000, totalExpense=1,600,000, gap=-100,000
+    // 초과분 = desiredMonthly(1,600,000) - guideRecommended(1,200,000) = 400,000 ≥ 부족액(100,000)
+    expect(result.gap).toBe(-100000);
+    expect(result.causeAnalysis).toEqual([
+      { cause: '연금 수입 부족', weight: 0 },
+      { cause: '생활비 설정', weight: 100 },
+    ]);
+  });
+
+  it('생활비 초과분이 부족액의 일부만 설명하면 비율대로 분배', () => {
+    const state = makeState({
+      birthYear: 1950,
+      pension: { national: 1000000, retirement: 200000, personal: 0 },
+      livingExpense: { desiredMonthly: 1500000, guideMinimum: 1000000, guideRecommended: 1300000 },
+      medicalExpense: { healthInsurance: 0, privateInsurance: 0 },
+    });
+    const result = calculateProjection(state);
+    // totalIncome=1,200,000, totalExpense=1,500,000, gap=-300,000
+    // 초과분 = desiredMonthly(1,500,000) - guideRecommended(1,300,000) = 200,000
+    // 200,000 / 300,000 ≈ 66.7% → 생활비 설정 67, 연금 수입 부족 33
+    expect(result.gap).toBe(-300000);
+    expect(result.causeAnalysis).toEqual([
+      { cause: '연금 수입 부족', weight: 33 },
+      { cause: '생활비 설정', weight: 67 },
+    ]);
+  });
+
+  it('가중치 두 항목의 합은 항상 100', () => {
+    const state = makeState({
+      birthYear: 1969,
+      pension: { national: 800000, retirement: 200000, personal: 0 },
+      livingExpense: { desiredMonthly: 1700000, guideMinimum: 1200000, guideRecommended: 1500000 },
+      medicalExpense: { healthInsurance: 100000, privateInsurance: 0 },
+    });
+    const result = calculateProjection(state);
+    const total = result.causeAnalysis.reduce((sum, c) => sum + c.weight, 0);
+    expect(total).toBe(100);
+  });
+
+  it('부족액이 없으면(gap>=0) causeAnalysis는 빈 배열', () => {
+    const state = makeState({
+      birthYear: 1950,
+      pension: { national: 1000000, retirement: 1000000, personal: 0 },
+      livingExpense: { desiredMonthly: 1000000, guideMinimum: 1000000, guideRecommended: 1000000 },
+      medicalExpense: { healthInsurance: 0, privateInsurance: 0 },
+    });
+    const result = calculateProjection(state);
+    expect(result.gap).toBeGreaterThanOrEqual(0);
+    expect(result.causeAnalysis).toEqual([]);
+  });
+});
+
+// ─── 정년(retirementAge) 하드코딩 제거 — 정년 65세 정책 대응 ────────────────
+
+describe('retirementAge 파라미터화 — 정년 연장 정책 대응', () => {
+  it('retirementAge를 지정하지 않으면 기존과 동일하게 60세로 계산(하위 호환)', () => {
+    const state = makeState({ birthYear: 1950 }); // pensionStartAge=60
+    const result = calculateProjection(state);
+    expect(result.totalIncome).toBe(
+      state.pension.national + state.pension.retirement + state.pension.personal,
+    );
+  });
+
+  it('retirementAge=65로 지정하면 65세 개시자(1969년생)도 퇴직 시점에 국민연금 포함', () => {
+    const state = makeState({ birthYear: 1969, retirementAge: 65 });
+    const result = calculateProjection(state);
+    const hasNational = result.incomeItems.some((i) => i.label === '국민연금');
+    expect(hasNational).toBe(true);
+    expect(result.totalIncome).toBe(
+      state.pension.national + state.pension.retirement + state.pension.personal,
+    );
+  });
+
+  it('retirementAge=65 지정 시 20년 표의 첫 행이 65세부터 시작', () => {
+    const state = makeState({ birthYear: 1969, retirementAge: 65 });
+    const rows = calculateLongTermProjection(state, 5);
+    expect(rows[0].age).toBe(65);
+    expect(rows[0].nationalPensionStarted).toBe(true);
+  });
+});
+
+// ─── generateRecommendations — 국민연금 개시연령 반영 ───────────────────────
+
+describe('generateRecommendations — 국민연금 개시연령 반영', () => {
+  it('퇴직 시점에 국민연금이 미개시 상태면 연금 수입 관련 추천에서 제외', () => {
+    // 1969년생(65세 개시) + 정년 60세 퇴직 → 퇴직 시점엔 국민연금 미개시
+    const state = makeState({
+      birthYear: 1969,
+      pension: { national: 1000000, retirement: 0, personal: 0 },
+    });
+    const recs = generateRecommendations(state, -100000000);
+    const pensionRec = recs.find((r) => r.label.includes('연금'));
+    expect(pensionRec).toBeUndefined();
+  });
+
+  it('퇴직 시점에 국민연금이 개시된 상태면 연금 수입 관련 추천에 포함', () => {
+    // 1950년생(60세 개시) + 정년 60세 퇴직 → 퇴직 시점에 국민연금 개시됨
+    const state = makeState({
+      birthYear: 1950,
+      pension: { national: 1000000, retirement: 0, personal: 0 },
+    });
+    const recs = generateRecommendations(state, -100000000);
+    const pensionRec = recs.find((r) => r.label.includes('연금'));
+    expect(pensionRec).toBeDefined();
   });
 });
 

@@ -2,6 +2,8 @@ import { http, delay, HttpResponse } from "msw";
 import { getLocalStorage, setLocalStorage } from "../utils/local-storage";
 import database, { type Database } from "./database";
 import { resolveSession, isOwner } from "./auth-utils";
+import { isPortfolioItemArray, isValidAllocationSum } from "./portfolio-validation";
+import { isValidRetirementGoalInput } from "./retirement-goal-validation";
 
 const loadedDatabase: Database = getLocalStorage<Database>("mockDatabase") ?? database;
 
@@ -20,7 +22,7 @@ const handlers = [
     // 이미 존재하는 사용자 확인
     if (loadedDatabase.users.some((user) => user.email === email)) {
       return HttpResponse.json(
-        { code: "DUPLICATE_EMAIL", message: "이미 존재하는 이메일입니다" },
+        { error: { code: "DUPLICATE_EMAIL", message: "이미 존재하는 이메일입니다" } },
         { status: 409 }
       );
     }
@@ -65,7 +67,7 @@ const handlers = [
     const user = loadedDatabase.users.find((u) => u.email === email);
     if (!user || user.password !== password) {
       return HttpResponse.json(
-        { code: "INVALID_CREDENTIALS", message: "이메일 또는 비밀번호가 올바르지 않습니다" },
+        { error: { code: "INVALID_CREDENTIALS", message: "이메일 또는 비밀번호가 올바르지 않습니다" } },
         { status: 401 }
       );
     }
@@ -96,7 +98,7 @@ const handlers = [
     const authHeader = request.headers.get("Authorization");
     if (!authHeader) {
       return HttpResponse.json(
-        { code: "INVALID_TOKEN", message: "토큰이 없습니다" },
+        { error: { code: "INVALID_TOKEN", message: "토큰이 없습니다" } },
         { status: 401 }
       );
     }
@@ -105,7 +107,7 @@ const handlers = [
     const session = loadedDatabase.sessions.find((s) => s.token === token);
     if (!session) {
       return HttpResponse.json(
-        { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" },
+        { error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } },
         { status: 401 }
       );
     }
@@ -113,7 +115,7 @@ const handlers = [
     const user = loadedDatabase.users.find((u) => u.id === session.userId);
     if (!user) {
       return HttpResponse.json(
-        { code: "USER_NOT_FOUND", message: "사용자를 찾을 수 없습니다" },
+        { error: { code: "USER_NOT_FOUND", message: "사용자를 찾을 수 없습니다" } },
         { status: 404 }
       );
     }
@@ -166,6 +168,13 @@ const handlers = [
     }
 
     const body = (await request.json()) as Record<string, unknown>;
+
+    if (!isValidRetirementGoalInput(body, { partial: false })) {
+      return HttpResponse.json(
+        { error: { code: "VALIDATION_ERROR", message: "필수 항목이 누락되었거나 형식이 올바르지 않습니다" } },
+        { status: 400 }
+      );
+    }
 
     const newGoal = {
       id: Math.max(0, ...loadedDatabase.retirementGoals.map((g) => g.id)) + 1,
@@ -234,6 +243,14 @@ const handlers = [
     }
 
     const body = (await request.json()) as Record<string, unknown>;
+
+    if (!isValidRetirementGoalInput(body, { partial: true })) {
+      return HttpResponse.json(
+        { error: { code: "VALIDATION_ERROR", message: "필드 형식이 올바르지 않습니다" } },
+        { status: 400 }
+      );
+    }
+
     Object.assign(goal, body);
     setLocalStorage("mockDatabase", loadedDatabase);
 
@@ -246,13 +263,19 @@ const handlers = [
 
     const authHeader = request.headers.get("Authorization");
     if (!authHeader) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+      return HttpResponse.json(
+        { error: { code: "INVALID_TOKEN", message: "토큰이 없습니다" } },
+        { status: 401 }
+      );
     }
 
     const token = authHeader.replace("Bearer ", "");
     const session = loadedDatabase.sessions.find((s) => s.token === token);
     if (!session) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+      return HttpResponse.json(
+        { error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } },
+        { status: 401 }
+      );
     }
 
     const portfolios = loadedDatabase.portfolios.filter((p) => p.userId === session.userId);
@@ -265,16 +288,29 @@ const handlers = [
 
     const authHeader = request.headers.get("Authorization");
     if (!authHeader) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+      return HttpResponse.json(
+        { error: { code: "INVALID_TOKEN", message: "토큰이 없습니다" } },
+        { status: 401 }
+      );
     }
 
     const token = authHeader.replace("Bearer ", "");
     const session = loadedDatabase.sessions.find((s) => s.token === token);
     if (!session) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+      return HttpResponse.json(
+        { error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } },
+        { status: 401 }
+      );
     }
 
     const body = (await request.json()) as Record<string, unknown>;
+
+    if (!isPortfolioItemArray(body.items) || !isValidAllocationSum(body.items)) {
+      return HttpResponse.json(
+        { error: { code: "INVALID_ALLOCATION_SUM", message: "포트폴리오 비중 합계는 100%여야 합니다" } },
+        { status: 400 }
+      );
+    }
 
     const newPortfolio = {
       id: Math.max(0, ...loadedDatabase.portfolios.map((p) => p.id)) + 1,
@@ -296,17 +332,26 @@ const handlers = [
 
     const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
     if (!session) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+      return HttpResponse.json(
+        { error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } },
+        { status: 401 }
+      );
     }
 
     const id = Number(params.id);
     const portfolio = loadedDatabase.portfolios.find((p) => p.id === id);
     if (!portfolio) {
-      return HttpResponse.json({ code: "PORTFOLIO_NOT_FOUND" }, { status: 404 });
+      return HttpResponse.json(
+        { error: { code: "PORTFOLIO_NOT_FOUND", message: "포트폴리오를 찾을 수 없습니다" } },
+        { status: 404 }
+      );
     }
 
     if (!isOwner(portfolio, session.userId)) {
-      return HttpResponse.json({ code: "FORBIDDEN" }, { status: 403 });
+      return HttpResponse.json(
+        { error: { code: "FORBIDDEN", message: "접근 권한이 없습니다" } },
+        { status: 403 }
+      );
     }
 
     return HttpResponse.json({ success: true, data: portfolio }, { status: 200 });
@@ -318,20 +363,40 @@ const handlers = [
 
     const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
     if (!session) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+      return HttpResponse.json(
+        { error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } },
+        { status: 401 }
+      );
     }
 
     const id = Number(params.id);
     const portfolio = loadedDatabase.portfolios.find((p) => p.id === id);
     if (!portfolio) {
-      return HttpResponse.json({ code: "PORTFOLIO_NOT_FOUND" }, { status: 404 });
+      return HttpResponse.json(
+        { error: { code: "PORTFOLIO_NOT_FOUND", message: "포트폴리오를 찾을 수 없습니다" } },
+        { status: 404 }
+      );
     }
 
     if (!isOwner(portfolio, session.userId)) {
-      return HttpResponse.json({ code: "FORBIDDEN" }, { status: 403 });
+      return HttpResponse.json(
+        { error: { code: "FORBIDDEN", message: "접근 권한이 없습니다" } },
+        { status: 403 }
+      );
     }
 
     const body = (await request.json()) as Record<string, unknown>;
+
+    if (
+      body.items !== undefined &&
+      (!isPortfolioItemArray(body.items) || !isValidAllocationSum(body.items))
+    ) {
+      return HttpResponse.json(
+        { error: { code: "INVALID_ALLOCATION_SUM", message: "포트폴리오 비중 합계는 100%여야 합니다" } },
+        { status: 400 }
+      );
+    }
+
     Object.assign(portfolio, body);
     setLocalStorage("mockDatabase", loadedDatabase);
 
@@ -344,17 +409,26 @@ const handlers = [
 
     const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
     if (!session) {
-      return HttpResponse.json({ code: "INVALID_TOKEN" }, { status: 401 });
+      return HttpResponse.json(
+        { error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } },
+        { status: 401 }
+      );
     }
 
     const id = Number(params.id);
     const index = loadedDatabase.portfolios.findIndex((p) => p.id === id);
     if (index === -1) {
-      return HttpResponse.json({ code: "PORTFOLIO_NOT_FOUND" }, { status: 404 });
+      return HttpResponse.json(
+        { error: { code: "PORTFOLIO_NOT_FOUND", message: "포트폴리오를 찾을 수 없습니다" } },
+        { status: 404 }
+      );
     }
 
     if (!isOwner(loadedDatabase.portfolios[index], session.userId)) {
-      return HttpResponse.json({ code: "FORBIDDEN" }, { status: 403 });
+      return HttpResponse.json(
+        { error: { code: "FORBIDDEN", message: "접근 권한이 없습니다" } },
+        { status: 403 }
+      );
     }
 
     loadedDatabase.portfolios.splice(index, 1);

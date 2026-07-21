@@ -41,7 +41,12 @@ export const signUpRequest = async (
   data: SignUpRequest
 ): Promise<SignUpResponse> => {
   try {
-    const res = await client.post('/auth/signup', data);
+    const parsedReq = signUpReqSchema.safeParse(data);
+    if (!parsedReq.success) {
+      throw new ApiError('VALIDATION_ERROR');
+    }
+
+    const res = await client.post('/auth/signup', parsedReq.data);
 
     const parsed = signUpResSchema.safeParse(res.data.data);
     if (!parsed.success) {
@@ -62,7 +67,12 @@ export const signInRequest = async (
   data: SignInRequest
 ): Promise<SignInResponse> => {
   try {
-    const res = await client.post('/auth/signin', data);
+    const parsedReq = signInReqSchema.safeParse(data);
+    if (!parsedReq.success) {
+      throw new ApiError('VALIDATION_ERROR');
+    }
+
+    const res = await client.post('/auth/signin', parsedReq.data);
 
     const parsed = signInResSchema.safeParse(res.data.data);
     if (!parsed.success) {

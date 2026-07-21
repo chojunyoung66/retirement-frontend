@@ -37,7 +37,8 @@ export function getLivingExpenseGuide(
 }
 
 export function calculateProjection(state: DiagnosisState): ProjectionResult {
-  const retirementAge = 60;
+  // 정년(retirementAge) 미지정 시 기본값 60세 — 정년 연장 정책 반영 시 state로 주입
+  const retirementAge = state.retirementAge ?? 60;
   const pensionStartAge = getPensionStartAge(state.birthYear ?? null);
   // 퇴직 시점(60세)에 국민연금 개시 연령에 도달했을 때만 수입에 포함
   const nationalPensionAmount =
@@ -63,13 +64,9 @@ export function calculateProjection(state: DiagnosisState): ProjectionResult {
     { label: '민영보험료', amount: state.medicalExpense.privateInsurance },
   ].filter((i) => i.amount > 0);
 
-  const causeAnalysis =
-    gap < 0
-      ? [
-          { cause: '연금 수입 부족', weight: 60 },
-          { cause: '생활비 설정', weight: 40 },
-        ]
-      : [];
+  // 생활비 초과분(권장 생활비 대비)이 부족액에서 차지하는 비율을 실제 데이터로 산정
+  // (권장 생활비 이내면 부족 원인을 전부 연금 수입 부족으로 귀속)
+  const causeAnalysis = gap < 0 ? buildCauseAnalysis(state, -gap) : [];
 
   return {
     totalIncome,
@@ -80,6 +77,26 @@ export function calculateProjection(state: DiagnosisState): ProjectionResult {
     causeAnalysis,
     simulations: [],
   };
+}
+
+// 부족액(shortfall) 중 "생활비 설정"(권장 생활비 초과분)이 설명하는 비율을 계산하고,
+// 나머지를 "연금 수입 부족"으로 귀속한다. 두 가중치의 합은 항상 100.
+function buildCauseAnalysis(
+  state: DiagnosisState,
+  shortfall: number,
+): import('../domain/plan').CauseItem[] {
+  const excessLivingExpense = Math.max(
+    0,
+    state.livingExpense.desiredMonthly - state.livingExpense.guideRecommended,
+  );
+  const livingExpenseWeight =
+    shortfall > 0 ? Math.min(100, Math.round((excessLivingExpense / shortfall) * 100)) : 0;
+  const pensionWeight = 100 - livingExpenseWeight;
+
+  return [
+    { cause: '연금 수입 부족', weight: pensionWeight },
+    { cause: '생활비 설정', weight: livingExpenseWeight },
+  ];
 }
 
 export interface YearlyProjection {
@@ -115,7 +132,8 @@ export function calculateLongTermProjection(
   pensionGrowthRate = 0.02,
   unemploymentBenefit?: UnemploymentBenefitOption,
 ): YearlyProjection[] {
-  const retirementAge = 60;
+  // 정년(retirementAge) 미지정 시 기본값 60세 — 정년 연장 정책 반영 시 state로 주입
+  const retirementAge = state.retirementAge ?? 60;
   const pensionStartAge = getPensionStartAge(state.birthYear ?? null);
   const baseNational = state.pension.national;
   const baseOther = state.pension.retirement + state.pension.personal;
@@ -172,8 +190,13 @@ export function generateRecommendations(
   twentyYearGap: number,
 ): import('../domain/plan').SimulationItem[] {
   const MONTHS = 240;
+  // 퇴직 시점에 국민연금이 아직 개시되지 않았다면 추천 산정 기준에서 제외 (calculateProjection과 동일 규칙)
+  const retirementAge = state.retirementAge ?? 60;
+  const pensionStartAge = getPensionStartAge(state.birthYear ?? null);
+  const nationalPensionAmount =
+    pensionStartAge <= retirementAge ? state.pension.national : 0;
   const totalIncome =
-    state.pension.national + state.pension.retirement + state.pension.personal;
+    nationalPensionAmount + state.pension.retirement + state.pension.personal;
   const totalInsurance =
     state.medicalExpense.healthInsurance + state.medicalExpense.privateInsurance;
   const { desiredMonthly } = state.livingExpense;
