@@ -18,6 +18,7 @@ export default function SummaryScreen() {
   const projection = state.projection;
 
   const [serverGoal, setServerGoal] = useState<RetirementGoal | null>(null);
+  const [isSaved, setIsSaved] = useState(true);
   const [fetchLoading, setFetchLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
@@ -40,6 +41,7 @@ export default function SummaryScreen() {
     try {
       await deleteGoal();
       setServerGoal(null);
+      setIsSaved(false);
       dispatch(showToast('저장된 목표를 삭제했어요'));
     } catch {
       dispatch(showToast('삭제에 실패했어요'));
@@ -76,9 +78,11 @@ export default function SummaryScreen() {
 
   return (
     <div className="screen-content">
-      <div className="text-center mb-16">
-        <span className="badge badge-success">저장 완료</span>
-      </div>
+      {isSaved && (
+        <div className="text-center mb-16">
+          <span className="badge badge-success">저장 완료</span>
+        </div>
+      )}
       <h2 className="card-title mb-16">진단 결과 요약</h2>
 
       <SummaryCard
