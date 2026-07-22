@@ -40,8 +40,10 @@ export function calculateProjection(state: DiagnosisState): ProjectionResult {
   // 정년(retirementAge) 미지정 시 기본값 60세 — 정년 연장 정책 반영 시 state로 주입
   const retirementAge = state.retirementAge ?? 60;
   const pensionStartAge = getPensionStartAge(state.birthYear ?? null);
-  // 퇴직 시점에 국민연금 개시 연령에 도달했을 때만 수입에 포함
-  const isPensionDelayed = pensionStartAge > retirementAge;
+  // 현재 나이가 수급 개시 연령 이상이면 이미 수급 중 → 수입에 포함
+  const currentAge = state.birthYear ? new Date().getFullYear() - state.birthYear : null;
+  const isPensionAlreadyStarted = currentAge !== null && currentAge >= pensionStartAge;
+  const isPensionDelayed = !isPensionAlreadyStarted && pensionStartAge > retirementAge;
   const nationalPensionAmount =
     isPensionDelayed ? 0 : state.pension.national;
 
@@ -198,11 +200,13 @@ export function generateRecommendations(
   twentyYearGap: number,
 ): import('../domain/plan').SimulationItem[] {
   const MONTHS = 240;
-  // 퇴직 시점에 국민연금이 아직 개시되지 않았다면 추천 산정 기준에서 제외 (calculateProjection과 동일 규칙)
+  // calculateProjection과 동일 규칙: 현재 수급 중이거나 퇴직 시점에 개시된 경우만 포함
   const retirementAge = state.retirementAge ?? 60;
   const pensionStartAge = getPensionStartAge(state.birthYear ?? null);
-  const nationalPensionAmount =
-    pensionStartAge <= retirementAge ? state.pension.national : 0;
+  const currentAge = state.birthYear ? new Date().getFullYear() - state.birthYear : null;
+  const isPensionAlreadyStarted = currentAge !== null && currentAge >= pensionStartAge;
+  const isPensionDelayed = !isPensionAlreadyStarted && pensionStartAge > retirementAge;
+  const nationalPensionAmount = isPensionDelayed ? 0 : state.pension.national;
   const totalIncome =
     nationalPensionAmount + state.pension.retirement + state.pension.personal;
   const totalInsurance =
