@@ -171,6 +171,21 @@ export default function ProjectionScreen() {
               </div>
             ))
           )}
+          {projection.pendingNationalPension && (
+            <div className="item-row" style={{ borderTop: '1px dashed var(--border)', marginTop: 8, paddingTop: 10, opacity: 0.75 }}>
+              <span className="item-row-label" style={{ color: '#e67e22' }}>
+                국민연금 ({projection.pendingNationalPension.startAge}세~)
+              </span>
+              <span className="item-row-value" style={{ color: '#e67e22' }}>
+                {formatWan(projection.pendingNationalPension.amount)}
+              </span>
+            </div>
+          )}
+          {projection.pendingNationalPension && (
+            <div style={{ fontSize: 11, color: '#e67e22', marginTop: 4 }}>
+              ※ 국민연금은 {projection.pendingNationalPension.startAge}세부터 수급 — 위 수입 합계에 미포함
+            </div>
+          )}
         </div>
 
         <div className="card">

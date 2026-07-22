@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDiagnosis } from '../hooks/useDiagnosis';
-import { calculateLongTermProjection } from '../service/retirement-service';
+import { calculateLongTermProjection, getPensionStartAge } from '../service/retirement-service';
 import { formatWan } from '../utils/format';
 
 const INFLATION_OPTIONS = [
@@ -37,6 +37,8 @@ export default function CashFlowPlanScreen() {
     () => calculateLongTermProjection(state, 20, inflationRate, pensionGrowthRate, unemploymentBenefit),
     [state, inflationRate, pensionGrowthRate, unemploymentBenefit],
   );
+
+  const pensionStartAge = useMemo(() => getPensionStartAge(state.birthYear ?? null), [state.birthYear]);
 
   const lastYear = data[data.length - 1];
   const totalCumulative = lastYear?.cumulativeGap ?? 0;
@@ -229,7 +231,7 @@ export default function CashFlowPlanScreen() {
                     ) : null}
                     {!d.nationalPensionStarted ? (
                       <span style={{ display: 'block', fontSize: 10, color: '#e67e22' }}>
-                        국민연금 대기
+                        국민연금 {pensionStartAge}세 수급 예정
                       </span>
                     ) : null}
                   </td>

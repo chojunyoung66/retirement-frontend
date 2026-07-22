@@ -40,9 +40,10 @@ export function calculateProjection(state: DiagnosisState): ProjectionResult {
   // 정년(retirementAge) 미지정 시 기본값 60세 — 정년 연장 정책 반영 시 state로 주입
   const retirementAge = state.retirementAge ?? 60;
   const pensionStartAge = getPensionStartAge(state.birthYear ?? null);
-  // 퇴직 시점(60세)에 국민연금 개시 연령에 도달했을 때만 수입에 포함
+  // 퇴직 시점에 국민연금 개시 연령에 도달했을 때만 수입에 포함
+  const isPensionDelayed = pensionStartAge > retirementAge;
   const nationalPensionAmount =
-    pensionStartAge <= retirementAge ? state.pension.national : 0;
+    isPensionDelayed ? 0 : state.pension.national;
 
   const totalIncome =
     nationalPensionAmount + state.pension.retirement + state.pension.personal;
@@ -51,6 +52,12 @@ export function calculateProjection(state: DiagnosisState): ProjectionResult {
     state.medicalExpense.healthInsurance +
     state.medicalExpense.privateInsurance;
   const gap = totalIncome - totalExpense;
+
+  // 퇴직 시점 이후 수급 개시 국민연금 — 결과화면 별도 안내용
+  const pendingNationalPension =
+    isPensionDelayed && state.pension.national > 0
+      ? { amount: state.pension.national, startAge: pensionStartAge }
+      : undefined;
 
   const incomeItems = [
     { label: '국민연금', amount: nationalPensionAmount },
@@ -76,6 +83,7 @@ export function calculateProjection(state: DiagnosisState): ProjectionResult {
     expenseItems,
     causeAnalysis,
     simulations: [],
+    ...(pendingNationalPension ? { pendingNationalPension } : {}),
   };
 }
 
@@ -110,7 +118,7 @@ export interface YearlyProjection {
   nationalPensionStarted: boolean;
 }
 
-function getPensionStartAge(birthYear: number | null): number {
+export function getPensionStartAge(birthYear: number | null): number {
   if (!birthYear) return 65;
   if (birthYear >= 1969) return 65;
   if (birthYear >= 1965) return 64;

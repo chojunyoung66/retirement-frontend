@@ -42,6 +42,8 @@ export interface ProjectionResult {
   expenseItems: ProjectionItem[];
   causeAnalysis: CauseItem[];
   simulations: SimulationItem[];
+  // 퇴직 시점 이후에 수급 개시되는 국민연금 (결과화면 별도 안내용)
+  pendingNationalPension?: { amount: number; startAge: number };
 }
 
 export interface DiagnosisState {
