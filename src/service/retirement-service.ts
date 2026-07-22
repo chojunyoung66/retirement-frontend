@@ -145,6 +145,10 @@ export function calculateLongTermProjection(
   // 정년(retirementAge) 미지정 시 기본값 60세 — 정년 연장 정책 반영 시 state로 주입
   const retirementAge = state.retirementAge ?? 60;
   const pensionStartAge = getPensionStartAge(state.birthYear ?? null);
+  // 현재 이미 수급 중이면 시뮬레이션 시작(retirementAge)부터 포함
+  const currentAge = state.birthYear ? new Date().getFullYear() - state.birthYear : null;
+  const isPensionAlreadyStarted = currentAge !== null && currentAge >= pensionStartAge;
+  const effectivePensionStartAge = isPensionAlreadyStarted ? retirementAge : pensionStartAge;
   const baseNational = state.pension.national;
   const baseOther = state.pension.retirement + state.pension.personal;
   const baseExpense =
@@ -160,9 +164,9 @@ export function calculateLongTermProjection(
     const inflationFactor = Math.pow(1 + inflationRate, i);
     const pensionFactor = Math.pow(1 + pensionGrowthRate, i);
 
-    // 국민연금은 출생연도별 수급 개시 연령부터만 포함
-    const nationalPensionStarted = age >= pensionStartAge;
-    const pensionStartIndex = pensionStartAge - retirementAge;
+    // 국민연금은 실효 수급 개시 연령부터 포함 (이미 수급 중이면 시작부터)
+    const nationalPensionStarted = age >= effectivePensionStartAge;
+    const pensionStartIndex = effectivePensionStartAge - retirementAge;
     const nationalIncome = nationalPensionStarted
       ? Math.round(baseNational * Math.pow(1 + pensionGrowthRate, i - pensionStartIndex))
       : 0;
