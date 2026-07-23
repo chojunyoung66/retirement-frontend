@@ -84,7 +84,7 @@ export default function ProjectionScreen() {
       try {
         await saveGoal({
           birthYear: state.birthYear,
-          retirementYear: state.birthYear + 60,
+          retirementYear: state.birthYear + (state.retirementAge ?? 60),
           monthlyLivingExpense: state.livingExpense.desiredMonthly,
           nationalPension: state.pension.national,
           // TODO: 백엔드 계약에 monthlyRetirementPension 필드 추가 후 분리 필요

@@ -125,6 +125,9 @@ function SavedGoalCard({ goal, isLoading, onDelete }: SavedGoalCardProps) {
     return () => clearTimeout(timer);
   }, []);
 
+  const currentYear = new Date().getFullYear();
+  const retirementLabel = goal.retirementYear <= currentYear ? '퇴직 연도' : '은퇴 예정 연도';
+
   return (
     <div className="card" style={{ marginTop: 16 }}>
       <div className="card-title">서버 저장 목표</div>
@@ -133,7 +136,7 @@ function SavedGoalCard({ goal, isLoading, onDelete }: SavedGoalCardProps) {
         <span className="item-row-value">{goal.birthYear}년</span>
       </div>
       <div className="item-row">
-        <span className="item-row-label">은퇴 예정 연도</span>
+        <span className="item-row-label">{retirementLabel}</span>
         <span className="item-row-value">{goal.retirementYear}년</span>
       </div>
       <div className="item-row">
