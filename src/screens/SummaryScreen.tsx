@@ -1,33 +1,38 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { useDiagnosis } from '../hooks/useDiagnosis';
-import { useRetirementGoal } from '../hooks/useRetirementGoal';
 import Button from '../components/Button';
 import SummaryCard from '../components/SummaryCard';
 import { formatWan } from '../utils/format';
 import { showToast } from '../store/toast-slice';
 import type { AppDispatch } from '../store/store';
-import type { RetirementGoal } from '../api/retirement-goal-api';
+import type { DiagnosisRecord } from '../api/diagnosis-api';
+import {
+  getLatestDiagnosis,
+  deleteLatestDiagnosis,
+} from '../api/diagnosis-api';
 
 export default function SummaryScreen() {
   const navigate = useNavigate();
   const dispatch = useDispatch<AppDispatch>();
   const { state } = useDiagnosis();
-  const { fetchGoal, deleteGoal } = useRetirementGoal();
   const projection = state.projection;
 
-  const [serverGoal, setServerGoal] = useState<RetirementGoal | null>(null);
-  const [isSaved, setIsSaved] = useState(true);
+  const [savedDiagnosis, setSavedDiagnosis] = useState<DiagnosisRecord | null>(null);
   const [fetchLoading, setFetchLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const handleLoad = async () => {
     setFetchLoading(true);
     try {
-      const goal = await fetchGoal();
-      setServerGoal(goal);
-      dispatch(showToast('저장된 목표를 불러왔어요'));
+      const record = await getLatestDiagnosis();
+      setSavedDiagnosis(record);
+      if (record) {
+        dispatch(showToast('저장된 진단을 불러왔어요'));
+      } else {
+        dispatch(showToast('저장된 진단 결과가 없어요'));
+      }
     } catch {
       dispatch(showToast('불러오기 실패: 저장된 데이터가 없어요'));
     } finally {
@@ -36,13 +41,12 @@ export default function SummaryScreen() {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('저장된 목표를 삭제할까요?')) return;
+    if (!window.confirm('저장된 진단을 삭제할까요?')) return;
     setDeleteLoading(true);
     try {
-      await deleteGoal();
-      setServerGoal(null);
-      setIsSaved(false);
-      dispatch(showToast('저장된 목표를 삭제했어요'));
+      await deleteLatestDiagnosis();
+      setSavedDiagnosis(null);
+      dispatch(showToast('저장된 진단을 삭제했어요'));
     } catch {
       dispatch(showToast('삭제에 실패했어요'));
     } finally {
@@ -69,7 +73,13 @@ export default function SummaryScreen() {
           </div>
         </div>
 
-        {serverGoal && <SavedGoalCard goal={serverGoal} isLoading={deleteLoading} onDelete={handleDelete} />}
+        {savedDiagnosis && (
+          <SavedDiagnosisCard
+            record={savedDiagnosis}
+            isLoading={deleteLoading}
+            onDelete={handleDelete}
+          />
+        )}
       </div>
     );
   }
@@ -78,11 +88,6 @@ export default function SummaryScreen() {
 
   return (
     <div className="screen-content">
-      {isSaved && (
-        <div className="text-center mb-16">
-          <span className="badge badge-success">저장 완료</span>
-        </div>
-      )}
       <h2 className="card-title mb-16">진단 결과 요약</h2>
 
       <SummaryCard
@@ -106,61 +111,62 @@ export default function SummaryScreen() {
         </Button>
       </div>
 
-      {serverGoal && <SavedGoalCard goal={serverGoal} isLoading={deleteLoading} onDelete={handleDelete} />}
+      {savedDiagnosis && (
+        <SavedDiagnosisCard
+          record={savedDiagnosis}
+          isLoading={deleteLoading}
+          onDelete={handleDelete}
+        />
+      )}
     </div>
   );
 }
 
-interface SavedGoalCardProps {
-  goal: RetirementGoal;
+interface SavedDiagnosisCardProps {
+  record: DiagnosisRecord;
   isLoading: boolean;
   onDelete: () => void;
 }
 
-function SavedGoalCard({ goal, isLoading, onDelete }: SavedGoalCardProps) {
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setReady(true), 1000);
-    return () => clearTimeout(timer);
-  }, []);
-
+function SavedDiagnosisCard({ record, isLoading, onDelete }: SavedDiagnosisCardProps) {
   const currentYear = new Date().getFullYear();
-  const retirementLabel = goal.retirementYear <= currentYear ? '퇴직 연도' : '은퇴 예정 연도';
+  const retirementLabel = record.retirementYear <= currentYear ? '퇴직 연도' : '은퇴 예정 연도';
 
   return (
     <div className="card" style={{ marginTop: 16 }}>
-      <div className="card-title">서버 저장 목표</div>
+      <div className="card-title">저장된 진단</div>
       <div className="item-row">
         <span className="item-row-label">출생 연도</span>
-        <span className="item-row-value">{goal.birthYear}년</span>
+        <span className="item-row-value">{record.birthYear}년</span>
       </div>
       <div className="item-row">
         <span className="item-row-label">{retirementLabel}</span>
-        <span className="item-row-value">{goal.retirementYear}년</span>
+        <span className="item-row-value">{record.retirementYear}년</span>
       </div>
       <div className="item-row">
         <span className="item-row-label">국민연금</span>
-        <span className="item-row-value">{formatWan(goal.nationalPension)}</span>
+        <span className="item-row-value">{formatWan(record.nationalPension)}</span>
       </div>
       <div className="item-row">
         <span className="item-row-label">퇴직연금</span>
-        <span className="item-row-value">{formatWan(goal.retirementAsset)}</span>
+        <span className="item-row-value">{formatWan(record.retirementPension)}</span>
       </div>
       <div className="item-row">
         <span className="item-row-label">개인연금</span>
-        <span className="item-row-value">{formatWan(goal.personalPension)}</span>
+        <span className="item-row-value">{formatWan(record.personalPension)}</span>
       </div>
       <div className="item-row">
         <span className="item-row-label">월 연금 합계</span>
-        <span className="item-row-value">{formatWan(goal.nationalPension + goal.retirementAsset + goal.personalPension)}</span>
+        <span className="item-row-value">
+          {formatWan(record.nationalPension + record.retirementPension + record.personalPension)}
+        </span>
       </div>
       <div className="item-row">
         <span className="item-row-label">월 생활비</span>
-        <span className="item-row-value">{formatWan(goal.monthlyLivingExpense)}</span>
+        <span className="item-row-value">{formatWan(record.monthlyExpense)}</span>
       </div>
       <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-        <Button variant="secondary" onClick={onDelete} disabled={isLoading || !ready} fullWidth={false}>
+        <Button variant="secondary" onClick={onDelete} disabled={isLoading} fullWidth={false}>
           {isLoading ? '삭제 중...' : '삭제'}
         </Button>
       </div>

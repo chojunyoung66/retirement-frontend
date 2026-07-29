@@ -1,8 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useDiagnosis } from "../hooks/useDiagnosis";
-import { useRetirementGoal } from "../hooks/useRetirementGoal";
 import {
   calculateLongTermProjection,
   generateRecommendations,
@@ -35,7 +34,7 @@ export default function ProjectionScreen() {
   const { state } = useDiagnosis();
   const dispatch = useDispatch<AppDispatch>();
   const isLoggedIn = useSelector((s: RootState) => !!s.auth.token);
-  const { saveGoal, isLoading: isSaving } = useRetirementGoal();
+  const [isSaving, setIsSaving] = useState(false);
 
   const projection = state.projection;
 
@@ -92,27 +91,18 @@ export default function ProjectionScreen() {
         return;
       }
 
+      setIsSaving(true);
       try {
         const retirementYear = state.birthYear + (state.retirementAge ?? 60);
-        await Promise.all([
-          saveGoal({
-            birthYear: state.birthYear,
-            retirementYear,
-            monthlyLivingExpense: state.livingExpense.desiredMonthly,
-            nationalPension: state.pension.national,
-            retirementAsset: state.pension.retirement,
-            personalPension: state.pension.personal,
-          }),
-          saveLatestDiagnosis({
-            householdType: state.diagnosisType,
-            birthYear: state.birthYear,
-            retirementYear,
-            nationalPension: state.pension.national,
-            retirementPension: state.pension.retirement,
-            personalPension: state.pension.personal,
-            monthlyExpense: state.livingExpense.desiredMonthly,
-          }),
-        ]);
+        await saveLatestDiagnosis({
+          householdType: state.diagnosisType,
+          birthYear: state.birthYear,
+          retirementYear,
+          nationalPension: state.pension.national,
+          retirementPension: state.pension.retirement,
+          personalPension: state.pension.personal,
+          monthlyExpense: state.livingExpense.desiredMonthly,
+        });
         dispatch(showToast("진단 결과를 저장했어요"));
       } catch (err) {
         const message =
@@ -121,6 +111,8 @@ export default function ProjectionScreen() {
             : "일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요";
         dispatch(showToast(message));
         return;
+      } finally {
+        setIsSaving(false);
       }
     } else {
       dispatch(showToast("진단 결과를 저장했어요"));
