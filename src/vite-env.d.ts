@@ -14,6 +14,8 @@ interface Window {
           notification?: (n: {
             isNotDisplayed(): boolean;
             isSkippedMoment(): boolean;
+            isDismissedMoment(): boolean;
+            getDismissedReason(): string;
           }) => void,
         ): void;
       };
