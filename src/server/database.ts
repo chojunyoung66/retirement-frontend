@@ -11,16 +11,6 @@ export type User = {
   name: string;
 };
 
-export type RetirementGoal = {
-  id: number;
-  userId: number;
-  birthYear: number;
-  retirementYear: number;
-  monthlyLivingExpense: number;
-  nationalPension: number;
-  retirementAsset: number;
-};
-
 export type PortfolioItem = {
   symbol: string;
   name: string;
@@ -47,7 +37,6 @@ export type Simulation = {
 export type Database = {
   sessions: Session[];
   users: User[];
-  retirementGoals: RetirementGoal[];
   portfolios: Portfolio[];
   simulations: Simulation[];
 };
@@ -60,17 +49,6 @@ const database: Database = {
       email: "user@example.com",
       password: "password123",
       name: "테스트 사용자",
-    },
-  ],
-  retirementGoals: [
-    {
-      id: 1,
-      userId: 1,
-      birthYear: 1985,
-      retirementYear: 2055,
-      monthlyLivingExpense: 3000000,
-      nationalPension: 2000000,
-      retirementAsset: 500000000,
     },
   ],
   portfolios: [
