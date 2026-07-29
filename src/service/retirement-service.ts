@@ -218,33 +218,61 @@ export function generateRecommendations(
   const { desiredMonthly } = state.livingExpense;
 
   const isDeficit = twentyYearGap < 0;
-  // 20년 갭을 월 단위로 환산 — 이 만큼을 월별로 개선해야 균형 달성
-  const monthlyTarget = Math.abs(twentyYearGap) / MONTHS;
+  const monthlyGap = Math.abs(twentyYearGap) / MONTHS;
   // 5만원 단위로 올림, 최소 5만원
   const snap = (n: number) => Math.max(50000, Math.ceil(n / 50000) * 50000);
   const wan = (n: number) => Math.round(n / 10000);
 
   const items: import('../domain/plan').SimulationItem[] = [];
 
-  // 생활비 절감 (적자 시: 갭의 50%를 생활비로 메움, 최대 25% 절감)
-  if (desiredMonthly > 0) {
-    const delta = isDeficit
-      ? snap(Math.min(monthlyTarget * 0.5, desiredMonthly * 0.25))
-      : snap(desiredMonthly * 0.1);
+  if (!isDeficit) {
+    // 여유 있는 경우: 활용 제안
+
+    // 1. 생활비 상향 여력 — 20년 갭 전체를 월 단위로 환산
+    const spendingIncrease = snap(monthlyGap);
     items.push({
-      label: isDeficit ? `생활비 월 ${wan(delta)}만원 절감` : `생활비 월 ${wan(delta)}만원 절감 가능`,
+      label: `생활비 월 ${wan(spendingIncrease)}만원 더 써도 20년 균형 유지`,
+      delta: spendingIncrease,
+      twentyYearImpact: spendingIncrease * MONTHS,
+    });
+
+    // 2. IRP 추가 납입 — 여유금의 50%, 최대 37.5만원/월 (연 450만원)
+    const irpMonthly = Math.min(snap(monthlyGap * 0.5), 375000);
+    if (irpMonthly >= 50000) {
+      const irpAnnual = irpMonthly * 12;
+      // 소득 5,500만원 이하 세액공제율 16.5%, 납입 한도 연 900만원
+      const taxCredit = Math.round(Math.min(irpAnnual, 9000000) * 0.165);
+      // 연 4% 수익률 기준 20년 복리
+      const irp20Year = Math.round(irpAnnual * ((Math.pow(1.04, 20) - 1) / 0.04));
+      items.push({
+        label: `월 ${wan(irpMonthly)}만원 IRP 추가 납입 시`,
+        delta: irpMonthly,
+        twentyYearImpact: irp20Year,
+        detail: `세액공제 연 ${wan(taxCredit)}만원 절감 (소득 5,500만원 이하 기준)`,
+      });
+    }
+
+    return items;
+  }
+
+  // 적자인 경우: 개선 시뮬레이션
+  const monthlyTarget = monthlyGap;
+
+  // 생활비 절감 (갭의 50%를 생활비로 메움, 최대 25% 절감)
+  if (desiredMonthly > 0) {
+    const delta = snap(Math.min(monthlyTarget * 0.5, desiredMonthly * 0.25));
+    items.push({
+      label: `생활비 월 ${wan(delta)}만원 절감`,
       delta,
       twentyYearImpact: delta * MONTHS,
     });
   }
 
-  // 연금 수입 증가 (적자 시: 갭의 50%를 연금으로 메움, 최대 30% 증가)
+  // 연금 수입 증가 (갭의 50%를 연금으로 메움, 최대 30% 증가)
   if (totalIncome > 0) {
-    const delta = isDeficit
-      ? snap(Math.min(monthlyTarget * 0.5, totalIncome * 0.3))
-      : snap(totalIncome * 0.1);
+    const delta = snap(Math.min(monthlyTarget * 0.5, totalIncome * 0.3));
     items.push({
-      label: isDeficit ? `연금 수입 월 ${wan(delta)}만원 증가` : `연금 수입 월 ${wan(delta)}만원 추가 여력`,
+      label: `연금 수입 월 ${wan(delta)}만원 증가`,
       delta,
       twentyYearImpact: delta * MONTHS,
     });

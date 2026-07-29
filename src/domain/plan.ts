@@ -32,6 +32,7 @@ export interface SimulationItem {
   label: string;
   delta: number;
   twentyYearImpact?: number;
+  detail?: string;
 }
 
 export interface ProjectionResult {

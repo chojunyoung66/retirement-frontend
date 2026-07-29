@@ -242,14 +242,18 @@ export default function ProjectionScreen() {
 
         {recommendations.length > 0 && (
           <div className="card">
-            <div className="card-title">개선 시뮬레이션</div>
+            <div className="card-title">
+              {longTermSummary && longTermSummary.totalGap >= 0
+                ? "여유자금 활용 제안"
+                : "개선 시뮬레이션"}
+            </div>
             {longTermSummary && (
               <div
                 className={`sim-target-banner ${longTermSummary.totalGap < 0 ? "sim-target-banner-neg" : "sim-target-banner-pos"}`}
               >
                 {longTermSummary.totalGap < 0
                   ? `20년간 ${formatWan(Math.abs(longTermSummary.totalGap))} 부족 · 매월 ${formatWan(Math.round(Math.abs(longTermSummary.totalGap) / 240))} 개선 필요`
-                  : `20년간 ${formatWan(longTermSummary.totalGap)} 여유 · 현재 계획 양호`}
+                  : `20년간 ${formatWan(longTermSummary.totalGap)} 여유 · 월 ${formatWan(Math.round(longTermSummary.totalGap / 240))} 활용 가능`}
               </div>
             )}
             {recommendations.map((sim) => (
@@ -268,6 +272,17 @@ export default function ProjectionScreen() {
                       }}
                     >
                       20년 누적 +{formatWan(sim.twentyYearImpact)}
+                    </div>
+                  )}
+                  {sim.detail && (
+                    <div
+                      style={{
+                        fontSize: 11,
+                        color: "var(--text-secondary)",
+                        marginTop: 2,
+                      }}
+                    >
+                      {sim.detail}
                     </div>
                   )}
                 </div>
