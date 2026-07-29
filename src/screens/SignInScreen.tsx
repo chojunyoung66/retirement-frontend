@@ -87,7 +87,7 @@ export default function SignInScreen() {
     });
 
     window.google.accounts.id.prompt((n) => {
-      if (n.isNotDisplayed() || n.isSkippedMoment()) {
+      if (n.isNotDisplayed()) {
         setGoogleStatus("error");
         setGoogleError(getGoogleErrorMessage("POPUP_CLOSED"));
       }
