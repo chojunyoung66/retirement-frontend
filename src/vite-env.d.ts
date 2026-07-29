@@ -13,6 +13,7 @@ interface Window {
         prompt(
           notification?: (n: {
             isNotDisplayed(): boolean;
+            getNotDisplayedReason(): string;
             isSkippedMoment(): boolean;
             isDismissedMoment(): boolean;
             getDismissedReason(): string;

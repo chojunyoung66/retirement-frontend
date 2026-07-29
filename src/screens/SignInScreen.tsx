@@ -88,11 +88,18 @@ export default function SignInScreen() {
 
     window.google.accounts.id.prompt((n) => {
       if (n.isNotDisplayed()) {
-        // 팝업 자체가 표시되지 않은 경우 (팝업 차단 등)
-        setGoogleStatus("error");
-        setGoogleError(getGoogleErrorMessage("POPUP_CLOSED"));
+        // 팝업이 열리지 않은 원인에 따라 안내 분기
+        const reason = n.getNotDisplayedReason();
+        const msg =
+          reason === "opt_out_or_no_session"
+            ? "브라우저에 Google 계정이 로그인되어 있는지 확인해주세요"
+            : reason === "suppressed_by_user"
+              ? "잠시 후 다시 시도해주세요 (Google 팝업 대기 중)"
+              : "Google 로그인 팝업을 열 수 없어요. 다시 시도해주세요";
+        setGoogleStatus("idle");
+        setGoogleError(msg);
       } else if (n.isDismissedMoment() && n.getDismissedReason() === "cancel_called") {
-        // 사용자가 직접 팝업을 닫은 경우 → 로딩 상태 해제
+        // 사용자가 직접 팝업을 닫은 경우 → 조용히 해제
         setGoogleStatus("idle");
         setGoogleError(null);
       }
