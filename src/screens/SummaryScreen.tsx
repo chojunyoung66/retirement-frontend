@@ -140,20 +140,24 @@ function SavedGoalCard({ goal, isLoading, onDelete }: SavedGoalCardProps) {
         <span className="item-row-value">{goal.retirementYear}년</span>
       </div>
       <div className="item-row">
-        <span className="item-row-label">월 생활비</span>
-        <span className="item-row-value">{formatWan(goal.monthlyLivingExpense)}</span>
-      </div>
-      <div className="item-row">
         <span className="item-row-label">국민연금</span>
         <span className="item-row-value">{formatWan(goal.nationalPension)}</span>
       </div>
       <div className="item-row">
-        <span className="item-row-label">퇴직금</span>
+        <span className="item-row-label">퇴직연금</span>
         <span className="item-row-value">{formatWan(goal.retirementAsset)}</span>
       </div>
-      <div className="mt-16">
-        <Button variant="secondary" onClick={onDelete} disabled={isLoading || !ready}>
-          {isLoading ? '삭제 중...' : '삭제하기'}
+      <div className="item-row">
+        <span className="item-row-label">월 연금 합계</span>
+        <span className="item-row-value">{formatWan(goal.nationalPension + goal.retirementAsset)}</span>
+      </div>
+      <div className="item-row">
+        <span className="item-row-label">월 생활비</span>
+        <span className="item-row-value">{formatWan(goal.monthlyLivingExpense)}</span>
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <Button variant="secondary" onClick={onDelete} disabled={isLoading || !ready} fullWidth={false}>
+          {isLoading ? '삭제 중...' : '삭제'}
         </Button>
       </div>
     </div>
