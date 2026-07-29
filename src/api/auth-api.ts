@@ -1,12 +1,12 @@
-import { isAxiosError } from 'axios';
-import z from 'zod';
-import client, { ApiError } from './client';
+import { isAxiosError } from "axios";
+import z from "zod";
+import client, { ApiError } from "./client";
 
 // 회원가입 요청 스키마
 const signUpReqSchema = z.object({
-  email: z.string().email('유효하지 않은 이메일입니다'),
-  password: z.string().min(8, '비밀번호는 8자 이상이어야 합니다'),
-  name: z.string().min(1, '이름은 필수입니다'),
+  email: z.string().email("유효하지 않은 이메일입니다"),
+  password: z.string().min(8, "비밀번호는 8자 이상이어야 합니다"),
+  name: z.string().min(1, "이름은 필수입니다"),
 });
 
 // 회원가입 응답 스키마
@@ -19,8 +19,8 @@ const signUpResSchema = z.object({
 
 // 로그인 요청 스키마
 const signInReqSchema = z.object({
-  email: z.string().email('유효하지 않은 이메일입니다'),
-  password: z.string().min(8, '비밀번호는 8자 이상이어야 합니다'),
+  email: z.string().email("유효하지 않은 이메일입니다"),
+  password: z.string().min(8, "비밀번호는 8자 이상이어야 합니다"),
 });
 
 // 로그인 응답 스키마
@@ -38,25 +38,25 @@ export type SignInResponse = z.infer<typeof signInResSchema>;
 
 // 회원가입 API 요청
 export const signUpRequest = async (
-  data: SignUpRequest
+  data: SignUpRequest,
 ): Promise<SignUpResponse> => {
   try {
     const parsedReq = signUpReqSchema.safeParse(data);
     if (!parsedReq.success) {
-      throw new ApiError('VALIDATION_ERROR');
+      throw new ApiError("VALIDATION_ERROR");
     }
 
-    const res = await client.post('/auth/signup', parsedReq.data);
+    const res = await client.post("/auth/signup", parsedReq.data);
 
     const parsed = signUpResSchema.safeParse(res.data.data);
     if (!parsed.success) {
-      throw new Error('유효하지 않은 응답 형식입니다');
+      throw new Error("유효하지 않은 응답 형식입니다");
     }
 
     return parsed.data;
   } catch (err: unknown) {
     if (isAxiosError(err)) {
-      throw new ApiError(err.response?.data?.error?.code || 'UNKNOWN_ERROR');
+      throw new ApiError(err.response?.data?.error?.code || "UNKNOWN_ERROR");
     }
     throw err;
   }
@@ -64,25 +64,25 @@ export const signUpRequest = async (
 
 // 로그인 API 요청
 export const signInRequest = async (
-  data: SignInRequest
+  data: SignInRequest,
 ): Promise<SignInResponse> => {
   try {
     const parsedReq = signInReqSchema.safeParse(data);
     if (!parsedReq.success) {
-      throw new ApiError('VALIDATION_ERROR');
+      throw new ApiError("VALIDATION_ERROR");
     }
 
-    const res = await client.post('/auth/signin', parsedReq.data);
+    const res = await client.post("/auth/signin", parsedReq.data);
 
     const parsed = signInResSchema.safeParse(res.data.data);
     if (!parsed.success) {
-      throw new Error('유효하지 않은 응답 형식입니다');
+      throw new Error("유효하지 않은 응답 형식입니다");
     }
 
     return parsed.data;
   } catch (err: unknown) {
     if (isAxiosError(err)) {
-      throw new ApiError(err.response?.data?.error?.code || 'UNKNOWN_ERROR');
+      throw new ApiError(err.response?.data?.error?.code || "UNKNOWN_ERROR");
     }
     throw err;
   }
@@ -91,11 +91,39 @@ export const signInRequest = async (
 // 사용자 프로필 조회
 export const getMe = async () => {
   try {
-    const res = await client.get('/users/me');
+    const res = await client.get("/auth/me");
     return res.data.data;
   } catch (err: unknown) {
     if (isAxiosError(err)) {
-      throw new ApiError(err.response?.data?.error?.code || 'UNKNOWN_ERROR');
+      throw new ApiError(err.response?.data?.error?.code || "UNKNOWN_ERROR");
+    }
+    throw err;
+  }
+};
+
+// Google 로그인 응답 스키마
+const googleSignInResSchema = z.object({
+  id: z.number(),
+  email: z.string(),
+  name: z.string(),
+  token: z.string(),
+  profileImage: z.string().optional(),
+});
+
+export type GoogleSignInResponse = z.infer<typeof googleSignInResSchema>;
+
+// Google ID Token으로 로그인
+export const googleSignInRequest = async (
+  idToken: string,
+): Promise<GoogleSignInResponse> => {
+  try {
+    const res = await client.post("/auth/google", { idToken });
+    const parsed = googleSignInResSchema.safeParse(res.data.data);
+    if (!parsed.success) throw new Error("유효하지 않은 응답 형식입니다");
+    return parsed.data;
+  } catch (err: unknown) {
+    if (isAxiosError(err)) {
+      throw new ApiError(err.response?.data?.error?.code || "UNKNOWN_ERROR");
     }
     throw err;
   }

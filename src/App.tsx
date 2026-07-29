@@ -1,17 +1,23 @@
-import { useEffect } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
-import { useAuth } from './hooks/useAuth';
-import Toast from './components/Toast';
-import { showToast } from './store/toast-slice';
-import type { AppDispatch } from './store/store';
-import logo from './assets/logo.png';
+import { useEffect } from "react";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { useAuth } from "./hooks/useAuth";
+import Toast from "./components/Toast";
+import { showToast } from "./store/toast-slice";
+import type { AppDispatch } from "./store/store";
+import logo from "./assets/logo.png";
 
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isLoggedIn, logout } = useAuth();
+  const { isLoggedIn, logout, checkAuth } = useAuth();
   const dispatch = useDispatch<AppDispatch>();
+
+  // 앱 마운트 시 저장된 토큰의 유효성 확인 (checking 상태 해소)
+  useEffect(() => {
+    checkAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -20,32 +26,39 @@ export default function App() {
   const handleAuthClick = () => {
     if (isLoggedIn) {
       logout();
-      dispatch(showToast('로그아웃되었어요'));
+      dispatch(showToast("로그아웃되었어요"));
     } else {
-      navigate('/signin', { state: { from: location.pathname } });
+      navigate("/signin", { state: { from: location.pathname } });
     }
   };
 
-  const handleTitleClick = () => navigate('/');
-  const isHome = location.pathname === '/';
+  const handleTitleClick = () => navigate("/");
+  const isHome = location.pathname === "/";
 
   return (
     <div className="screen">
       <header className="app-header">
         <div className="header-left">
           {!isHome && (
-            <button className="header-back-btn" onClick={() => navigate(-1)} aria-label="뒤로">
+            <button
+              className="header-back-btn"
+              onClick={() => navigate(-1)}
+              aria-label="뒤로"
+            >
               ←
             </button>
           )}
         </div>
-        <button className="header-link header-center" onClick={handleTitleClick}>
+        <button
+          className="header-link header-center"
+          onClick={handleTitleClick}
+        >
           <img src={logo} alt="로고" className="header-logo" />
           은퇴현금 설계센터
         </button>
         <div className="app-header-actions header-right">
           <button className="header-link" onClick={handleAuthClick}>
-            {isLoggedIn ? '로그아웃' : '로그인'}
+            {isLoggedIn ? "로그아웃" : "로그인"}
           </button>
         </div>
       </header>
