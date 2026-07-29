@@ -8,7 +8,9 @@ const diagnosisRecordSchema = z.object({
   householdType: z.string(),
   birthYear: z.number(),
   retirementYear: z.number(),
-  monthlyIncome: z.number(),
+  nationalPension: z.number(),
+  retirementPension: z.number(),
+  personalPension: z.number(),
   monthlyExpense: z.number(),
   updatedAt: z.string(),
 });
@@ -17,7 +19,9 @@ const diagnosisDataSchema = z.object({
   householdType: z.string().min(1),
   birthYear: z.number().int().min(1900),
   retirementYear: z.number().int().min(1900),
-  monthlyIncome: z.number().nonnegative(),
+  nationalPension: z.number().nonnegative(),
+  retirementPension: z.number().nonnegative(),
+  personalPension: z.number().nonnegative(),
   monthlyExpense: z.number().nonnegative(),
 });
 

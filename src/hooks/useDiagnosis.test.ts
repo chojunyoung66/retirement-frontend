@@ -30,7 +30,7 @@ function applyLoadFromServer(
     diagnosisType: rec.householdType as DiagnosisState["diagnosisType"],
     birthYear: rec.birthYear,
     retirementAge,
-    pension: { national: rec.monthlyIncome, retirement: 0, personal: 0 },
+    pension: { national: rec.nationalPension, retirement: rec.retirementPension, personal: rec.personalPension },
     livingExpense: {
       ...state.livingExpense,
       desiredMonthly: rec.monthlyExpense,
@@ -46,7 +46,9 @@ describe("LOAD_FROM_SERVER 리듀서 로직", () => {
     householdType: "couple",
     birthYear: 1970,
     retirementYear: 2032,
-    monthlyIncome: 1500000,
+    nationalPension: 1500000,
+    retirementPension: 300000,
+    personalPension: 200000,
     monthlyExpense: 2500000,
     updatedAt: "2026-07-29T00:00:00.000Z",
   };
@@ -62,11 +64,11 @@ describe("LOAD_FROM_SERVER 리듀서 로직", () => {
     expect(result.retirementAge).toBe(62); // 2032 - 1970
   });
 
-  it("monthlyIncome을 pension.national에 매핑하고 retirement/personal은 0으로 초기화한다", () => {
+  it("각 연금 항목을 개별 필드에 매핑한다", () => {
     const result = applyLoadFromServer(initialState, sampleRecord);
     expect(result.pension.national).toBe(1500000);
-    expect(result.pension.retirement).toBe(0);
-    expect(result.pension.personal).toBe(0);
+    expect(result.pension.retirement).toBe(300000);
+    expect(result.pension.personal).toBe(200000);
   });
 
   it("monthlyExpense를 livingExpense.desiredMonthly에 반영한다", () => {

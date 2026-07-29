@@ -50,8 +50,7 @@ function reducer(state: DiagnosisState, action: Action): DiagnosisState {
         diagnosisType: rec.householdType as DiagnosisState["diagnosisType"],
         birthYear: rec.birthYear,
         retirementAge: rec.retirementYear - rec.birthYear,
-        // MVP: monthlyIncome → national 연금으로 일괄 매핑 (pension 분류 정보 미저장)
-        pension: { national: rec.monthlyIncome, retirement: 0, personal: 0 },
+        pension: { national: rec.nationalPension, retirement: rec.retirementPension, personal: rec.personalPension },
         livingExpense: {
           ...state.livingExpense,
           desiredMonthly: rec.monthlyExpense,

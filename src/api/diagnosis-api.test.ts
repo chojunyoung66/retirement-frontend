@@ -37,7 +37,9 @@ const SAMPLE_RECORD = {
   householdType: "individual",
   birthYear: 1970,
   retirementYear: 2030,
-  monthlyIncome: 1200000,
+  nationalPension: 1000000,
+  retirementPension: 200000,
+  personalPension: 0,
   monthlyExpense: 2000000,
   updatedAt: "2026-07-29T00:00:00.000Z",
 };
@@ -73,7 +75,9 @@ describe("saveLatestDiagnosis — PUT /diagnoses/me/latest", () => {
       householdType: "individual",
       birthYear: 1970,
       retirementYear: 2030,
-      monthlyIncome: 1200000,
+      nationalPension: 1000000,
+      retirementPension: 200000,
+      personalPension: 0,
       monthlyExpense: 2000000,
     };
 

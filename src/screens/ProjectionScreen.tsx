@@ -107,7 +107,9 @@ export default function ProjectionScreen() {
             householdType: state.diagnosisType,
             birthYear: state.birthYear,
             retirementYear,
-            monthlyIncome: projection.totalIncome,
+            nationalPension: state.pension.national,
+            retirementPension: state.pension.retirement,
+            personalPension: state.pension.personal,
             monthlyExpense: state.livingExpense.desiredMonthly,
           }),
         ]);

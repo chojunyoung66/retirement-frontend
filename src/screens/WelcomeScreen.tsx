@@ -118,38 +118,62 @@ export default function WelcomeScreen() {
             <div className="card">
               <div className="card-title">저장된 진단 불러오기</div>
               <div className="item-row">
-                <span className="item-row-label">출생연도</span>
+                <span className="item-row-label">출생 연도</span>
                 <span className="item-row-value">
                   {savedDiagnosis.birthYear}년
                 </span>
               </div>
               <div className="item-row">
-                <span className="item-row-label">은퇴예정</span>
+                <span className="item-row-label">
+                  {savedDiagnosis.retirementYear <= new Date().getFullYear()
+                    ? "퇴직 연도"
+                    : "은퇴 예정 연도"}
+                </span>
                 <span className="item-row-value">
                   {savedDiagnosis.retirementYear}년
                 </span>
               </div>
               <div className="item-row">
-                <span className="item-row-label">월 소득</span>
+                <span className="item-row-label">국민연금</span>
                 <span className="item-row-value">
-                  {formatWan(savedDiagnosis.monthlyIncome)}
+                  {formatWan(savedDiagnosis.nationalPension)}
                 </span>
               </div>
               <div className="item-row">
-                <span className="item-row-label">월 지출</span>
+                <span className="item-row-label">퇴직연금</span>
+                <span className="item-row-value">
+                  {formatWan(savedDiagnosis.retirementPension)}
+                </span>
+              </div>
+              <div className="item-row">
+                <span className="item-row-label">개인연금</span>
+                <span className="item-row-value">
+                  {formatWan(savedDiagnosis.personalPension)}
+                </span>
+              </div>
+              <div className="item-row">
+                <span className="item-row-label">월 연금 합계</span>
+                <span className="item-row-value">
+                  {formatWan(
+                    savedDiagnosis.nationalPension +
+                      savedDiagnosis.retirementPension +
+                      savedDiagnosis.personalPension,
+                  )}
+                </span>
+              </div>
+              <div className="item-row">
+                <span className="item-row-label">월 생활비</span>
                 <span className="item-row-value">
                   {formatWan(savedDiagnosis.monthlyExpense)}
                 </span>
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                <Button onClick={handleRestoreDiagnosis}>결과 보기</Button>
-                <button
-                  className="btn btn-secondary"
-                  onClick={handleDeleteDiagnosis}
-                  style={{ flex: "none" }}
-                >
+                <div style={{ flex: 1 }}>
+                  <Button onClick={handleRestoreDiagnosis}>결과 보기</Button>
+                </div>
+                <Button variant="secondary" onClick={handleDeleteDiagnosis} fullWidth={false}>
                   삭제
-                </button>
+                </Button>
               </div>
             </div>
           )}
