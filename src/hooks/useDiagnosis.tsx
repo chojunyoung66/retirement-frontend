@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import type { DiagnosisState } from "../domain/plan";
+import type { DiagnosisRecord } from "../api/diagnosis-api";
 import { calculateProjection } from "../service/retirement-service";
 
 const initialState: DiagnosisState = {
@@ -25,10 +26,7 @@ type Action =
   | { type: "CALCULATE" }
   | { type: "UPDATE_AND_CALCULATE"; payload: Partial<DiagnosisState> }
   | { type: "RESET" }
-  | {
-      type: "LOAD_FROM_SERVER";
-      payload: import("../api/diagnosis-api").DiagnosisRecord;
-    };
+  | { type: "LOAD_FROM_SERVER"; payload: DiagnosisRecord };
 
 function reducer(state: DiagnosisState, action: Action): DiagnosisState {
   switch (action.type) {
