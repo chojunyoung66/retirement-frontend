@@ -11,6 +11,7 @@ const retirementGoalSchema = z.object({
   monthlyLivingExpense: z.number(),
   nationalPension: z.number(),
   retirementAsset: z.number(),
+  personalPension: z.number().default(0),
 });
 
 // 생성 요청 스키마
@@ -20,6 +21,7 @@ const createRetirementGoalReqSchema = z.object({
   monthlyLivingExpense: z.number(),
   nationalPension: z.number(),
   retirementAsset: z.number(),
+  personalPension: z.number(),
 });
 
 // 업데이트 요청 스키마

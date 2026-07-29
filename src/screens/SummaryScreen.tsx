@@ -148,8 +148,12 @@ function SavedGoalCard({ goal, isLoading, onDelete }: SavedGoalCardProps) {
         <span className="item-row-value">{formatWan(goal.retirementAsset)}</span>
       </div>
       <div className="item-row">
+        <span className="item-row-label">개인연금</span>
+        <span className="item-row-value">{formatWan(goal.personalPension)}</span>
+      </div>
+      <div className="item-row">
         <span className="item-row-label">월 연금 합계</span>
-        <span className="item-row-value">{formatWan(goal.nationalPension + goal.retirementAsset)}</span>
+        <span className="item-row-value">{formatWan(goal.nationalPension + goal.retirementAsset + goal.personalPension)}</span>
       </div>
       <div className="item-row">
         <span className="item-row-label">월 생활비</span>

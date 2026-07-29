@@ -100,8 +100,8 @@ export default function ProjectionScreen() {
             retirementYear,
             monthlyLivingExpense: state.livingExpense.desiredMonthly,
             nationalPension: state.pension.national,
-            // TODO: 백엔드 계약에 monthlyRetirementPension 필드 추가 후 분리 필요
             retirementAsset: state.pension.retirement,
+            personalPension: state.pension.personal,
           }),
           saveLatestDiagnosis({
             householdType: state.diagnosisType,
