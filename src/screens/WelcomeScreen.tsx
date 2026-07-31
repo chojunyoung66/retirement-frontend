@@ -26,7 +26,7 @@ export default function WelcomeScreen() {
   >("loading");
 
   const formatAvg = (won: number) => `${Math.round(won / 10000)}만원`;
-  const formatCount = (n: number) => `${(n / 10000).toFixed(0)}만명`;
+  const formatCount = (n: number) => `${parseFloat((n / 10000).toFixed(1))}만명`;
 
   // 로그인 상태 확정 후 저장된 진단 조회
   useEffect(() => {

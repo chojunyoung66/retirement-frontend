@@ -14,7 +14,7 @@ export interface LivingExpenseGuide {
 export function getWelcomeMetrics(): WelcomeMetrics {
   return {
     averageMonthlyPension: 1870000,
-    completedDiagnoses: 1240000,
+    completedDiagnoses: 13000,
     accuracyRate: 98,
   };
 }
