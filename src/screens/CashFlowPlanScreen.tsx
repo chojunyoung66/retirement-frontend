@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDiagnosis } from '../hooks/useDiagnosis';
-import { calculateLongTermProjection, getPensionStartAge, type SecondaryIncome } from '../service/retirement-service';
+import { calculateLongTermProjection, getPensionStartAge, type SecondaryIncome, type HealthEscalationMode } from '../service/retirement-service';
 import { formatWan } from '../utils/format';
 
 interface SecondaryIncomeInput {
@@ -23,11 +23,16 @@ const PENSION_GROWTH_OPTIONS = [
 ];
 
 const LIFE_OPTIONS = [
-  { label: '80세', value: 80 },
   { label: '85세', value: 85 },
   { label: '90세', value: 90 },
   { label: '95세', value: 95 },
   { label: '100세', value: 100 },
+];
+
+const HEALTH_ESCALATION_OPTIONS: { label: string; value: HealthEscalationMode }[] = [
+  { label: '없음', value: 'none' },
+  { label: '일반 증가', value: 'moderate' },
+  { label: '급격 증가', value: 'steep' },
 ];
 
 export default function CashFlowPlanScreen() {
@@ -38,6 +43,7 @@ export default function CashFlowPlanScreen() {
   const [lifeExpectancy, setLifeExpectancy] = useState(90);
   const [initialSavings, setInitialSavings] = useState('');
   const [secondaryInputs, setSecondaryInputs] = useState<SecondaryIncomeInput[]>([]);
+  const [healthEscalation, setHealthEscalation] = useState<HealthEscalationMode>('none');
   const [includeUnemployment, setIncludeUnemployment] = useState(false);
   const [ubMonthly, setUbMonthly] = useState('');
   const [ubMonths, setUbMonths] = useState('');
@@ -72,11 +78,13 @@ export default function CashFlowPlanScreen() {
   }, [secondaryInputs]);
 
   const data = useMemo(
-    () => calculateLongTermProjection(state, years, inflationRate, pensionGrowthRate, unemploymentBenefit, secondaryIncomes),
-    [state, years, inflationRate, pensionGrowthRate, unemploymentBenefit, secondaryIncomes],
+    () => calculateLongTermProjection(state, years, inflationRate, pensionGrowthRate, unemploymentBenefit, secondaryIncomes, healthEscalation),
+    [state, years, inflationRate, pensionGrowthRate, unemploymentBenefit, secondaryIncomes, healthEscalation],
   );
 
   const pensionStartAge = useMemo(() => getPensionStartAge(state.birthYear ?? null), [state.birthYear]);
+  const privatePensionEndAge = retirementAge + 20;
+  const hasPrivatePension = (state.pension.retirement + state.pension.personal) > 0;
 
   const lastYear = data[data.length - 1];
   const totalCumulative = lastYear?.cumulativeGap ?? 0;
@@ -174,12 +182,35 @@ export default function CashFlowPlanScreen() {
           </div>
         </div>
 
+        {/* 의료비 증가 시나리오 */}
+        <div className="cfp-assumption-row">
+          <span className="cfp-assumption-label">의료비 증가</span>
+          <div className="cfp-chip-group">
+            {HEALTH_ESCALATION_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                className={`cfp-chip ${healthEscalation === opt.value ? 'cfp-chip-active' : ''}`}
+                onClick={() => setHealthEscalation(opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {healthEscalation !== 'none' && (
+          <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '0 0 8px', lineHeight: 1.5, textAlign: 'right' }}>
+            {healthEscalation === 'moderate'
+              ? '70세 ×1.5 → 75세 ×2.0 → 80세 ×2.5 → 85세 ×3.0 (물가 상승 별도)'
+              : '70세 ×2.0 → 75세 ×3.0 → 80세 ×4.0 → 85세 ×5.0 (물가 상승 별도)'}
+          </p>
+        )}
+
         {/* 제2 수입 (파트타임 · 프리랜서 · 창업 등) */}
         <div className="cfp-assumption-row" style={{ alignItems: 'flex-start' }}>
           <span className="cfp-assumption-label" style={{ paddingTop: 6 }}>제2 수입</span>
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
             {secondaryInputs.map((s, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 <input
                   type="number"
                   value={s.startAge}
@@ -429,6 +460,11 @@ export default function CashFlowPlanScreen() {
                         국민연금 {pensionStartAge}세 수급 예정
                       </span>
                     ) : null}
+                    {hasPrivatePension && d.age === privatePensionEndAge ? (
+                      <span style={{ display: 'block', fontSize: 10, color: '#e74c3c' }}>
+                        퇴직·개인연금 수령 종료
+                      </span>
+                    ) : null}
                   </td>
                   <td>
                     {formatWan(d.monthlyIncome)}
@@ -443,7 +479,14 @@ export default function CashFlowPlanScreen() {
                       </span>
                     ) : null}
                   </td>
-                  <td>{formatWan(d.monthlyExpense)}</td>
+                  <td>
+                    {formatWan(d.monthlyExpense)}
+                    {healthEscalation !== 'none' && d.monthlyMedicalExpense > 0 && d.age >= 70 && (
+                      <span style={{ display: 'block', fontSize: 10, color: '#e74c3c' }}>
+                        (의료비 {formatWan(d.monthlyMedicalExpense)})
+                      </span>
+                    )}
+                  </td>
                   <td className={d.monthlyGap >= 0 ? 'result-positive' : 'result-negative'}>
                     {d.monthlyGap >= 0 ? '+' : ''}{formatWan(d.monthlyGap)}
                   </td>

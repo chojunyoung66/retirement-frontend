@@ -37,7 +37,7 @@ button {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  max-width: 480px;
+  max-width: 432px;
   margin: 0 auto;
   background: var(--bg);
 }
@@ -705,6 +705,7 @@ button {
   display: flex;
   gap: 5px;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 .cfp-chip {
   padding: 5px 11px;
@@ -738,6 +739,7 @@ button {
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 .cfp-ub-field {
   display: flex;
@@ -765,6 +767,7 @@ button {
   color: #aaa;
   margin: 0;
   line-height: 1.4;
+  text-align: right;
 }
 
 .cfp-kpi-row {

@@ -114,11 +114,23 @@ export interface YearlyProjection {
   age: number;
   monthlyIncome: number;
   monthlyExpense: number;
+  monthlyMedicalExpense: number;
   monthlyGap: number;
   cumulativeGap: number;
   unemploymentBenefitIncome?: number;
   secondaryIncome?: number;
   nationalPensionStarted: boolean;
+}
+
+export type HealthEscalationMode = 'none' | 'moderate' | 'steep';
+
+// 연령대별 의료비 배율 (기준 연령 대비, 물가상승 별도)
+function getMedicalEscalationFactor(age: number, mode: HealthEscalationMode): number {
+  if (mode === 'none') return 1;
+  const table = mode === 'moderate'
+    ? [{ from: 85, factor: 3.0 }, { from: 80, factor: 2.5 }, { from: 75, factor: 2.0 }, { from: 70, factor: 1.5 }]
+    : [{ from: 85, factor: 5.0 }, { from: 80, factor: 4.0 }, { from: 75, factor: 3.0 }, { from: 70, factor: 2.0 }];
+  return table.find((r) => age >= r.from)?.factor ?? 1;
 }
 
 export interface SecondaryIncome {
@@ -149,6 +161,7 @@ export function calculateLongTermProjection(
   pensionGrowthRate = 0.02,
   unemploymentBenefit?: UnemploymentBenefitOption,
   secondaryIncomes: SecondaryIncome[] = [],
+  healthEscalation: HealthEscalationMode = 'none',
 ): YearlyProjection[] {
   // 정년(retirementAge) 미지정 시 기본값 60세 — 정년 연장 정책 반영 시 state로 주입
   const retirementAge = state.retirementAge ?? 60;
@@ -159,10 +172,10 @@ export function calculateLongTermProjection(
   const effectivePensionStartAge = isPensionAlreadyStarted ? retirementAge : pensionStartAge;
   const baseNational = state.pension.national;
   const baseOther = state.pension.retirement + state.pension.personal;
-  const baseExpense =
-    state.livingExpense.desiredMonthly +
-    state.medicalExpense.healthInsurance +
-    state.medicalExpense.privateInsurance;
+  // 생활비와 의료비를 분리해 연령별 의료비 배율을 별도 적용
+  const baseLivingExpense = state.livingExpense.desiredMonthly;
+  const baseMedicalExpense =
+    state.medicalExpense.healthInsurance + state.medicalExpense.privateInsurance;
 
   const result: YearlyProjection[] = [];
   let cumulative = 0;
@@ -178,7 +191,8 @@ export function calculateLongTermProjection(
     const nationalIncome = nationalPensionStarted
       ? Math.round(baseNational * Math.pow(1 + pensionGrowthRate, i - pensionStartIndex))
       : 0;
-    const otherIncome = Math.round(baseOther * pensionFactor);
+    // 퇴직·개인연금은 최장 20년 수령 기본값 — 퇴직 후 20년 초과 시 0
+    const otherIncome = i < 20 ? Math.round(baseOther * pensionFactor) : 0;
 
     // 60세(i=0)에 실업급여를 연간 총액의 월평균으로 반영
     const ubIncome =
@@ -193,8 +207,11 @@ export function calculateLongTermProjection(
       .filter((s) => age >= s.startAge && age <= s.endAge)
       .reduce((sum, s) => sum + Math.round(s.monthlyAmount * inflationFactor), 0);
 
+    // 의료비: 물가 상승 + 연령대별 배율 (healthEscalation)
+    const medicalMultiplier = getMedicalEscalationFactor(age, healthEscalation);
+    const monthlyMedicalExpense = Math.round(baseMedicalExpense * inflationFactor * medicalMultiplier);
+    const monthlyExpense = Math.round(baseLivingExpense * inflationFactor) + monthlyMedicalExpense;
     const monthlyIncome = nationalIncome + otherIncome + ubIncome + secIncome;
-    const monthlyExpense = Math.round(baseExpense * inflationFactor);
     const monthlyGap = monthlyIncome - monthlyExpense;
     cumulative += monthlyGap * 12;
 
@@ -203,6 +220,7 @@ export function calculateLongTermProjection(
       age,
       monthlyIncome,
       monthlyExpense,
+      monthlyMedicalExpense,
       monthlyGap,
       cumulativeGap: cumulative,
       nationalPensionStarted,
