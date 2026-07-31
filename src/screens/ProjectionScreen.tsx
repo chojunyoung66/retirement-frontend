@@ -101,10 +101,9 @@ export default function ProjectionScreen() {
           nationalPension: state.pension.national,
           retirementPension: state.pension.retirement,
           personalPension: state.pension.personal,
-          monthlyExpense:
-            state.livingExpense.desiredMonthly +
-            state.medicalExpense.healthInsurance +
-            state.medicalExpense.privateInsurance,
+          monthlyExpense: state.livingExpense.desiredMonthly,
+          healthInsurance: state.medicalExpense.healthInsurance,
+          privateInsurance: state.medicalExpense.privateInsurance,
         });
         dispatch(showToast("진단 결과를 저장했어요"));
       } catch (err) {

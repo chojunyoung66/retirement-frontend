@@ -162,7 +162,7 @@ export default function WelcomeScreen() {
                 </span>
               </div>
               <div className="item-row">
-                <span className="item-row-label">월 생활비 (보험료 포함)</span>
+                <span className="item-row-label">월 생활비</span>
                 <span className="item-row-value">
                   {formatWan(savedDiagnosis.monthlyExpense)}
                 </span>

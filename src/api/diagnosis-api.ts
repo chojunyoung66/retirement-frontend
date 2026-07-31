@@ -12,6 +12,8 @@ const diagnosisRecordSchema = z.object({
   retirementPension: z.number(),
   personalPension: z.number(),
   monthlyExpense: z.number(),
+  healthInsurance: z.number().default(0),
+  privateInsurance: z.number().default(0),
   updatedAt: z.string(),
 });
 
@@ -23,6 +25,8 @@ const diagnosisDataSchema = z.object({
   retirementPension: z.number().nonnegative(),
   personalPension: z.number().nonnegative(),
   monthlyExpense: z.number().nonnegative(),
+  healthInsurance: z.number().nonnegative().default(0),
+  privateInsurance: z.number().nonnegative().default(0),
 });
 
 export type DiagnosisRecord = z.infer<typeof diagnosisRecordSchema>;

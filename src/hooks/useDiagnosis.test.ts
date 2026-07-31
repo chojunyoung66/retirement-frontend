@@ -50,6 +50,8 @@ describe("LOAD_FROM_SERVER 리듀서 로직", () => {
     retirementPension: 300000,
     personalPension: 200000,
     monthlyExpense: 2500000,
+    healthInsurance: 150000,
+    privateInsurance: 200000,
     updatedAt: "2026-07-29T00:00:00.000Z",
   };
 

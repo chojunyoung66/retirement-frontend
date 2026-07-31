@@ -41,6 +41,8 @@ const SAMPLE_RECORD = {
   retirementPension: 200000,
   personalPension: 0,
   monthlyExpense: 2000000,
+  healthInsurance: 150000,
+  privateInsurance: 200000,
   updatedAt: "2026-07-29T00:00:00.000Z",
 };
 
@@ -79,6 +81,8 @@ describe("saveLatestDiagnosis — PUT /diagnoses/me/latest", () => {
       retirementPension: 200000,
       personalPension: 0,
       monthlyExpense: 2000000,
+      healthInsurance: 150000,
+      privateInsurance: 200000,
     };
 
     const result = await saveLatestDiagnosis(payload);
