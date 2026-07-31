@@ -343,7 +343,7 @@ export default function ProjectionScreen() {
           style={{ marginBottom: 12, background: "var(--primary-dark)" }}
           onClick={() => navigate("/cashflow-plan")}
         >
-          📊 20년 현금 흐름 설계 보기
+          📊 장기 현금 흐름 설계 보기 (최대 100세)
         </button>
 
         <div className="button-row">

@@ -16,14 +16,27 @@ const PENSION_GROWTH_OPTIONS = [
   { label: '2%', value: 0.02 },
 ];
 
+const LIFE_OPTIONS = [
+  { label: '80세', value: 80 },
+  { label: '85세', value: 85 },
+  { label: '90세', value: 90 },
+  { label: '95세', value: 95 },
+  { label: '100세', value: 100 },
+];
+
 export default function CashFlowPlanScreen() {
   const navigate = useNavigate();
   const { state } = useDiagnosis();
   const [inflationRate, setInflationRate] = useState(0.02);
   const [pensionGrowthRate, setPensionGrowthRate] = useState(0.02);
+  const [lifeExpectancy, setLifeExpectancy] = useState(90);
+  const [initialSavings, setInitialSavings] = useState('');
   const [includeUnemployment, setIncludeUnemployment] = useState(false);
   const [ubMonthly, setUbMonthly] = useState('');
   const [ubMonths, setUbMonths] = useState('');
+
+  const retirementAge = state.retirementAge ?? 60;
+  const years = Math.max(lifeExpectancy - retirementAge, 5);
 
   const unemploymentBenefit = useMemo(() => {
     if (!includeUnemployment) return undefined;
@@ -34,8 +47,8 @@ export default function CashFlowPlanScreen() {
   }, [includeUnemployment, ubMonthly, ubMonths]);
 
   const data = useMemo(
-    () => calculateLongTermProjection(state, 20, inflationRate, pensionGrowthRate, unemploymentBenefit),
-    [state, inflationRate, pensionGrowthRate, unemploymentBenefit],
+    () => calculateLongTermProjection(state, years, inflationRate, pensionGrowthRate, unemploymentBenefit),
+    [state, years, inflationRate, pensionGrowthRate, unemploymentBenefit],
   );
 
   const pensionStartAge = useMemo(() => getPensionStartAge(state.birthYear ?? null), [state.birthYear]);
@@ -43,6 +56,16 @@ export default function CashFlowPlanScreen() {
   const lastYear = data[data.length - 1];
   const totalCumulative = lastYear?.cumulativeGap ?? 0;
   const positiveYears = data.filter((d) => d.monthlyGap >= 0).length;
+
+  // 자산 소진 분석 — 보유 금융자산(만원)을 원 단위로 환산
+  const savingsWon = Number(initialSavings) * 10000;
+  const hasValidSavings = savingsWon > 0;
+  const depletionRow = hasValidSavings
+    ? data.find((d) => savingsWon + d.cumulativeGap < 0)
+    : null;
+  const currentAge = state.birthYear ? new Date().getFullYear() - state.birthYear : null;
+  const yearsUntilDepletion =
+    depletionRow && currentAge ? depletionRow.age - currentAge : null;
 
   const maxAbs = useMemo(
     () => Math.max(...data.map((d) => Math.abs(d.cumulativeGap)), 1),
@@ -68,13 +91,33 @@ export default function CashFlowPlanScreen() {
   return (
     <div className="screen-content">
       <div className="cfp-hero">
-        <div className="cfp-hero-title">20년 현금 흐름 설계</div>
-        <div className="cfp-hero-sub">정년퇴직 60세~79세까지의 재정 흐름을 시뮬레이션합니다</div>
+        <div className="cfp-hero-title">{years}년 현금 흐름 설계</div>
+        <div className="cfp-hero-sub">
+          {retirementAge}세~{lifeExpectancy - 1}세 · 기대수명 {lifeExpectancy}세 기준
+        </div>
       </div>
 
-      {/* 가정 설정 */}
+      {/* 시뮬레이션 가정 */}
       <div className="card">
         <div className="card-title">시뮬레이션 가정</div>
+
+        {/* 기대수명 */}
+        <div className="cfp-assumption-row">
+          <span className="cfp-assumption-label">기대수명</span>
+          <div className="cfp-chip-group">
+            {LIFE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                className={`cfp-chip ${lifeExpectancy === opt.value ? 'cfp-chip-active' : ''}`}
+                onClick={() => setLifeExpectancy(opt.value)}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 물가 상승률 */}
         <div className="cfp-assumption-row">
           <span className="cfp-assumption-label">물가 상승률</span>
           <div className="cfp-chip-group">
@@ -89,6 +132,8 @@ export default function CashFlowPlanScreen() {
             ))}
           </div>
         </div>
+
+        {/* 연금 인상률 */}
         <div className="cfp-assumption-row">
           <span className="cfp-assumption-label">연금 인상률</span>
           <div className="cfp-chip-group">
@@ -103,6 +148,27 @@ export default function CashFlowPlanScreen() {
             ))}
           </div>
         </div>
+
+        {/* 보유 금융자산 */}
+        <div className="cfp-assumption-row">
+          <span className="cfp-assumption-label">보유 금융자산</span>
+          <div className="cfp-ub-inputs">
+            <div className="cfp-ub-field">
+              <input
+                type="number"
+                value={initialSavings}
+                onChange={(e) => setInitialSavings(e.target.value.replace(/[^0-9]/g, ''))}
+                onKeyDown={(e) => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault(); }}
+                className="cfp-ub-input"
+                placeholder="예: 30000"
+                style={{ width: 100 }}
+              />
+              <span className="cfp-ub-unit">만원 (자산 소진 분석용)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* 실업급여 */}
         <div className="cfp-assumption-row">
           <span className="cfp-assumption-label">실업급여</span>
           <div className="cfp-chip-group">
@@ -160,17 +226,56 @@ export default function CashFlowPlanScreen() {
         )}
       </div>
 
-      {/* 20년 요약 지표 */}
+      {/* 자산 소진 분석 카드 */}
+      {hasValidSavings && (
+        <div
+          className="card"
+          style={{
+            borderLeft: `4px solid ${depletionRow ? '#e74c3c' : 'var(--success)'}`,
+            background: depletionRow ? '#fff8f8' : '#f8fff9',
+          }}
+        >
+          {depletionRow ? (
+            <>
+              <div className="card-title" style={{ color: '#e74c3c' }}>
+                자산 소진 경고
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>
+                {depletionRow.age}세에 보유 금융자산이 소진될 것으로 예상됩니다
+              </div>
+              {yearsUntilDepletion !== null && (
+                <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                  지금으로부터 약 {yearsUntilDepletion}년 후 · 수입 증가 또는 지출 절감이 필요해요
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="card-title" style={{ color: 'var(--success)' }}>
+                자산 유지
+              </div>
+              <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>
+                기대수명 {lifeExpectancy}세까지 보유 금융자산이 유지됩니다
+              </div>
+              <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                {years}년 누적 현금흐름 기준 · 자산 소진 위험 없음
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* 요약 KPI */}
       <div className="cfp-kpi-row">
         <div className="cfp-kpi-card">
           <div className="cfp-kpi-label">흑자 연도</div>
-          <div className={`cfp-kpi-value ${positiveYears >= 15 ? 'result-positive' : positiveYears >= 10 ? '' : 'result-negative'}`}>
+          <div className={`cfp-kpi-value ${positiveYears >= years * 0.75 ? 'result-positive' : positiveYears >= years * 0.5 ? '' : 'result-negative'}`}>
             {positiveYears}년
           </div>
-          <div className="cfp-kpi-sub">/ 20년</div>
+          <div className="cfp-kpi-sub">/ {years}년</div>
         </div>
         <div className="cfp-kpi-card">
-          <div className="cfp-kpi-label">20년 누적 잔액</div>
+          <div className="cfp-kpi-label">{years}년 누적 잔액</div>
           <div className={`cfp-kpi-value ${totalCumulative >= 0 ? 'result-positive' : 'result-negative'}`}>
             {totalCumulative >= 0 ? '+' : ''}{formatWan(Math.round(totalCumulative / 10000) * 10000)}
           </div>
