@@ -117,7 +117,14 @@ export interface YearlyProjection {
   monthlyGap: number;
   cumulativeGap: number;
   unemploymentBenefitIncome?: number;
+  secondaryIncome?: number;
   nationalPensionStarted: boolean;
+}
+
+export interface SecondaryIncome {
+  startAge: number;
+  endAge: number;
+  monthlyAmount: number; // 원 단위
 }
 
 export function getPensionStartAge(birthYear: number | null): number {
@@ -141,6 +148,7 @@ export function calculateLongTermProjection(
   inflationRate = 0.02,
   pensionGrowthRate = 0.02,
   unemploymentBenefit?: UnemploymentBenefitOption,
+  secondaryIncomes: SecondaryIncome[] = [],
 ): YearlyProjection[] {
   // 정년(retirementAge) 미지정 시 기본값 60세 — 정년 연장 정책 반영 시 state로 주입
   const retirementAge = state.retirementAge ?? 60;
@@ -180,7 +188,12 @@ export function calculateLongTermProjection(
           )
         : 0;
 
-    const monthlyIncome = nationalIncome + otherIncome + ubIncome;
+    // 제2 수입 (파트타임·프리랜서 등) — 물가 상승률 반영
+    const secIncome = secondaryIncomes
+      .filter((s) => age >= s.startAge && age <= s.endAge)
+      .reduce((sum, s) => sum + Math.round(s.monthlyAmount * inflationFactor), 0);
+
+    const monthlyIncome = nationalIncome + otherIncome + ubIncome + secIncome;
     const monthlyExpense = Math.round(baseExpense * inflationFactor);
     const monthlyGap = monthlyIncome - monthlyExpense;
     cumulative += monthlyGap * 12;
@@ -194,6 +207,7 @@ export function calculateLongTermProjection(
       cumulativeGap: cumulative,
       nationalPensionStarted,
       ...(ubIncome > 0 ? { unemploymentBenefitIncome: ubIncome } : {}),
+      ...(secIncome > 0 ? { secondaryIncome: secIncome } : {}),
     });
   }
   return result;

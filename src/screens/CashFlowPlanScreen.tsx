@@ -1,8 +1,14 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDiagnosis } from '../hooks/useDiagnosis';
-import { calculateLongTermProjection, getPensionStartAge } from '../service/retirement-service';
+import { calculateLongTermProjection, getPensionStartAge, type SecondaryIncome } from '../service/retirement-service';
 import { formatWan } from '../utils/format';
+
+interface SecondaryIncomeInput {
+  startAge: string;
+  endAge: string;
+  monthlyAmount: string;
+}
 
 const INFLATION_OPTIONS = [
   { label: '0%', value: 0 },
@@ -31,12 +37,19 @@ export default function CashFlowPlanScreen() {
   const [pensionGrowthRate, setPensionGrowthRate] = useState(0.02);
   const [lifeExpectancy, setLifeExpectancy] = useState(90);
   const [initialSavings, setInitialSavings] = useState('');
+  const [secondaryInputs, setSecondaryInputs] = useState<SecondaryIncomeInput[]>([]);
   const [includeUnemployment, setIncludeUnemployment] = useState(false);
   const [ubMonthly, setUbMonthly] = useState('');
   const [ubMonths, setUbMonths] = useState('');
 
   const retirementAge = state.retirementAge ?? 60;
   const years = Math.max(lifeExpectancy - retirementAge, 5);
+
+  const updateSecondary = (index: number, field: keyof SecondaryIncomeInput, value: string) => {
+    setSecondaryInputs((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, [field]: value.replace(/[^0-9]/g, '') } : item)),
+    );
+  };
 
   const unemploymentBenefit = useMemo(() => {
     if (!includeUnemployment) return undefined;
@@ -46,9 +59,21 @@ export default function CashFlowPlanScreen() {
     return { monthlyAmount: monthly, durationMonths: Math.min(9, months) };
   }, [includeUnemployment, ubMonthly, ubMonths]);
 
+  const secondaryIncomes = useMemo<SecondaryIncome[]>(() => {
+    return secondaryInputs
+      .filter(
+        (s) => Number(s.startAge) > 0 && Number(s.endAge) >= Number(s.startAge) && Number(s.monthlyAmount) > 0,
+      )
+      .map((s) => ({
+        startAge: Number(s.startAge),
+        endAge: Number(s.endAge),
+        monthlyAmount: Number(s.monthlyAmount) * 10000,
+      }));
+  }, [secondaryInputs]);
+
   const data = useMemo(
-    () => calculateLongTermProjection(state, years, inflationRate, pensionGrowthRate, unemploymentBenefit),
-    [state, years, inflationRate, pensionGrowthRate, unemploymentBenefit],
+    () => calculateLongTermProjection(state, years, inflationRate, pensionGrowthRate, unemploymentBenefit, secondaryIncomes),
+    [state, years, inflationRate, pensionGrowthRate, unemploymentBenefit, secondaryIncomes],
   );
 
   const pensionStartAge = useMemo(() => getPensionStartAge(state.birthYear ?? null), [state.birthYear]);
@@ -146,6 +171,66 @@ export default function CashFlowPlanScreen() {
                 {opt.label}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* 제2 수입 (파트타임 · 프리랜서 · 창업 등) */}
+        <div className="cfp-assumption-row" style={{ alignItems: 'flex-start' }}>
+          <span className="cfp-assumption-label" style={{ paddingTop: 6 }}>제2 수입</span>
+          <div style={{ flex: 1 }}>
+            {secondaryInputs.map((s, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                <input
+                  type="number"
+                  value={s.startAge}
+                  onChange={(e) => updateSecondary(i, 'startAge', e.target.value)}
+                  className="cfp-ub-input cfp-ub-input-sm"
+                  placeholder="시작"
+                  style={{ width: 52 }}
+                />
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>~</span>
+                <input
+                  type="number"
+                  value={s.endAge}
+                  onChange={(e) => updateSecondary(i, 'endAge', e.target.value)}
+                  className="cfp-ub-input cfp-ub-input-sm"
+                  placeholder="종료"
+                  style={{ width: 52 }}
+                />
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>세,</span>
+                <input
+                  type="number"
+                  value={s.monthlyAmount}
+                  onChange={(e) => updateSecondary(i, 'monthlyAmount', e.target.value)}
+                  className="cfp-ub-input"
+                  placeholder="월 수입"
+                  style={{ width: 80 }}
+                />
+                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>만원/월</span>
+                <button
+                  onClick={() => setSecondaryInputs((prev) => prev.filter((_, j) => j !== i))}
+                  style={{ background: 'none', border: 'none', color: '#e74c3c', cursor: 'pointer', fontSize: 16, padding: '0 2px' }}
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            {secondaryInputs.length < 3 && (
+              <button
+                onClick={() => setSecondaryInputs((prev) => [...prev, { startAge: '', endAge: '', monthlyAmount: '' }])}
+                style={{
+                  fontSize: 13, color: 'var(--primary)', background: 'none', border: '1px dashed var(--primary)',
+                  borderRadius: 6, padding: '4px 12px', cursor: 'pointer',
+                }}
+              >
+                + 수입 구간 추가
+              </button>
+            )}
+            {secondaryInputs.length === 0 && (
+              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                파트타임·컨설팅·프리랜서 등 퇴직 후 추가 수입
+              </span>
+            )}
           </div>
         </div>
 
@@ -334,6 +419,11 @@ export default function CashFlowPlanScreen() {
                         실업급여 포함
                       </span>
                     ) : null}
+                    {d.secondaryIncome ? (
+                      <span style={{ display: 'block', fontSize: 10, color: '#27ae60', fontWeight: 500 }}>
+                        제2 수입 포함
+                      </span>
+                    ) : null}
                     {!d.nationalPensionStarted ? (
                       <span style={{ display: 'block', fontSize: 10, color: '#e67e22' }}>
                         국민연금 {pensionStartAge}세 수급 예정
@@ -344,7 +434,12 @@ export default function CashFlowPlanScreen() {
                     {formatWan(d.monthlyIncome)}
                     {d.unemploymentBenefitIncome ? (
                       <span style={{ display: 'block', fontSize: 10, color: '#2196F3' }}>
-                        (+{formatWan(d.unemploymentBenefitIncome)})
+                        (실업 +{formatWan(d.unemploymentBenefitIncome)})
+                      </span>
+                    ) : null}
+                    {d.secondaryIncome ? (
+                      <span style={{ display: 'block', fontSize: 10, color: '#27ae60' }}>
+                        (제2 +{formatWan(d.secondaryIncome)})
                       </span>
                     ) : null}
                   </td>
