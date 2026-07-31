@@ -55,6 +55,8 @@ function reducer(state: DiagnosisState, action: Action): DiagnosisState {
           ...state.livingExpense,
           desiredMonthly: rec.monthlyExpense,
         },
+        // 저장 시 monthlyExpense에 보험료가 합산되므로 이중 계산 방지
+        medicalExpense: { healthInsurance: 0, privateInsurance: 0 },
       };
       return { ...updated, projection: calculateProjection(updated) };
     }
