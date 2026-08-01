@@ -13,6 +13,7 @@ const simulationSchema = z.object({
     "IRP",
     "SEVERANCE_PAY",
     "UNEMPLOYMENT_BENEFIT",
+    "HOUSING_PENSION",
   ]),
   inputData: z.record(z.unknown()),
   outputData: z.record(z.unknown()),
@@ -65,6 +66,18 @@ const unemploymentBenefitInputSchema = z.object({
   age: z.number(),
 });
 
+// 주택연금 시뮬레이션 입력 스키마
+const housingPensionInputSchema = z.object({
+  youngerSpouseAge: z.number().min(55).max(90),
+  housePrice: z.number().positive(),
+  productType: z.enum(["GENERAL", "PREFERENTIAL", "LOAN_REPAY"]),
+  payoutMode: z.enum(["LIFETIME", "LIFETIME_MIXED", "FIXED_TERM_MIXED"]),
+  payoutStyle: z.enum(["FLAT", "FRONT_LOADED", "STEP_UP"]),
+  isBasicPensionRecipient: z.boolean(),
+  isSingleHomeUnder250m: z.boolean(),
+  existingMortgageBalance: z.number().nonnegative().optional(),
+});
+
 export type Simulation = z.infer<typeof simulationSchema>;
 export type HealthInsuranceInput = z.infer<typeof healthInsuranceInputSchema>;
 export type IsaInput = z.infer<typeof isaInputSchema>;
@@ -72,6 +85,7 @@ export type NationalPensionInput = z.infer<typeof nationalPensionInputSchema>;
 export type IrpInput = z.infer<typeof irpInputSchema>;
 export type SeverancePayInput = z.infer<typeof severancePayInputSchema>;
 export type UnemploymentBenefitInput = z.infer<typeof unemploymentBenefitInputSchema>;
+export type HousingPensionInput = z.infer<typeof housingPensionInputSchema>;
 
 // 건강보험 시뮬레이션 생성
 export const createHealthInsuranceSimulation = async (
@@ -303,6 +317,37 @@ export const createUnemploymentBenefitSimulation = async (
 export const getLatestUnemploymentBenefitSimulation = async (): Promise<Simulation> => {
   try {
     const res = await client.get("/simulations/unemployment-benefit/latest");
+    const parsed = simulationSchema.safeParse(res.data.data);
+    if (!parsed.success) throw new Error("유효하지 않은 응답 형식입니다");
+    return parsed.data;
+  } catch (err: unknown) {
+    if (isAxiosError(err)) throw new ApiError(err.response?.data?.error?.code || "UNKNOWN_ERROR");
+    throw err;
+  }
+};
+
+// 주택연금 시뮬레이션 생성
+export const createHousingPensionSimulation = async (
+  inputData: HousingPensionInput,
+): Promise<Simulation> => {
+  try {
+    const parsedReq = housingPensionInputSchema.safeParse(inputData);
+    if (!parsedReq.success) throw new ApiError("VALIDATION_ERROR");
+
+    const res = await client.post("/simulations/housing-pension", parsedReq.data);
+    const parsed = simulationSchema.safeParse(res.data.data);
+    if (!parsed.success) throw new Error("유효하지 않은 응답 형식입니다");
+    return parsed.data;
+  } catch (err: unknown) {
+    if (isAxiosError(err)) throw new ApiError(err.response?.data?.error?.code || "UNKNOWN_ERROR");
+    throw err;
+  }
+};
+
+// 최신 주택연금 시뮬레이션 조회
+export const getLatestHousingPensionSimulation = async (): Promise<Simulation> => {
+  try {
+    const res = await client.get("/simulations/housing-pension/latest");
     const parsed = simulationSchema.safeParse(res.data.data);
     if (!parsed.success) throw new Error("유효하지 않은 응답 형식입니다");
     return parsed.data;

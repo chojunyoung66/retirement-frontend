@@ -113,6 +113,32 @@ function SimulationSummary({ simulation }: { simulation: Simulation }) {
     );
   }
 
+  if (simulation.type === "HOUSING_PENSION") {
+    const data = output as {
+      monthlyPayout: number;
+      initialGuaranteeFee: number;
+      eligible: boolean;
+      notice: string;
+    };
+    return (
+      <>
+        <div className="simulation-card">
+          <span className="simulation-label">예상 월지급금</span>
+          <span className="simulation-delta">
+            {data.eligible ? formatWan(data.monthlyPayout) : "자격 미충족"}
+          </span>
+        </div>
+        {data.eligible && (
+          <div className="simulation-card">
+            <span className="simulation-label">초기보증료</span>
+            <span className="simulation-delta">{formatWon(data.initialGuaranteeFee)}원</span>
+          </div>
+        )}
+        <p className="form-hint mt-4">{data.notice}</p>
+      </>
+    );
+  }
+
   return null;
 }
 
@@ -123,6 +149,7 @@ const SIMULATION_META: Record<string, { label: string; path: string }> = {
   IRP: { label: "IRP", path: "/simulation/irp" },
   SEVERANCE_PAY: { label: "퇴직금", path: "/simulation/severance-pay" },
   UNEMPLOYMENT_BENEFIT: { label: "실업급여", path: "/simulation/unemployment-benefit" },
+  HOUSING_PENSION: { label: "주택연금", path: "/simulation/housing-pension" },
 };
 
 export default function SimulationDashboardScreen() {
@@ -140,10 +167,12 @@ export default function SimulationDashboardScreen() {
     fetchLatestSeverancePay,
     unemploymentBenefitSimulation,
     fetchLatestUnemploymentBenefit,
+    housingPensionSimulation,
+    fetchLatestHousingPension,
     isLoading,
   } = useSimulation();
 
-  // 화면 진입 시 5개 최신 결과 병렬 조회 (없으면 무시)
+  // 화면 진입 시 최신 결과 병렬 조회 (없으면 무시)
   useEffect(() => {
     Promise.allSettled([
       fetchLatestHealthInsurance(),
@@ -152,7 +181,9 @@ export default function SimulationDashboardScreen() {
       fetchLatestIrp(),
       fetchLatestSeverancePay(),
       fetchLatestUnemploymentBenefit(),
+      fetchLatestHousingPension(),
     ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 마운트 시 1회만 조회하면 되므로 의도적으로 빈 배열 사용
   }, []);
 
   const results: Array<{ type: string; simulation: Simulation | null }> = [
@@ -162,6 +193,7 @@ export default function SimulationDashboardScreen() {
     { type: "IRP", simulation: irpSimulation },
     { type: "SEVERANCE_PAY", simulation: severancePaySimulation },
     { type: "UNEMPLOYMENT_BENEFIT", simulation: unemploymentBenefitSimulation },
+    { type: "HOUSING_PENSION", simulation: housingPensionSimulation },
   ];
 
   const doneCount = results.filter((r) => r.simulation !== null).length;
@@ -173,7 +205,7 @@ export default function SimulationDashboardScreen() {
         <p className="hero-subtitle">
           은퇴 준비 시뮬레이션 결과를 한눈에 확인하세요.
           <br />
-          {isLoading ? "조회 중..." : `${doneCount}/6 완료`}
+          {isLoading ? "조회 중..." : `${doneCount}/7 완료`}
         </p>
       </section>
 

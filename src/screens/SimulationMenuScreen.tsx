@@ -51,6 +51,13 @@ const items: SimulationMenuItem[] = [
     path: "/simulation/unemployment-benefit",
     badge: "신규",
   },
+  {
+    key: "housing-pension",
+    title: "주택연금",
+    description: "보유 주택 담보 예상 월지급금과 초기보증료를 확인합니다.",
+    path: "/simulation/housing-pension",
+    badge: "신규",
+  },
 ];
 
 export default function SimulationMenuScreen() {
@@ -61,7 +68,7 @@ export default function SimulationMenuScreen() {
       <section className="hero">
         <h1 className="hero-title">시뮬레이션</h1>
         <p className="hero-subtitle">
-          은퇴 준비를 위한 5가지 시뮬레이션을 제공합니다.
+          은퇴 준비를 위한 시뮬레이션을 제공합니다.
           <br />
           원하는 항목을 선택하세요.
         </p>

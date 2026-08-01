@@ -12,6 +12,8 @@ import {
   getLatestSeverancePaySimulation,
   createUnemploymentBenefitSimulation,
   getLatestUnemploymentBenefitSimulation,
+  createHousingPensionSimulation,
+  getLatestHousingPensionSimulation,
   type Simulation,
   type HealthInsuranceInput,
   type IsaInput,
@@ -19,6 +21,7 @@ import {
   type IrpInput,
   type SeverancePayInput,
   type UnemploymentBenefitInput,
+  type HousingPensionInput,
 } from "../api/simulation-api";
 import { ApiError } from "../api/client";
 
@@ -32,6 +35,8 @@ export function useSimulation() {
   const [severancePaySimulation, setSeverancePaySimulation] =
     useState<Simulation | null>(null);
   const [unemploymentBenefitSimulation, setUnemploymentBenefitSimulation] =
+    useState<Simulation | null>(null);
+  const [housingPensionSimulation, setHousingPensionSimulation] =
     useState<Simulation | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -288,6 +293,49 @@ export function useSimulation() {
     }
   }, []);
 
+  // 주택연금 시뮬레이션 생성
+  const createHousingPension = useCallback(
+    async (inputData: HousingPensionInput) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const result = await createHousingPensionSimulation(inputData);
+        setHousingPensionSimulation(result);
+        return result;
+      } catch (err) {
+        const message =
+          err instanceof ApiError
+            ? `생성 실패: ${err.errorCode}`
+            : "주택연금 시뮬레이션 생성 중 오류가 발생했습니다";
+        setError(message);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [],
+  );
+
+  // 최신 주택연금 시뮬레이션 조회
+  const fetchLatestHousingPension = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await getLatestHousingPensionSimulation();
+      setHousingPensionSimulation(result);
+      return result;
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? `조회 실패: ${err.errorCode}`
+          : "주택연금 시뮬레이션 조회 중 오류가 발생했습니다";
+      setError(message);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   return {
     healthInsuranceSimulation,
     isaSimulation,
@@ -295,6 +343,7 @@ export function useSimulation() {
     irpSimulation,
     severancePaySimulation,
     unemploymentBenefitSimulation,
+    housingPensionSimulation,
     isLoading,
     error,
     createHealthInsurance,
@@ -309,5 +358,7 @@ export function useSimulation() {
     fetchLatestSeverancePay,
     createUnemploymentBenefit,
     fetchLatestUnemploymentBenefit,
+    createHousingPension,
+    fetchLatestHousingPension,
   };
 }

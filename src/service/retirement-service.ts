@@ -75,8 +75,12 @@ export function calculateProjection(state: DiagnosisState): ProjectionResult {
   const nationalPensionAmount =
     isPensionDelayed ? 0 : state.pension.national;
 
+  const housingPensionAmount = state.pension.housing;
   const totalIncome =
-    nationalPensionAmount + state.pension.retirement + state.pension.personal;
+    nationalPensionAmount +
+    state.pension.retirement +
+    state.pension.personal +
+    housingPensionAmount;
   const totalExpense =
     state.livingExpense.desiredMonthly +
     state.medicalExpense.healthInsurance +
@@ -93,6 +97,7 @@ export function calculateProjection(state: DiagnosisState): ProjectionResult {
     { label: '국민연금', amount: nationalPensionAmount },
     { label: '퇴직연금', amount: state.pension.retirement },
     { label: '개인연금', amount: state.pension.personal },
+    { label: '주택연금', amount: housingPensionAmount },
   ].filter((i) => i.amount > 0);
 
   const expenseItems = [
@@ -200,6 +205,8 @@ export function calculateLongTermProjection(
   const effectivePensionStartAge = isPensionAlreadyStarted ? retirementAge : pensionStartAge;
   const baseNational = state.pension.national;
   const baseOther = state.pension.retirement + state.pension.personal;
+  // 주택연금은 가입 후 종신 정액 가정 — 물가·연금 상승률과 분리해 고정 월액 반영
+  const baseHousing = state.pension.housing;
   // 생활비와 의료비를 분리해 연령별 의료비 배율을 별도 적용
   const baseLivingExpense = state.livingExpense.desiredMonthly;
   const baseMedicalExpense =
@@ -221,8 +228,9 @@ export function calculateLongTermProjection(
       : 0;
     // 퇴직·개인연금은 최장 20년 수령 기본값 — 퇴직 후 20년 초과 시 0
     const otherIncome = i < 20 ? Math.round(baseOther * pensionFactor) : 0;
+    const housingIncome = baseHousing;
 
-    // 60세(i=0)에 실업급여를 연간 총액의 월평균으로 반영
+    // 투영 첫 해(i=0)에 실업급여를 연간 총액의 월평균으로 반영
     const ubIncome =
       unemploymentBenefit && i === 0
         ? Math.round(
@@ -239,7 +247,7 @@ export function calculateLongTermProjection(
     const medicalMultiplier = getMedicalEscalationFactor(age, healthEscalation);
     const monthlyMedicalExpense = Math.round(baseMedicalExpense * inflationFactor * medicalMultiplier);
     const monthlyExpense = Math.round(baseLivingExpense * inflationFactor) + monthlyMedicalExpense;
-    const monthlyIncome = nationalIncome + otherIncome + ubIncome + secIncome;
+    const monthlyIncome = nationalIncome + otherIncome + housingIncome + ubIncome + secIncome;
     const monthlyGap = monthlyIncome - monthlyExpense;
     cumulative += monthlyGap * 12;
 
@@ -272,7 +280,10 @@ export function generateRecommendations(
   const isPensionDelayed = !isPensionAlreadyStarted && pensionStartAge > retirementAge;
   const nationalPensionAmount = isPensionDelayed ? 0 : state.pension.national;
   const totalIncome =
-    nationalPensionAmount + state.pension.retirement + state.pension.personal;
+    nationalPensionAmount +
+    state.pension.retirement +
+    state.pension.personal +
+    state.pension.housing;
   const totalInsurance =
     state.medicalExpense.healthInsurance + state.medicalExpense.privateInsurance;
   const { desiredMonthly } = state.livingExpense;
@@ -345,6 +356,15 @@ export function generateRecommendations(
       label: `보험료 월 ${wan(delta)}만원 절감`,
       delta,
       twentyYearImpact: delta * MONTHS,
+    });
+  }
+
+  // 주택연금 미반영 시 검토 추천 (월액은 시뮬레이션에서 산정)
+  if (state.pension.housing <= 0) {
+    items.push({
+      label: '주택연금 가입 검토 (보유 주택 담보 월수입)',
+      delta: 0,
+      detail: '시뮬레이션 메뉴에서 HF 표 기반 예상 월지급금을 확인하세요',
     });
   }
 

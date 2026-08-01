@@ -14,7 +14,7 @@ const initialState: DiagnosisState = {
   birthYear: null,
   retirementAge: null,
   incomeStatus: "",
-  pension: { national: 0, retirement: 0, personal: 0 },
+  pension: { national: 0, retirement: 0, personal: 0, housing: 0 },
   livingExpense: { desiredMonthly: 0, guideMinimum: 0, guideRecommended: 0 },
   medicalExpense: { healthInsurance: 0, privateInsurance: 0 },
   projection: null,
@@ -30,7 +30,7 @@ function applyLoadFromServer(
     diagnosisType: rec.householdType as DiagnosisState["diagnosisType"],
     birthYear: rec.birthYear,
     retirementAge,
-    pension: { national: rec.nationalPension, retirement: rec.retirementPension, personal: rec.personalPension },
+    pension: { national: rec.nationalPension, retirement: rec.retirementPension, personal: rec.personalPension, housing: 0 },
     livingExpense: {
       ...state.livingExpense,
       desiredMonthly: rec.monthlyExpense,

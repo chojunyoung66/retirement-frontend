@@ -20,6 +20,7 @@ import SeverancePaySimulationScreen from "./screens/SeverancePaySimulationScreen
 import PortfolioScreen from "./screens/PortfolioScreen";
 import SimulationDashboardScreen from "./screens/SimulationDashboardScreen";
 import UnemploymentBenefitSimulationScreen from "./screens/UnemploymentBenefitSimulationScreen";
+import HousingPensionSimulationScreen from "./screens/HousingPensionSimulationScreen";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
 
@@ -122,6 +123,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <UnemploymentBenefitSimulationScreen />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "simulation/housing-pension",
+        element: (
+          <ProtectedRoute>
+            <HousingPensionSimulationScreen />
           </ProtectedRoute>
         ),
       },

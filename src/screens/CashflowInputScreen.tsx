@@ -12,6 +12,7 @@ const cashflowSchema = z.object({
     .min(1, { message: '국민연금 예상 수령액을 입력하세요' }),
   retirement: z.number().min(0),
   personal: z.number().min(0),
+  housing: z.number().min(0),
 });
 
 function toWonFromWan(value: string): number {
@@ -30,6 +31,7 @@ export default function CashflowInputScreen() {
   const [national, setNational] = useState(toWanString(state.pension.national));
   const [retirement, setRetirement] = useState(toWanString(state.pension.retirement));
   const [personal, setPersonal] = useState(toWanString(state.pension.personal));
+  const [housing, setHousing] = useState(toWanString(state.pension.housing));
   const [error, setError] = useState<string | undefined>();
 
   const handleNext = () => {
@@ -37,6 +39,7 @@ export default function CashflowInputScreen() {
       national: toWonFromWan(national),
       retirement: toWonFromWan(retirement),
       personal: toWonFromWan(personal),
+      housing: toWonFromWan(housing),
     };
     const result = cashflowSchema.safeParse(payload);
     if (!result.success) {
@@ -89,6 +92,16 @@ export default function CashflowInputScreen() {
           suffix="만원"
           max={1000}
           hint="숫자만 입력 · 최대 1,000만원"
+        />
+        <Input
+          label="주택연금 (선택)"
+          type="number"
+          value={housing}
+          onChange={setHousing}
+          placeholder="예: 84"
+          suffix="만원"
+          max={1000}
+          hint="시뮬레이션에서 계산한 월지급금을 입력하거나 반영하세요"
         />
 
         <div className="button-row">
