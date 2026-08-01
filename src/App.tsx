@@ -23,9 +23,9 @@ export default function App() {
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
-  const handleAuthClick = () => {
+  const handleAuthClick = async () => {
     if (isLoggedIn) {
-      logout();
+      await logout();
       dispatch(showToast("로그아웃되었어요"));
     } else {
       navigate("/signin", { state: { from: location.pathname } });

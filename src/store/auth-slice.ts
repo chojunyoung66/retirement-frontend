@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
-// TODO: 운영 환경에서는 서버의 HttpOnly/Secure/SameSite 쿠키 방식으로 전환 권장
+// TODO: P1에서 body token / localStorage 제거 — 현재는 HttpOnly 쿠키와 병행
 const STORAGE_KEY = "retirement_token";
 
 function loadToken(): string | null {
@@ -23,10 +23,10 @@ interface AuthState {
   user: AuthUser | null;
 }
 
-const storedToken = loadToken();
+// 쿠키 세션 가능성을 위해 항상 checking으로 시작 후 checkAuth가 확정
 const initialState: AuthState = {
-  token: storedToken,
-  authStatus: storedToken ? "checking" : "unauthenticated",
+  token: loadToken(),
+  authStatus: "checking",
   user: null,
 };
 
