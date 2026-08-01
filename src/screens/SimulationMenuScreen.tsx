@@ -54,7 +54,7 @@ const items: SimulationMenuItem[] = [
   {
     key: "housing-pension",
     title: "주택연금",
-    description: "보유 주택 담보 예상 월지급금과 초기보증료를 확인합니다.",
+    description: "나이와 집값만 넣으면 예상 월 수령액을 바로 확인합니다.",
     path: "/simulation/housing-pension",
     badge: "신규",
   },

@@ -1,6 +1,7 @@
 import { isAxiosError } from "axios";
 import z from "zod";
 import client, { ApiError } from "./client";
+import { calculateHousingPension } from "../service/housing-pension-service";
 
 // 시뮬레이션 데이터 스키마
 const simulationSchema = z.object({
@@ -330,21 +331,44 @@ export const getLatestUnemploymentBenefitSimulation = async (): Promise<Simulati
 };
 
 // 주택연금 시뮬레이션 생성
+// 서버에 엔드포인트가 없으면(P2 미배포) 로컬 HF 표 산식으로 폴백해 UI는 동작시킨다.
 export const createHousingPensionSimulation = async (
   inputData: HousingPensionInput,
 ): Promise<Simulation> => {
-  try {
-    const parsedReq = housingPensionInputSchema.safeParse(inputData);
-    if (!parsedReq.success) throw new ApiError("VALIDATION_ERROR");
+  const parsedReq = housingPensionInputSchema.safeParse(inputData);
+  if (!parsedReq.success) throw new ApiError("VALIDATION_ERROR");
 
+  const localOutput = calculateHousingPension(parsedReq.data);
+
+  try {
     const res = await client.post("/simulations/housing-pension", parsedReq.data);
     const parsed = simulationSchema.safeParse(res.data.data);
-    if (!parsed.success) throw new Error("유효하지 않은 응답 형식입니다");
-    return parsed.data;
+    if (parsed.success) return parsed.data;
   } catch (err: unknown) {
-    if (isAxiosError(err)) throw new ApiError(err.response?.data?.error?.code || "UNKNOWN_ERROR");
-    throw err;
+    // 인증 실패는 폴백하지 않고 그대로 전달
+    if (isAxiosError(err)) {
+      const code = err.response?.data?.error?.code as string | undefined;
+      const status = err.response?.status;
+      if (
+        status === 401 ||
+        code === "UNAUTHORIZED" ||
+        code === "INVALID_TOKEN"
+      ) {
+        throw new ApiError(code || "UNAUTHORIZED");
+      }
+    } else {
+      throw err;
+    }
   }
+
+  return {
+    id: -Date.now(),
+    userId: 0,
+    type: "HOUSING_PENSION",
+    inputData: parsedReq.data as unknown as Record<string, unknown>,
+    outputData: localOutput as unknown as Record<string, unknown>,
+    createdAt: new Date().toISOString(),
+  };
 };
 
 // 최신 주택연금 시뮬레이션 조회
@@ -355,7 +379,15 @@ export const getLatestHousingPensionSimulation = async (): Promise<Simulation> =
     if (!parsed.success) throw new Error("유효하지 않은 응답 형식입니다");
     return parsed.data;
   } catch (err: unknown) {
-    if (isAxiosError(err)) throw new ApiError(err.response?.data?.error?.code || "UNKNOWN_ERROR");
+    if (isAxiosError(err)) {
+      const status = err.response?.status;
+      const code = err.response?.data?.error?.code as string | undefined;
+      // 엔드포인트 없음(404)도 NOT_FOUND로 정규화
+      if (status === 404) {
+        throw new ApiError(code || "HOUSING_PENSION_SIMULATION_NOT_FOUND");
+      }
+      throw new ApiError(code || "UNKNOWN_ERROR");
+    }
     throw err;
   }
 };
