@@ -410,7 +410,7 @@ export default function CashFlowPlanScreen() {
               <div key={d.year} className="cfp-chart-row">
                 <div className="cfp-chart-age">
                   {d.age}세
-                  {d.unemploymentBenefitIncome ? <span style={{ fontSize: 10, color: '#2196F3', marginLeft: 2 }}>실업</span> : null}
+                  {d.unemploymentBenefitIncome ? <span style={{ fontSize: 10, color: 'var(--primary)', marginLeft: 2 }}>실업</span> : null}
                 </div>
                 <div className="cfp-chart-track">
                   <div
@@ -442,11 +442,11 @@ export default function CashFlowPlanScreen() {
             </thead>
             <tbody>
               {data.map((d) => (
-                <tr key={d.year} style={d.unemploymentBenefitIncome ? { backgroundColor: '#f0f8ff' } : undefined}>
+                <tr key={d.year} style={d.unemploymentBenefitIncome ? { backgroundColor: 'var(--primary-light)' } : undefined}>
                   <td className="cfp-td-age">
                     {d.age}세
                     {d.unemploymentBenefitIncome ? (
-                      <span style={{ display: 'block', fontSize: 10, color: '#2196F3', fontWeight: 500 }}>
+                      <span style={{ display: 'block', fontSize: 10, color: 'var(--primary)', fontWeight: 500 }}>
                         실업급여 포함
                       </span>
                     ) : null}
@@ -469,7 +469,7 @@ export default function CashFlowPlanScreen() {
                   <td>
                     {formatWan(d.monthlyIncome)}
                     {d.unemploymentBenefitIncome ? (
-                      <span style={{ display: 'block', fontSize: 10, color: '#2196F3' }}>
+                      <span style={{ display: 'block', fontSize: 10, color: 'var(--primary)' }}>
                         (실업 +{formatWan(d.unemploymentBenefitIncome)})
                       </span>
                     ) : null}

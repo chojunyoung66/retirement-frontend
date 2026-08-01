@@ -3,6 +3,7 @@ import {
   calculateProjection,
   calculateLongTermProjection,
   generateRecommendations,
+  getCashflowTrendSample,
   type UnemploymentBenefitOption,
 } from './retirement-service';
 import type { DiagnosisState } from '../domain/plan';
@@ -298,5 +299,27 @@ describe('calculateLongTermProjection — 실업급여', () => {
     expect(withUb[0].monthlyIncome - withoutUb[0].monthlyIncome).toBe(1485000);
     // 2년차 이후는 동일
     expect(withUb[1].monthlyIncome).toBe(withoutUb[1].monthlyIncome);
+  });
+});
+
+// ─── 랜딩 예시 추이 ──────────────────────────────────────────────────────────
+
+describe('getCashflowTrendSample', () => {
+  it('기준 연도부터 13개 연도를 반환', () => {
+    const trend = getCashflowTrendSample(2026);
+    expect(trend.points).toHaveLength(13);
+    expect(trend.points[0].year).toBe(2026);
+    expect(trend.points[12].year).toBe(2038);
+  });
+
+  it('강조 연도가 반환된 구간 안에 있음', () => {
+    const trend = getCashflowTrendSample(2026);
+    expect(trend.highlightYear).toBe(2035);
+    expect(trend.points.some((p) => p.year === trend.highlightYear)).toBe(true);
+  });
+
+  it('모든 금액이 양수', () => {
+    const trend = getCashflowTrendSample(2026);
+    expect(trend.points.every((p) => p.amount > 0)).toBe(true);
   });
 });

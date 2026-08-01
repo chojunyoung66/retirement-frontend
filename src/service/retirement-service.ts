@@ -11,11 +11,39 @@ export interface LivingExpenseGuide {
   recommended: number;
 }
 
+export interface CashflowTrendPoint {
+  year: number;
+  amount: number;
+}
+
+export interface CashflowTrend {
+  points: CashflowTrendPoint[];
+  highlightYear: number;
+  yoyPercent: number;
+}
+
 export function getWelcomeMetrics(): WelcomeMetrics {
   return {
     averageMonthlyPension: 1870000,
     completedDiagnoses: 13000,
     accuracyRate: 98,
+  };
+}
+
+// 진단 전 방문자에게 보여주는 예시 추이 — 개인 데이터가 아닌 일러스트레이션 값
+export function getCashflowTrendSample(baseYear = 2026): CashflowTrend {
+  const ratios = [
+    0.72, 0.79, 0.63, 0.81, 0.85, 0.77, 0.88, 0.95, 0.91, 0.99, 0.93, 1, 0.95,
+  ];
+  const base = getWelcomeMetrics().averageMonthlyPension;
+
+  return {
+    points: ratios.map((ratio, i) => ({
+      year: baseYear + i,
+      amount: Math.round(base * ratio),
+    })),
+    highlightYear: baseYear + 9,
+    yoyPercent: 12,
   };
 }
 
