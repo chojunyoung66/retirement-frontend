@@ -119,6 +119,7 @@ function SimulationSummary({ simulation }: { simulation: Simulation }) {
       initialGuaranteeFee: number;
       eligible: boolean;
       notice: string;
+      payoutScheduleSummary?: string;
     };
     return (
       <>
@@ -133,6 +134,9 @@ function SimulationSummary({ simulation }: { simulation: Simulation }) {
             <span className="simulation-label">초기보증료</span>
             <span className="simulation-delta">{formatWon(data.initialGuaranteeFee)}원</span>
           </div>
+        )}
+        {data.payoutScheduleSummary && (
+          <p className="form-hint mt-4">{data.payoutScheduleSummary}</p>
         )}
         <p className="form-hint mt-4">{data.notice}</p>
       </>

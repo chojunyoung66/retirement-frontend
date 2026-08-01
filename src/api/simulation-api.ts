@@ -76,6 +76,9 @@ const housingPensionInputSchema = z.object({
   isBasicPensionRecipient: z.boolean(),
   isSingleHomeUnder250m: z.boolean(),
   existingMortgageBalance: z.number().nonnegative().optional(),
+  frontLoadYears: z.union([z.literal(3), z.literal(5), z.literal(7), z.literal(10)]).optional(),
+  fixedTermYears: z.union([z.literal(10), z.literal(15), z.literal(20)]).optional(),
+  withdrawalRatio: z.number().min(0).max(0.5).optional(),
 });
 
 export type Simulation = z.infer<typeof simulationSchema>;

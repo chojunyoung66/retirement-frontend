@@ -665,6 +665,20 @@ const handlers = [
       ...(typeof body.existingMortgageBalance === "number"
         ? { existingMortgageBalance: body.existingMortgageBalance }
         : {}),
+      ...(body.frontLoadYears === 3 ||
+      body.frontLoadYears === 5 ||
+      body.frontLoadYears === 7 ||
+      body.frontLoadYears === 10
+        ? { frontLoadYears: body.frontLoadYears }
+        : {}),
+      ...(body.fixedTermYears === 10 ||
+      body.fixedTermYears === 15 ||
+      body.fixedTermYears === 20
+        ? { fixedTermYears: body.fixedTermYears }
+        : {}),
+      ...(typeof body.withdrawalRatio === "number"
+        ? { withdrawalRatio: body.withdrawalRatio }
+        : {}),
     };
     const outputData = calculateHousingPension(input) as unknown as Record<string, unknown>;
 
