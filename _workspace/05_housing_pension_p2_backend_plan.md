@@ -3,7 +3,7 @@
 > 기준: P0/P1 프론트 완료 (`housing-pension-service`, `TABLE_VERSION=HF-2026-03-01`)  
 > 대상: `retirement-backend` + `retirement-frontend`  
 > 작성일: 2026-08-01  
-> 상태: **검토 대기 (미구현)**
+> 상태: **완료** (BE API·마이그레이션 배포, FE는 서버 응답 SoT)
 
 ---
 
@@ -37,7 +37,10 @@
 | 계층 | 상태 |
 |------|------|
 | FE 화면·API 클라이언트 | ✅ 완료 |
-| FE 산식 (`housing-pension-service`) | ✅ P0+P1 (클라이언트 SoT) |
+| FE 산식 (`housing-pension-service`) | ✅ MSW·단위테스트용 유지 (런타임 SoT는 서버) |
+| BE `HOUSING_PENSION` + create/latest | ✅ 완료 |
+| Prisma migrate / Render 배포 | ✅ 완료 |
+| FE 런타임 서버 SoT | ✅ 완료 (로컬 폴백 제거) |
 | FE MSW | ✅ 있으나 기본 OFF |
 | BE `SimulationType` enum | ❌ 6종만 (주택연금 없음) |
 | BE create/latest 라우트 | ❌ 없음 |
