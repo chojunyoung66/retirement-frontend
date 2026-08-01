@@ -305,7 +305,11 @@ export function useSimulation() {
       } catch (err) {
         const message =
           err instanceof ApiError
-            ? `생성 실패: ${err.errorCode}`
+            ? err.errorCode === "UNAUTHORIZED" || err.errorCode === "INVALID_TOKEN"
+              ? "로그인이 필요해요"
+              : err.errorCode === "VALIDATION_ERROR"
+                ? "입력값을 다시 확인해 주세요"
+                : `생성 실패: ${err.errorCode}`
             : "주택연금 시뮬레이션 생성 중 오류가 발생했습니다";
         setError(message);
         throw err;
