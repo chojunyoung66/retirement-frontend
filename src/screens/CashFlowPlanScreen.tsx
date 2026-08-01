@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDiagnosis } from '../hooks/useDiagnosis';
 import { calculateLongTermProjection, getPensionStartAge, type SecondaryIncome, type HealthEscalationMode } from '../service/retirement-service';
-import { formatWan } from '../utils/format';
+import { DEFAULT_RETIREMENT_AGE, formatWan } from '../utils/format';
 
 interface SecondaryIncomeInput {
   startAge: string;
@@ -48,7 +48,7 @@ export default function CashFlowPlanScreen() {
   const [ubMonthly, setUbMonthly] = useState('');
   const [ubMonths, setUbMonths] = useState('');
 
-  const retirementAge = state.retirementAge ?? 60;
+  const retirementAge = state.retirementAge ?? DEFAULT_RETIREMENT_AGE;
   const years = Math.max(lifeExpectancy - retirementAge, 5);
 
   const updateSecondary = (index: number, field: keyof SecondaryIncomeInput, value: string) => {
@@ -337,7 +337,9 @@ export default function CashFlowPlanScreen() {
                 <span className="cfp-ub-unit">개월 (최대 9)</span>
               </div>
             </div>
-            <p className="cfp-ub-hint">실업급여 시뮬레이션 결과를 입력하세요. 60세 연도에 일괄 반영됩니다.</p>
+            <p className="cfp-ub-hint">
+              실업급여 시뮬레이션 결과를 입력하세요. {retirementAge}세 연도에 일괄 반영됩니다.
+            </p>
           </div>
         )}
       </div>

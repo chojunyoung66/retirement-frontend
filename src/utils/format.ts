@@ -12,8 +12,14 @@ export function formatAge(birthYear: number): number {
   return new Date().getFullYear() - birthYear;
 }
 
-export function formatYearsToRetirement(birthYear: number): number {
-  const retirementAge = 60;
+/** 정년 미지정 시 법정 기본값(60세). UI·계산 공통. */
+export const DEFAULT_RETIREMENT_AGE = 60;
+
+export function formatYearsToRetirement(
+  birthYear: number,
+  retirementAge: number = DEFAULT_RETIREMENT_AGE,
+): number {
+  // 현재 만 나이 대비 남은 정년까지 연수 (음수면 0)
   const currentAge = formatAge(birthYear);
   return Math.max(0, retirementAge - currentAge);
 }

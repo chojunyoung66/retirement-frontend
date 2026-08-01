@@ -102,5 +102,13 @@ describe('format utilities', () => {
       expect(result).toBeGreaterThan(0);
       expect(result).toBeLessThanOrEqual(65);
     });
+
+    it('retirementAge=65면 1961년생은 정년까지 0년', () => {
+      expect(formatYearsToRetirement(1961, 65)).toBe(0);
+    });
+
+    it('retirementAge=65면 1970년생은 정년까지 9년', () => {
+      expect(formatYearsToRetirement(1970, 65)).toBe(9);
+    });
   });
 });
