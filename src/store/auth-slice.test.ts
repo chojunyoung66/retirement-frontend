@@ -20,9 +20,9 @@ describe("auth 새로고침 후 인증 유지", () => {
     expect(store.getState().auth.token).toBeNull();
   });
 
-  it("토큰 없으면 authStatus는 unauthenticated", () => {
+  it("초기 authStatus는 쿠키 세션 확인을 위해 checking", () => {
     const store = freshStore();
-    expect(store.getState().auth.authStatus).toBe("unauthenticated");
+    expect(store.getState().auth.authStatus).toBe("checking");
   });
 
   it("signIn은 Redux state에 토큰과 user를 저장하고 authStatus를 authenticated로 설정한다", () => {
@@ -61,7 +61,7 @@ describe("auth 새로고침 후 인증 유지", () => {
     expect(reloadedStore.getState().auth.token).toBe("persisted-token");
   });
 
-  it("새로고침 시뮬레이션: localStorage 토큰이 있으면 authStatus는 checking으로 시작한다", async () => {
+  it("새로고침 시뮬레이션: authStatus는 항상 checking으로 시작한다", async () => {
     const store = freshStore();
     store.dispatch(signIn({ token: "persisted-token", user: TEST_USER }));
 

@@ -128,3 +128,15 @@ export const googleSignInRequest = async (
     throw err;
   }
 };
+
+// 로그아웃 — 서버 HttpOnly 쿠키 삭제
+export const logoutRequest = async (): Promise<void> => {
+  try {
+    await client.post("/auth/logout");
+  } catch (err: unknown) {
+    if (isAxiosError(err)) {
+      throw new ApiError(err.response?.data?.error?.code || "UNKNOWN_ERROR");
+    }
+    throw err;
+  }
+};

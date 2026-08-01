@@ -2,12 +2,12 @@ import { useCallback, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState, AppDispatch } from "../store/store";
 import { signIn, signOut, setAuthStatus } from "../store/auth-slice";
-import store from "../store/store";
 import {
   signInRequest,
   signUpRequest,
   getMe,
   googleSignInRequest,
+  logoutRequest,
   type SignInRequest,
   type SignUpRequest,
 } from "../api/auth-api";
@@ -77,24 +77,23 @@ export function useAuth() {
     [dispatch],
   );
 
-  // 로그아웃
-  const logout = useCallback(() => {
+  // 로그아웃 — 서버 HttpOnly 쿠키 삭제 후 로컬 상태 정리
+  const logout = useCallback(async () => {
+    try {
+      await logoutRequest();
+    } catch {
+      // 네트워크 실패해도 클라이언트 세션은 종료
+    }
     dispatch(signOut());
     setError(null);
   }, [dispatch]);
 
-  // 앱 시작 시 저장된 토큰 유효성 확인
+  // 앱 시작 시 Bearer 또는 쿠키 세션 확인
   const checkAuth = useCallback(async () => {
-    const currentToken = store.getState().auth.token;
-    if (!currentToken) {
-      dispatch(setAuthStatus({ status: "unauthenticated" }));
-      return;
-    }
     try {
       const profile = await getMe();
       dispatch(setAuthStatus({ status: "authenticated", user: profile }));
     } catch {
-      // 토큰 만료 또는 네트워크 오류 → 인증 해제
       dispatch(setAuthStatus({ status: "unauthenticated" }));
     }
   }, [dispatch]);
@@ -130,7 +129,7 @@ export function useAuth() {
   return {
     token,
     user,
-    isLoggedIn: !!token,
+    isLoggedIn: authStatus === "authenticated",
     authStatus,
     isLoading,
     error,
