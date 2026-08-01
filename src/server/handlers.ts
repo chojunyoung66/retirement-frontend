@@ -3,6 +3,8 @@ import { getLocalStorage, setLocalStorage } from "../utils/local-storage";
 import database, { type Database } from "./database";
 import { resolveSession, isOwner } from "./auth-utils";
 import { isPortfolioItemArray, isValidAllocationSum } from "./portfolio-validation";
+import { calculateHousingPension } from "../service/housing-pension-service";
+import type { HousingPensionInput } from "../api/simulation-api";
 
 const loadedDatabase: Database = getLocalStorage<Database>("mockDatabase") ?? database;
 
@@ -619,6 +621,105 @@ const handlers = [
     if (!simulation) {
       return HttpResponse.json(
         { error: { code: "UNEMPLOYMENT_BENEFIT_SIMULATION_NOT_FOUND", message: "저장된 결과가 없습니다" } },
+        { status: 404 }
+      );
+    }
+
+    return HttpResponse.json({ success: true, data: simulation }, { status: 200 });
+  }),
+
+  // 주택연금 시뮬레이션 생성 — HF 표 기반 클라이언트 산식과 동일 결과 저장
+  http.post("/api/simulations/housing-pension", async ({ request }) => {
+    await delay(500);
+
+    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    if (!session) {
+      return HttpResponse.json(
+        { error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } },
+        { status: 401 }
+      );
+    }
+
+    const body = (await request.json()) as Partial<HousingPensionInput>;
+    if (
+      typeof body.youngerSpouseAge !== "number" ||
+      typeof body.housePrice !== "number" ||
+      !body.productType ||
+      !body.payoutMode ||
+      !body.payoutStyle
+    ) {
+      return HttpResponse.json(
+        { error: { code: "VALIDATION_ERROR", message: "필수 항목이 누락되었거나 형식이 올바르지 않습니다" } },
+        { status: 400 }
+      );
+    }
+
+    const input: HousingPensionInput = {
+      youngerSpouseAge: body.youngerSpouseAge,
+      housePrice: body.housePrice,
+      productType: body.productType,
+      payoutMode: body.payoutMode,
+      payoutStyle: body.payoutStyle,
+      isBasicPensionRecipient: Boolean(body.isBasicPensionRecipient),
+      isSingleHomeUnder250m: Boolean(body.isSingleHomeUnder250m),
+      ...(typeof body.existingMortgageBalance === "number"
+        ? { existingMortgageBalance: body.existingMortgageBalance }
+        : {}),
+      ...(body.frontLoadYears === 3 ||
+      body.frontLoadYears === 5 ||
+      body.frontLoadYears === 7 ||
+      body.frontLoadYears === 10
+        ? { frontLoadYears: body.frontLoadYears }
+        : {}),
+      ...(body.fixedTermYears === 10 ||
+      body.fixedTermYears === 15 ||
+      body.fixedTermYears === 20
+        ? { fixedTermYears: body.fixedTermYears }
+        : {}),
+      ...(typeof body.withdrawalRatio === "number"
+        ? { withdrawalRatio: body.withdrawalRatio }
+        : {}),
+    };
+    const outputData = calculateHousingPension(input) as unknown as Record<string, unknown>;
+
+    const newSimulation = {
+      id: Math.max(0, ...loadedDatabase.simulations.map((s) => s.id)) + 1,
+      userId: session.userId,
+      type: "HOUSING_PENSION" as const,
+      inputData: input as unknown as Record<string, unknown>,
+      outputData,
+      createdAt: new Date().toISOString(),
+    } as typeof loadedDatabase.simulations[0];
+    loadedDatabase.simulations.push(newSimulation);
+    setLocalStorage("mockDatabase", loadedDatabase);
+
+    return HttpResponse.json({ success: true, data: newSimulation }, { status: 201 });
+  }),
+
+  // 최신 주택연금 시뮬레이션 조회
+  http.get("/api/simulations/housing-pension/latest", async ({ request }) => {
+    await delay(300);
+
+    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    if (!session) {
+      return HttpResponse.json(
+        { error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } },
+        { status: 401 }
+      );
+    }
+
+    const simulation = [...loadedDatabase.simulations]
+      .filter((s) => s.userId === session.userId && s.type === "HOUSING_PENSION")
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+
+    if (!simulation) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: "HOUSING_PENSION_SIMULATION_NOT_FOUND",
+            message: "저장된 결과가 없습니다",
+          },
+        },
         { status: 404 }
       );
     }

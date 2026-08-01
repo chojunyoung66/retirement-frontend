@@ -8,7 +8,7 @@ import {
 } from "../service/retirement-service";
 import Button from "../components/Button";
 import SummaryCard from "../components/SummaryCard";
-import { formatWan } from "../utils/format";
+import { DEFAULT_RETIREMENT_AGE, formatWan } from "../utils/format";
 import { showToast } from "../store/toast-slice";
 import { ApiError } from "../api/client";
 import { saveLatestDiagnosis } from "../api/diagnosis-api";
@@ -82,6 +82,8 @@ export default function ProjectionScreen() {
 
   const isNegative = projection.gap < 0;
   const gapLabel = isNegative ? "월 부족액" : "월 여유금액";
+  const retirementAge = state.retirementAge ?? DEFAULT_RETIREMENT_AGE;
+  const longTermEndAge = retirementAge + 19;
 
   const handleSave = async () => {
     if (state.birthYear) {
@@ -93,7 +95,8 @@ export default function ProjectionScreen() {
 
       setIsSaving(true);
       try {
-        const retirementYear = state.birthYear + (state.retirementAge ?? 60);
+        const retirementYear =
+          state.birthYear + (state.retirementAge ?? DEFAULT_RETIREMENT_AGE);
         await saveLatestDiagnosis({
           householdType: state.diagnosisType,
           birthYear: state.birthYear,
@@ -297,7 +300,7 @@ export default function ProjectionScreen() {
           <div className="card">
             <div className="card-title">20년 총 현금흐름 요약</div>
             <div className="card-subtitle" style={{ marginBottom: 12 }}>
-              60~79세 · 기본 가정(물가 2%, 연금 2%) 기준
+              {retirementAge}~{longTermEndAge}세 · 기본 가정(물가 2%, 연금 2%) 기준
             </div>
             <div className="item-row">
               <span className="item-row-label">20년 수입 합계</span>

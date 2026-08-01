@@ -36,7 +36,7 @@ export default function App() {
   const isHome = location.pathname === "/";
 
   return (
-    <div className="screen">
+    <div className={isHome ? "screen screen-home" : "screen"}>
       <header className="app-header">
         <div className="header-left">
           {!isHome && (

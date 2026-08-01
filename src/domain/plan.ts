@@ -5,6 +5,8 @@ export interface PensionState {
   national: number;
   retirement: number;
   personal: number;
+  // 주택연금 월지급금 — 시뮬레이션 결과 옵트인 반영. 미입력 시 0
+  housing: number;
 }
 
 export interface LivingExpenseState {

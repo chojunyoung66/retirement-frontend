@@ -28,7 +28,7 @@ export type Portfolio = {
 export type Simulation = {
   id: number;
   userId: number;
-  type: "HEALTH_INSURANCE" | "ISA" | "NATIONAL_PENSION" | "IRP" | "SEVERANCE_PAY" | "UNEMPLOYMENT_BENEFIT";
+  type: "HEALTH_INSURANCE" | "ISA" | "NATIONAL_PENSION" | "IRP" | "SEVERANCE_PAY" | "UNEMPLOYMENT_BENEFIT" | "HOUSING_PENSION";
   inputData: Record<string, unknown>;
   outputData: Record<string, unknown>;
   createdAt: string;

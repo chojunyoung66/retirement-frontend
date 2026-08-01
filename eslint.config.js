@@ -1,5 +1,7 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
+import globals from 'globals';
+import reactHooks from 'eslint-plugin-react-hooks';
 
 export default [
   { ignores: ['dist', 'node_modules'] },
@@ -9,14 +11,7 @@ export default [
       ecmaVersion: 2020,
       sourceType: 'module',
       globals: {
-        console: 'readonly',
-        window: 'readonly',
-        document: 'readonly',
-        localStorage: 'readonly',
-        sessionStorage: 'readonly',
-        alert: 'readonly',
-        btoa: 'readonly',
-        atob: 'readonly',
+        ...globals.browser,
       },
       parserOptions: {
         ecmaFeatures: {
@@ -39,9 +34,12 @@ export default [
     },
     plugins: {
       '@typescript-eslint': tseslint.plugin,
+      'react-hooks': reactHooks,
     },
     rules: {
       ...tseslint.configs.recommended.rules,
+      'react-hooks/rules-of-hooks': 'error',
+      'react-hooks/exhaustive-deps': 'warn',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },

@@ -15,7 +15,7 @@ const initialState: DiagnosisState = {
   birthYear: null,
   retirementAge: null,
   incomeStatus: "",
-  pension: { national: 0, retirement: 0, personal: 0 },
+  pension: { national: 0, retirement: 0, personal: 0, housing: 0 },
   livingExpense: { desiredMonthly: 0, guideMinimum: 0, guideRecommended: 0 },
   medicalExpense: { healthInsurance: 0, privateInsurance: 0 },
   projection: null,
@@ -50,7 +50,12 @@ function reducer(state: DiagnosisState, action: Action): DiagnosisState {
         diagnosisType: rec.householdType as DiagnosisState["diagnosisType"],
         birthYear: rec.birthYear,
         retirementAge: rec.retirementYear - rec.birthYear,
-        pension: { national: rec.nationalPension, retirement: rec.retirementPension, personal: rec.personalPension },
+        pension: {
+          national: rec.nationalPension,
+          retirement: rec.retirementPension,
+          personal: rec.personalPension,
+          housing: state.pension.housing,
+        },
         livingExpense: {
           ...state.livingExpense,
           desiredMonthly: rec.monthlyExpense,

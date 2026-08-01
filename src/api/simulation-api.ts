@@ -1,6 +1,7 @@
 import { isAxiosError } from "axios";
 import z from "zod";
 import client, { ApiError } from "./client";
+import { calculateHousingPension } from "../service/housing-pension-service";
 
 // 시뮬레이션 데이터 스키마
 const simulationSchema = z.object({
@@ -13,6 +14,7 @@ const simulationSchema = z.object({
     "IRP",
     "SEVERANCE_PAY",
     "UNEMPLOYMENT_BENEFIT",
+    "HOUSING_PENSION",
   ]),
   inputData: z.record(z.unknown()),
   outputData: z.record(z.unknown()),
@@ -65,6 +67,21 @@ const unemploymentBenefitInputSchema = z.object({
   age: z.number(),
 });
 
+// 주택연금 시뮬레이션 입력 스키마
+const housingPensionInputSchema = z.object({
+  youngerSpouseAge: z.number().min(55).max(90),
+  housePrice: z.number().positive(),
+  productType: z.enum(["GENERAL", "PREFERENTIAL", "LOAN_REPAY"]),
+  payoutMode: z.enum(["LIFETIME", "LIFETIME_MIXED", "FIXED_TERM_MIXED"]),
+  payoutStyle: z.enum(["FLAT", "FRONT_LOADED", "STEP_UP"]),
+  isBasicPensionRecipient: z.boolean(),
+  isSingleHomeUnder250m: z.boolean(),
+  existingMortgageBalance: z.number().nonnegative().optional(),
+  frontLoadYears: z.union([z.literal(3), z.literal(5), z.literal(7), z.literal(10)]).optional(),
+  fixedTermYears: z.union([z.literal(10), z.literal(15), z.literal(20)]).optional(),
+  withdrawalRatio: z.number().min(0).max(0.5).optional(),
+});
+
 export type Simulation = z.infer<typeof simulationSchema>;
 export type HealthInsuranceInput = z.infer<typeof healthInsuranceInputSchema>;
 export type IsaInput = z.infer<typeof isaInputSchema>;
@@ -72,6 +89,7 @@ export type NationalPensionInput = z.infer<typeof nationalPensionInputSchema>;
 export type IrpInput = z.infer<typeof irpInputSchema>;
 export type SeverancePayInput = z.infer<typeof severancePayInputSchema>;
 export type UnemploymentBenefitInput = z.infer<typeof unemploymentBenefitInputSchema>;
+export type HousingPensionInput = z.infer<typeof housingPensionInputSchema>;
 
 // 건강보험 시뮬레이션 생성
 export const createHealthInsuranceSimulation = async (
@@ -308,6 +326,68 @@ export const getLatestUnemploymentBenefitSimulation = async (): Promise<Simulati
     return parsed.data;
   } catch (err: unknown) {
     if (isAxiosError(err)) throw new ApiError(err.response?.data?.error?.code || "UNKNOWN_ERROR");
+    throw err;
+  }
+};
+
+// 주택연금 시뮬레이션 생성
+// 서버에 엔드포인트가 없으면(P2 미배포) 로컬 HF 표 산식으로 폴백해 UI는 동작시킨다.
+export const createHousingPensionSimulation = async (
+  inputData: HousingPensionInput,
+): Promise<Simulation> => {
+  const parsedReq = housingPensionInputSchema.safeParse(inputData);
+  if (!parsedReq.success) throw new ApiError("VALIDATION_ERROR");
+
+  const localOutput = calculateHousingPension(parsedReq.data);
+
+  try {
+    const res = await client.post("/simulations/housing-pension", parsedReq.data);
+    const parsed = simulationSchema.safeParse(res.data.data);
+    if (parsed.success) return parsed.data;
+  } catch (err: unknown) {
+    // 인증 실패는 폴백하지 않고 그대로 전달
+    if (isAxiosError(err)) {
+      const code = err.response?.data?.error?.code as string | undefined;
+      const status = err.response?.status;
+      if (
+        status === 401 ||
+        code === "UNAUTHORIZED" ||
+        code === "INVALID_TOKEN"
+      ) {
+        throw new ApiError(code || "UNAUTHORIZED");
+      }
+    } else {
+      throw err;
+    }
+  }
+
+  return {
+    id: -Date.now(),
+    userId: 0,
+    type: "HOUSING_PENSION",
+    inputData: parsedReq.data as unknown as Record<string, unknown>,
+    outputData: localOutput as unknown as Record<string, unknown>,
+    createdAt: new Date().toISOString(),
+  };
+};
+
+// 최신 주택연금 시뮬레이션 조회
+export const getLatestHousingPensionSimulation = async (): Promise<Simulation> => {
+  try {
+    const res = await client.get("/simulations/housing-pension/latest");
+    const parsed = simulationSchema.safeParse(res.data.data);
+    if (!parsed.success) throw new Error("유효하지 않은 응답 형식입니다");
+    return parsed.data;
+  } catch (err: unknown) {
+    if (isAxiosError(err)) {
+      const status = err.response?.status;
+      const code = err.response?.data?.error?.code as string | undefined;
+      // 엔드포인트 없음(404)도 NOT_FOUND로 정규화
+      if (status === 404) {
+        throw new ApiError(code || "HOUSING_PENSION_SIMULATION_NOT_FOUND");
+      }
+      throw new ApiError(code || "UNKNOWN_ERROR");
+    }
     throw err;
   }
 };
