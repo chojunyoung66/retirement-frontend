@@ -54,10 +54,6 @@ export default function SummaryScreen() {
     }
   };
 
-  const handlePdf = () => {
-    alert('PDF 저장은 준비 중이에요. 곧 제공될 예정입니다.');
-  };
-
   if (!projection) {
     return (
       <div className="screen-content">
@@ -103,9 +99,6 @@ export default function SummaryScreen() {
       />
 
       <div className="mt-16">
-        <Button onClick={handlePdf}>PDF로 저장하기</Button>
-      </div>
-      <div className="mt-8">
         <Button variant="secondary" onClick={handleLoad} disabled={fetchLoading}>
           {fetchLoading ? '불러오는 중...' : '불러오기'}
         </Button>
