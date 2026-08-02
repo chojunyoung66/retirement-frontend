@@ -1,9 +1,13 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
 import Input from "../components/Input";
 import Button from "../components/Button";
 import { useSimulation } from "../hooks/useSimulation";
 import { useDiagnosis } from "../hooks/useDiagnosis";
 import { ApiError } from "../api/client";
+import { showToast } from "../store/toast-slice";
+import type { AppDispatch } from "../store/store";
 import type { HousingPensionInput } from "../api/simulation-api";
 
 function formatWan(won: number): string {
@@ -66,6 +70,8 @@ function reasonMessage(codes: string[]): string {
 }
 
 export default function HousingPensionSimulationScreen() {
+  const navigate = useNavigate();
+  const toastDispatch = useDispatch<AppDispatch>();
   const {
     housingPensionSimulation,
     createHousingPension,
@@ -176,13 +182,19 @@ export default function HousingPensionSimulationScreen() {
       setApplyNotice("계산된 월 수령액이 있을 때만 반영할 수 있어요");
       return;
     }
+    // 진단 수입에 월지급금 넣고 현금흐름 입력 화면으로 이동
     dispatch({
       type: "UPDATE",
       payload: {
         pension: { ...state.pension, housing: out.monthlyPayout },
       },
     });
-    setApplyNotice(`진단 수입에 주택연금 월 ${formatWan(out.monthlyPayout)}을 넣었어요`);
+    toastDispatch(
+      showToast(
+        `주택연금 월 ${formatWan(out.monthlyPayout)}을 현금흐름에 넣었어요`,
+      ),
+    );
+    navigate("/cashflow");
   };
 
   const output = housingPensionSimulation?.outputData as HousingOutput | undefined;
