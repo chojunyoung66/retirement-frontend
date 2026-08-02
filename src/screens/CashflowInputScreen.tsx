@@ -101,8 +101,17 @@ export default function CashflowInputScreen() {
           placeholder="예: 84"
           suffix="만원"
           max={1000}
-          hint="시뮬레이션에서 계산한 월지급금을 입력하거나 반영하세요"
+          hint="직접 입력하거나, 시뮬레이션 › 주택연금에서 「진단에 반영하기」로 채울 수 있어요"
         />
+
+        <div className="mt-8">
+          <Button
+            variant="secondary"
+            onClick={() => navigate("/simulation/housing-pension")}
+          >
+            주택연금 시뮬레이션으로 계산하기
+          </Button>
+        </div>
 
         <div className="button-row">
           <Button onClick={handleNext}>다음</Button>
