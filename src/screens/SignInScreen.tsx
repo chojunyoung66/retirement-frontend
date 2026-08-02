@@ -64,6 +64,9 @@ export default function SignInScreen() {
     const container = googleBtnRef.current;
     if (!container) return;
 
+    let cancelled = false;
+    let pollTimer: ReturnType<typeof setInterval> | undefined;
+
     const initBtn = () => {
       if (!window.google || !container) return false;
 
@@ -100,15 +103,38 @@ export default function SignInScreen() {
       return true;
     };
 
-    // GSI 스크립트 로드 전이면 최대 3초 대기
-    if (!initBtn()) {
+    // client ID가 있을 때만 GSI 스크립트 로드
+    const ensureGsi = () => {
+      if (window.google) {
+        initBtn();
+        return;
+      }
+      const existing = document.querySelector<HTMLScriptElement>(
+        'script[data-gsi-client="true"]',
+      );
+      if (!existing) {
+        const script = document.createElement("script");
+        script.src = "https://accounts.google.com/gsi/client";
+        script.async = true;
+        script.dataset.gsiClient = "true";
+        document.head.appendChild(script);
+      }
       let attempts = 0;
-      const timer = setInterval(() => {
+      pollTimer = setInterval(() => {
+        if (cancelled) {
+          clearInterval(pollTimer);
+          return;
+        }
         attempts += 1;
-        if (initBtn() || attempts >= 6) clearInterval(timer);
-      }, 500);
-      return () => clearInterval(timer);
-    }
+        if (initBtn() || attempts >= 12) clearInterval(pollTimer);
+      }, 250);
+    };
+
+    ensureGsi();
+    return () => {
+      cancelled = true;
+      if (pollTimer) clearInterval(pollTimer);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [googleClientId]);
 

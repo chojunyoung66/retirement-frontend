@@ -21,10 +21,10 @@ client.interceptors.response.use(
     const url = config?.url;
 
     if (status === 401) {
-      console.error(`[API] 401 Unauthorized - ${method} ${url}`);
       const { authStatus } = store.getState().auth;
-      // 쿠키 세션이 살아 있던 경우만 강제 로그아웃
+      // 부트 checkAuth(/auth/me)의 비로그인 401은 정상 — 로그 생략
       if (authStatus === 'authenticated') {
+        console.error(`[API] 401 Unauthorized - ${method} ${url}`);
         store.dispatch(signOut());
         router.navigate('/signin', {
           state: { from: window.location.pathname },
