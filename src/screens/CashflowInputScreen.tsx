@@ -1,10 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useDiagnosis } from '../hooks/useDiagnosis';
 import ProgressBar from '../components/ProgressBar';
 import Input from '../components/Input';
 import Button from '../components/Button';
+import {
+  mergePensionPreferPositive,
+  readPensionDraft,
+  writePensionDraft,
+} from '../utils/pension-draft';
+import type { PensionState } from '../domain/plan';
 
 const cashflowSchema = z.object({
   national: z
@@ -24,33 +30,64 @@ function toWanString(won: number): string {
   return won > 0 ? String(Math.round(won / 10000)) : '';
 }
 
+function resolveInitialPension(session: PensionState): PensionState {
+  // 컨텍스트 + sessionStorage 초안을 병합해 복귀 시 빈 폼 방지
+  return mergePensionPreferPositive(session, readPensionDraft());
+}
+
 export default function CashflowInputScreen() {
   const navigate = useNavigate();
   const { state, dispatch } = useDiagnosis();
+  const initial = resolveInitialPension(state.pension);
 
-  const [national, setNational] = useState(toWanString(state.pension.national));
-  const [retirement, setRetirement] = useState(toWanString(state.pension.retirement));
-  const [personal, setPersonal] = useState(toWanString(state.pension.personal));
-  const [housing, setHousing] = useState(toWanString(state.pension.housing));
+  const [national, setNational] = useState(toWanString(initial.national));
+  const [retirement, setRetirement] = useState(toWanString(initial.retirement));
+  const [personal, setPersonal] = useState(toWanString(initial.personal));
+  const [housing, setHousing] = useState(toWanString(initial.housing));
   const [error, setError] = useState<string | undefined>();
 
+  const formPension = (): PensionState => ({
+    national: toWonFromWan(national),
+    retirement: toWonFromWan(retirement),
+    personal: toWonFromWan(personal),
+    housing: toWonFromWan(housing),
+  });
+
+  // 입력 즉시 초안 저장 — 시뮬 이동·뒤로가기·리로드에도 유지
+  useEffect(() => {
+    writePensionDraft(formPension());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [national, retirement, personal, housing]);
+
+  // 로컬 폼 → 진단 세션에 반영 (화면 이탈 시 입력 유실 방지)
+  const flushPensionToDiagnosis = () => {
+    const pension = formPension();
+    writePensionDraft(pension);
+    dispatch({
+      type: 'UPDATE',
+      payload: { pension },
+    });
+  };
+
   const handleNext = () => {
-    const payload = {
-      national: toWonFromWan(national),
-      retirement: toWonFromWan(retirement),
-      personal: toWonFromWan(personal),
-      housing: toWonFromWan(housing),
-    };
+    const payload = formPension();
     const result = cashflowSchema.safeParse(payload);
     if (!result.success) {
       setError(result.error.issues[0]?.message ?? '입력값을 확인하세요');
       return;
     }
+    writePensionDraft(payload);
     dispatch({
       type: 'UPDATE',
       payload: { pension: payload },
     });
     navigate('/scenario');
+  };
+
+  // 시뮬레이션 이동 전 입력을 세션에 남겨 복귀 시 초기화되지 않게 함
+  const handleOpenHousingSimulation = () => {
+    flushPensionToDiagnosis();
+    navigate('/simulation/housing-pension');
   };
 
   return (
@@ -109,14 +146,16 @@ export default function CashflowInputScreen() {
           hint="직접 입력하거나, 시뮬레이션 › 주택연금에서 「진단에 반영하기」로 채울 수 있어요"
         />
 
-        <div className="mt-8">
-          <Button
-            variant="secondary"
-            onClick={() => navigate("/simulation/housing-pension")}
-          >
-            주택연금 시뮬레이션으로 계산하기
-          </Button>
-        </div>
+        {toWonFromWan(housing) <= 0 && (
+          <div className="mt-8">
+            <Button
+              variant="secondary"
+              onClick={handleOpenHousingSimulation}
+            >
+              주택연금 시뮬레이션으로 계산하기
+            </Button>
+          </div>
+        )}
 
         <div className="button-row">
           <Button onClick={handleNext}>다음</Button>

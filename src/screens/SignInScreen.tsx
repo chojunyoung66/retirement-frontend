@@ -33,6 +33,9 @@ interface LocationState {
   from?: string;
 }
 
+// StrictMode/재진입 시 initialize 중복 호출 방지
+let gsiInitializedClientId: string | null = null;
+
 export default function SignInScreen() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -58,6 +61,24 @@ export default function SignInScreen() {
     return state?.from ?? searchParams.get("returnTo") ?? "/result";
   };
 
+  // initialize 콜백은 최신 핸들러를 참조 (재initialize 불필요)
+  const googleCredentialHandlerRef = useRef<(credential: string) => void>(
+    () => {},
+  );
+  googleCredentialHandlerRef.current = async (credential: string) => {
+    setGoogleLoading(true);
+    setGoogleError(null);
+    try {
+      await googleLogin(credential);
+      dispatch(showToast("Google 계정으로 로그인되었어요"));
+      navigate(getReturnTo(), { replace: true });
+    } catch (err) {
+      setGoogleLoading(false);
+      const code = err instanceof ApiError ? err.errorCode : "UNKNOWN";
+      setGoogleError(getGoogleErrorMessage(code));
+    }
+  };
+
   useEffect(() => {
     if (!googleClientId) return;
 
@@ -68,36 +89,29 @@ export default function SignInScreen() {
     let pollTimer: ReturnType<typeof setInterval> | undefined;
 
     const initBtn = () => {
-      if (!window.google || !container) return false;
+      if (cancelled || !window.google || !container) return false;
 
-      window.google.accounts.id.initialize({
-        client_id: googleClientId,
-        callback: async ({ credential }) => {
-          setGoogleLoading(true);
-          setGoogleError(null);
-          try {
-            await googleLogin(credential);
-            dispatch(showToast("Google 계정으로 로그인되었어요"));
-            navigate(getReturnTo(), { replace: true });
-          } catch (err) {
-            setGoogleLoading(false);
-            const code = err instanceof ApiError ? err.errorCode : "UNKNOWN";
-            setGoogleError(getGoogleErrorMessage(code));
-          }
-        },
-      });
-
-      // requestAnimationFrame으로 DOM 렌더 후 실제 width 측정
-      requestAnimationFrame(() => {
-        window.google!.accounts.id.renderButton(container, {
-          theme: "outline",
-          size: "large",
-          text: "signin_with",
-          shape: "rectangular",
-          logo_alignment: "left",
-          locale: "ko",
-          width: container.offsetWidth || 350,
+      // client ID당 initialize는 한 번만
+      if (gsiInitializedClientId !== googleClientId) {
+        window.google.accounts.id.initialize({
+          client_id: googleClientId,
+          callback: ({ credential }) => {
+            googleCredentialHandlerRef.current(credential);
+          },
         });
+        gsiInitializedClientId = googleClientId;
+      }
+
+      // 재마운트 시 버튼 중복 렌더 방지
+      container.innerHTML = "";
+      window.google.accounts.id.renderButton(container, {
+        theme: "outline",
+        size: "large",
+        text: "signin_with",
+        shape: "rectangular",
+        logo_alignment: "left",
+        locale: "ko",
+        width: container.offsetWidth || 350,
       });
 
       return true;
@@ -135,7 +149,6 @@ export default function SignInScreen() {
       cancelled = true;
       if (pollTimer) clearInterval(pollTimer);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [googleClientId]);
 
   const handleSubmit = async () => {
