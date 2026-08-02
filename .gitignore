@@ -33,3 +33,5 @@ Thumbs.db
 .omc/
 .vercel
 .env*
+!.env.example
+!.env.production
