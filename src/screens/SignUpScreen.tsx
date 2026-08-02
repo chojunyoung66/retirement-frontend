@@ -14,11 +14,17 @@ function getSignUpErrorMessage(code: string): string {
   return '회원가입 중 오류가 발생했습니다';
 }
 
-const signUpSchema = z.object({
-  name: z.string().min(1, { message: '이름을 입력해주세요' }),
-  email: z.string().email({ message: '올바른 이메일 형식이 아니에요' }),
-  password: z.string().min(8, { message: '비밀번호는 8자 이상이어야 해요' }),
-});
+const signUpSchema = z
+  .object({
+    name: z.string().min(1, { message: '이름을 입력해주세요' }),
+    email: z.string().email({ message: '올바른 이메일 형식이 아니에요' }),
+    password: z.string().min(8, { message: '비밀번호는 8자 이상이어야 해요' }),
+    passwordConfirm: z.string().min(1, { message: '비밀번호 확인을 입력해주세요' }),
+  })
+  .refine((data) => data.password === data.passwordConfirm, {
+    message: '비밀번호가 일치하지 않아요',
+    path: ['passwordConfirm'],
+  });
 
 interface LocationState {
   from?: string;
@@ -34,24 +40,46 @@ export default function SignUpScreen() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [errors, setErrors] = useState<{ name?: string; email?: string; password?: string }>({});
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [errors, setErrors] = useState<{
+    name?: string;
+    email?: string;
+    password?: string;
+    passwordConfirm?: string;
+  }>({});
 
   const handleSubmit = async () => {
-    const result = signUpSchema.safeParse({ name, email, password });
+    const result = signUpSchema.safeParse({
+      name,
+      email,
+      password,
+      passwordConfirm,
+    });
     if (!result.success) {
-      const fieldErrors: { name?: string; email?: string; password?: string } = {};
+      const fieldErrors: {
+        name?: string;
+        email?: string;
+        password?: string;
+        passwordConfirm?: string;
+      } = {};
       for (const issue of result.error.issues) {
         const key = issue.path[0];
         if (key === 'name') fieldErrors.name = issue.message;
         if (key === 'email') fieldErrors.email = issue.message;
         if (key === 'password') fieldErrors.password = issue.message;
+        if (key === 'passwordConfirm') fieldErrors.passwordConfirm = issue.message;
       }
       setErrors(fieldErrors);
       return;
     }
 
     try {
-      await signup(result.data);
+      // 서버에는 확인 필드 없이 전송
+      await signup({
+        name: result.data.name,
+        email: result.data.email,
+        password: result.data.password,
+      });
       dispatch(showToast('회원가입이 완료되었어요'));
       const state = location.state as LocationState | null;
       const returnTo = state?.from ?? searchParams.get('returnTo') ?? '/result';
@@ -92,6 +120,14 @@ export default function SignUpScreen() {
         onChange={setPassword}
         placeholder="8자 이상"
         error={errors.password}
+      />
+      <Input
+        label="비밀번호 확인"
+        type="password"
+        value={passwordConfirm}
+        onChange={setPasswordConfirm}
+        placeholder="비밀번호를 다시 입력"
+        error={errors.passwordConfirm}
       />
 
       <div className="mt-16">
