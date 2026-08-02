@@ -149,9 +149,18 @@ function SavedDiagnosisCard({ record, isLoading, onDelete }: SavedDiagnosisCardP
         <span className="item-row-value">{formatWan(record.personalPension)}</span>
       </div>
       <div className="item-row">
+        <span className="item-row-label">주택연금</span>
+        <span className="item-row-value">{formatWan(record.housingPension)}</span>
+      </div>
+      <div className="item-row">
         <span className="item-row-label">월 연금 합계</span>
         <span className="item-row-value">
-          {formatWan(record.nationalPension + record.retirementPension + record.personalPension)}
+          {formatWan(
+            record.nationalPension +
+              record.retirementPension +
+              record.personalPension +
+              record.housingPension,
+          )}
         </span>
       </div>
       <div className="item-row">
