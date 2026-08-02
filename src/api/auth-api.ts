@@ -9,12 +9,11 @@ const signUpReqSchema = z.object({
   name: z.string().min(1, "이름은 필수입니다"),
 });
 
-// 회원가입 응답 스키마
+// 회원가입 응답 스키마 (JWT는 HttpOnly 쿠키로만 전달)
 const signUpResSchema = z.object({
   id: z.number(),
   email: z.string(),
   name: z.string(),
-  token: z.string(),
 });
 
 // 로그인 요청 스키마
@@ -28,7 +27,6 @@ const signInResSchema = z.object({
   id: z.number(),
   email: z.string(),
   name: z.string(),
-  token: z.string(),
 });
 
 export type SignUpRequest = z.infer<typeof signUpReqSchema>;
@@ -106,7 +104,6 @@ const googleSignInResSchema = z.object({
   id: z.number(),
   email: z.string(),
   name: z.string(),
-  token: z.string(),
   profileImage: z.string().optional(),
 });
 

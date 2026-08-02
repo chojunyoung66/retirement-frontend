@@ -1,12 +1,24 @@
 import { http, delay, HttpResponse } from "msw";
 import { getLocalStorage, setLocalStorage } from "../utils/local-storage";
 import database, { type Database } from "./database";
-import { resolveSession, isOwner } from "./auth-utils";
+import { resolveSession, isOwner, AUTH_COOKIE_NAME } from "./auth-utils";
 import { isPortfolioItemArray, isValidAllocationSum } from "./portfolio-validation";
 import { calculateHousingPension } from "../service/housing-pension-service";
 import type { HousingPensionInput } from "../api/simulation-api";
 
 const loadedDatabase: Database = getLocalStorage<Database>("mockDatabase") ?? database;
+
+function sessionFrom(request: Request) {
+  return resolveSession(
+    request.headers.get("Authorization"),
+    loadedDatabase.sessions,
+    request.headers.get("Cookie"),
+  );
+}
+
+function authCookieHeader(token: string) {
+  return `${AUTH_COOKIE_NAME}=${token}; Path=/; SameSite=Lax`;
+}
 
 const handlers = [
   // 회원가입
@@ -50,10 +62,12 @@ const handlers = [
           id: newUser.id,
           email: newUser.email,
           name: newUser.name,
-          token,
         },
       },
-      { status: 201 }
+      {
+        status: 201,
+        headers: { "Set-Cookie": authCookieHeader(token) },
+      }
     );
   }),
 
@@ -85,10 +99,85 @@ const handlers = [
           id: user.id,
           email: user.email,
           name: user.name,
-          token,
         },
       },
-      { status: 200 }
+      {
+        status: 200,
+        headers: { "Set-Cookie": authCookieHeader(token) },
+      }
+    );
+  }),
+
+
+  // 쿠키 세션 확인
+  http.get("/api/auth/me", async ({ request }) => {
+    await delay(200);
+    const session = sessionFrom(request);
+    if (!session) {
+      return HttpResponse.json(
+        { error: { code: "UNAUTHORIZED", message: "인증이 필요합니다" } },
+        { status: 401 },
+      );
+    }
+    const user = loadedDatabase.users.find((u) => u.id === session.userId);
+    if (!user) {
+      return HttpResponse.json(
+        { error: { code: "USER_NOT_FOUND", message: "사용자를 찾을 수 없습니다" } },
+        { status: 404 },
+      );
+    }
+    return HttpResponse.json(
+      { success: true, data: { id: user.id, email: user.email, name: user.name } },
+      { status: 200 },
+    );
+  }),
+
+  // 로그아웃 — 쿠키 삭제
+  http.post("/api/auth/logout", async () => {
+    await delay(100);
+    return HttpResponse.json(
+      { success: true, data: null },
+      {
+        status: 200,
+        headers: {
+          "Set-Cookie": `${AUTH_COOKIE_NAME}=; Path=/; Max-Age=0`,
+        },
+      },
+    );
+  }),
+
+  // Google 로그인 (MSW stub)
+  http.post("/api/auth/google", async ({ request }) => {
+    await delay(300);
+    const body = (await request.json()) as { idToken?: string };
+    if (!body.idToken) {
+      return HttpResponse.json(
+        { error: { code: "INVALID_REQUEST", message: "idToken이 필요합니다" } },
+        { status: 400 },
+      );
+    }
+    let user = loadedDatabase.users.find((u) => u.email === "google@example.com");
+    if (!user) {
+      user = {
+        id: Math.max(0, ...loadedDatabase.users.map((u) => u.id)) + 1,
+        email: "google@example.com",
+        password: "",
+        name: "Google유저",
+      };
+      loadedDatabase.users.push(user);
+    }
+    const token = crypto.randomUUID();
+    loadedDatabase.sessions.push({ token, userId: user.id, email: user.email });
+    setLocalStorage("mockDatabase", loadedDatabase);
+    return HttpResponse.json(
+      {
+        success: true,
+        data: { id: user.id, email: user.email, name: user.name },
+      },
+      {
+        status: 200,
+        headers: { "Set-Cookie": authCookieHeader(token) },
+      },
     );
   }),
 
@@ -96,19 +185,10 @@ const handlers = [
   http.get("/api/users/me", async ({ request }) => {
     await delay(500);
 
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader) {
-      return HttpResponse.json(
-        { error: { code: "INVALID_TOKEN", message: "토큰이 없습니다" } },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json(
-        { error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } },
+        { error: { code: "INVALID_TOKEN", message: "토큰이 없습니다" } },
         { status: 401 }
       );
     }
@@ -131,19 +211,10 @@ const handlers = [
   http.get("/api/pension-portfolios", async ({ request }) => {
     await delay(300);
 
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader) {
-      return HttpResponse.json(
-        { error: { code: "INVALID_TOKEN", message: "토큰이 없습니다" } },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json(
-        { error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } },
+        { error: { code: "INVALID_TOKEN", message: "토큰이 없습니다" } },
         { status: 401 }
       );
     }
@@ -156,19 +227,10 @@ const handlers = [
   http.post("/api/pension-portfolios", async ({ request }) => {
     await delay(300);
 
-    const authHeader = request.headers.get("Authorization");
-    if (!authHeader) {
-      return HttpResponse.json(
-        { error: { code: "INVALID_TOKEN", message: "토큰이 없습니다" } },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.replace("Bearer ", "");
-    const session = loadedDatabase.sessions.find((s) => s.token === token);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json(
-        { error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } },
+        { error: { code: "INVALID_TOKEN", message: "토큰이 없습니다" } },
         { status: 401 }
       );
     }
@@ -200,7 +262,7 @@ const handlers = [
   http.get("/api/pension-portfolios/:id", async ({ params, request }) => {
     await delay(300);
 
-    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json(
         { error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } },
@@ -231,7 +293,7 @@ const handlers = [
   http.patch("/api/pension-portfolios/:id", async ({ params, request }) => {
     await delay(300);
 
-    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json(
         { error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } },
@@ -277,7 +339,7 @@ const handlers = [
   http.delete("/api/pension-portfolios/:id", async ({ params, request }) => {
     await delay(300);
 
-    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json(
         { error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } },
@@ -311,7 +373,7 @@ const handlers = [
   http.post("/api/simulations/health-insurance", async ({ request }) => {
     await delay(500);
 
-    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
@@ -345,7 +407,7 @@ const handlers = [
   http.get("/api/simulations/health-insurance/latest", async ({ request }) => {
     await delay(300);
 
-    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
@@ -368,7 +430,7 @@ const handlers = [
   http.post("/api/simulations/isa", async ({ request }) => {
     await delay(500);
 
-    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
@@ -397,7 +459,7 @@ const handlers = [
   http.get("/api/simulations/isa/latest", async ({ request }) => {
     await delay(300);
 
-    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
@@ -420,7 +482,7 @@ const handlers = [
   http.post("/api/simulations/national-pension", async ({ request }) => {
     await delay(500);
 
-    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
@@ -449,7 +511,7 @@ const handlers = [
   http.get("/api/simulations/national-pension/latest", async ({ request }) => {
     await delay(300);
 
-    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
@@ -472,7 +534,7 @@ const handlers = [
   http.post("/api/simulations/irp", async ({ request }) => {
     await delay(500);
 
-    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
@@ -502,7 +564,7 @@ const handlers = [
   http.get("/api/simulations/irp/latest", async ({ request }) => {
     await delay(300);
 
-    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
@@ -525,7 +587,7 @@ const handlers = [
   http.post("/api/simulations/severance-pay", async ({ request }) => {
     await delay(500);
 
-    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
@@ -555,7 +617,7 @@ const handlers = [
   http.get("/api/simulations/severance-pay/latest", async ({ request }) => {
     await delay(300);
 
-    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
@@ -578,7 +640,7 @@ const handlers = [
   http.post("/api/simulations/unemployment-benefit", async ({ request }) => {
     await delay(500);
 
-    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
@@ -609,7 +671,7 @@ const handlers = [
   http.get("/api/simulations/unemployment-benefit/latest", async ({ request }) => {
     await delay(300);
 
-    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json({ error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } }, { status: 401 });
     }
@@ -632,7 +694,7 @@ const handlers = [
   http.post("/api/simulations/housing-pension", async ({ request }) => {
     await delay(500);
 
-    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json(
         { error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } },
@@ -700,7 +762,7 @@ const handlers = [
   http.get("/api/simulations/housing-pension/latest", async ({ request }) => {
     await delay(300);
 
-    const session = resolveSession(request.headers.get("Authorization"), loadedDatabase.sessions);
+    const session = sessionFrom(request);
     if (!session) {
       return HttpResponse.json(
         { error: { code: "INVALID_TOKEN", message: "유효하지 않은 토큰입니다" } },

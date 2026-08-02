@@ -8,14 +8,8 @@ const client = axios.create({
   withCredentials: true,
 });
 
-// 요청 인터셉터: Authorization 헤더에 토큰 추가
-client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const token = store.getState().auth.token;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+// 요청은 HttpOnly 쿠키만 전달 (Authorization 헤더 미사용)
+client.interceptors.request.use((config: InternalAxiosRequestConfig) => config);
 
 // 응답 인터셉터: 에러 처리
 client.interceptors.response.use(
@@ -28,9 +22,9 @@ client.interceptors.response.use(
 
     if (status === 401) {
       console.error(`[API] 401 Unauthorized - ${method} ${url}`);
-      const { token, authStatus } = store.getState().auth;
-      // Bearer 또는 쿠키 세션이 살아 있던 경우만 강제 로그아웃
-      if (token || authStatus === 'authenticated') {
+      const { authStatus } = store.getState().auth;
+      // 쿠키 세션이 살아 있던 경우만 강제 로그아웃
+      if (authStatus === 'authenticated') {
         store.dispatch(signOut());
         router.navigate('/signin', {
           state: { from: window.location.pathname },

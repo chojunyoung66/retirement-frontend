@@ -33,7 +33,9 @@ export default function ProjectionScreen() {
   const navigate = useNavigate();
   const { state } = useDiagnosis();
   const dispatch = useDispatch<AppDispatch>();
-  const isLoggedIn = useSelector((s: RootState) => !!s.auth.token);
+  const isLoggedIn = useSelector(
+    (s: RootState) => s.auth.authStatus === "authenticated",
+  );
   const [isSaving, setIsSaving] = useState(false);
 
   const projection = state.projection;

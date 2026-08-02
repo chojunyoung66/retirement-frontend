@@ -15,13 +15,12 @@ import { ApiError } from "../api/client";
 
 export function useAuth() {
   const dispatch = useDispatch<AppDispatch>();
-  const token = useSelector((s: RootState) => s.auth.token);
   const user = useSelector((s: RootState) => s.auth.user);
   const authStatus = useSelector((s: RootState) => s.auth.authStatus);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // 로그인
+  // 로그인 — 서버가 HttpOnly 쿠키를 설정함
   const login = useCallback(
     async (data: SignInRequest) => {
       setIsLoading(true);
@@ -30,7 +29,6 @@ export function useAuth() {
         const result = await signInRequest(data);
         dispatch(
           signIn({
-            token: result.token,
             user: { id: result.id, email: result.email, name: result.name },
           }),
         );
@@ -58,7 +56,6 @@ export function useAuth() {
         const result = await signUpRequest(data);
         dispatch(
           signIn({
-            token: result.token,
             user: { id: result.id, email: result.email, name: result.name },
           }),
         );
@@ -88,7 +85,7 @@ export function useAuth() {
     setError(null);
   }, [dispatch]);
 
-  // 앱 시작 시 Bearer 또는 쿠키 세션 확인
+  // 앱 시작 시 쿠키 세션 확인
   const checkAuth = useCallback(async () => {
     try {
       const profile = await getMe();
@@ -107,7 +104,6 @@ export function useAuth() {
         const result = await googleSignInRequest(idToken);
         dispatch(
           signIn({
-            token: result.token,
             user: { id: result.id, email: result.email, name: result.name },
           }),
         );
@@ -127,7 +123,6 @@ export function useAuth() {
   );
 
   return {
-    token,
     user,
     isLoggedIn: authStatus === "authenticated",
     authStatus,
