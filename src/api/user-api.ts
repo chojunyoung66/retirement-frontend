@@ -6,7 +6,8 @@ const userProfileSchema = z.object({
   id: z.number(),
   email: z.string(),
   name: z.string(),
-  hasPassword: z.boolean(),
+  // 구버전 BE는 hasPassword 없음 — 없으면 비밀번호 확인 UI로 폴백
+  hasPassword: z.boolean().optional().default(true),
 });
 
 export type UserProfile = z.infer<typeof userProfileSchema>;

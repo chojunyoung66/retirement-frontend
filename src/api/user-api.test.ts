@@ -49,6 +49,21 @@ describe("getUserProfile — GET /users/me", () => {
     expect(mockGet).toHaveBeenCalledWith("/users/me");
     expect(result.hasPassword).toBe(true);
   });
+
+  it("hasPassword가 없으면 true로 폴백한다", async () => {
+    mockGet.mockResolvedValue({
+      data: {
+        data: {
+          id: 1,
+          email: "a@b.com",
+          name: "테스터",
+        },
+      },
+    });
+
+    const result = await getUserProfile();
+    expect(result.hasPassword).toBe(true);
+  });
 });
 
 describe("deleteAccountRequest — DELETE /users/me", () => {

@@ -38,7 +38,16 @@ export default function AccountScreen() {
   useEffect(() => {
     getUserProfile()
       .then(setProfile)
-      .catch(() => setLoadError("계정 정보를 불러오지 못했어요"));
+      .catch((err: unknown) => {
+        const code = err instanceof ApiError ? err.errorCode : undefined;
+        setLoadError(
+          code === "UNAUTHORIZED"
+            ? "로그인이 필요해요. 다시 로그인해 주세요."
+            : code
+              ? `계정 정보를 불러오지 못했어요 (${code})`
+              : "계정 정보를 불러오지 못했어요",
+        );
+      });
   }, []);
 
   const handleDelete = async () => {
