@@ -257,6 +257,11 @@ export default function WelcomeScreen() {
               시뮬레이션 대시보드
             </Button>
           </div>
+          <div className="mt-16">
+            <Button variant="secondary" onClick={() => navigate("/account")}>
+              계정 · 회원 탈퇴
+            </Button>
+          </div>
         </section>
       )}
 

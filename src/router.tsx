@@ -10,6 +10,7 @@ import ProjectionScreen from "./screens/ProjectionScreen";
 import SummaryScreen from "./screens/SummaryScreen";
 import SignInScreen from "./screens/SignInScreen";
 import SignUpScreen from "./screens/SignUpScreen";
+import AccountScreen from "./screens/AccountScreen";
 import CashFlowPlanScreen from "./screens/CashFlowPlanScreen";
 import SimulationMenuScreen from "./screens/SimulationMenuScreen";
 import HealthInsuranceSimulationScreen from "./screens/HealthInsuranceSimulationScreen";
@@ -54,6 +55,14 @@ export const router = createBrowserRouter([
       },
       { path: "signin", element: <SignInScreen /> },
       { path: "signup", element: <SignUpScreen /> },
+      {
+        path: "account",
+        element: (
+          <ProtectedRoute>
+            <AccountScreen />
+          </ProtectedRoute>
+        ),
+      },
       {
         path: "cashflow-plan",
         element: (
