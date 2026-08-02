@@ -23,7 +23,11 @@ vi.mock("axios", async (importOriginal) => {
 });
 
 import client, { ApiError } from "./client";
-import { getMe, googleSignInRequest } from "./auth-api";
+import {
+  getMe,
+  googleSignInRequest,
+  linkGoogleAccountRequest,
+} from "./auth-api";
 
 const mockGet = client.get as ReturnType<typeof vi.fn>;
 const mockPost = client.post as ReturnType<typeof vi.fn>;
@@ -78,5 +82,30 @@ describe("googleSignInRequest — POST /auth/google", () => {
     await expect(googleSignInRequest("bad-token")).rejects.toBeInstanceOf(
       ApiError,
     );
+  });
+});
+
+describe("linkGoogleAccountRequest — POST /auth/google/link", () => {
+  it("idToken·password로 연결 후 사용자 정보를 반환한다", async () => {
+    mockPost.mockResolvedValue({
+      data: {
+        data: {
+          id: 5,
+          email: "user@gmail.com",
+          name: "기존유저",
+        },
+      },
+    });
+
+    const result = await linkGoogleAccountRequest(
+      "google-id-token",
+      "password12",
+    );
+
+    expect(mockPost).toHaveBeenCalledWith("/auth/google/link", {
+      idToken: "google-id-token",
+      password: "password12",
+    });
+    expect(result.id).toBe(5);
   });
 });

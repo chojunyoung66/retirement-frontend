@@ -126,6 +126,24 @@ export const googleSignInRequest = async (
   }
 };
 
+// 기존 계정에 Google 연결 (비밀번호 재인증)
+export const linkGoogleAccountRequest = async (
+  idToken: string,
+  password: string,
+): Promise<GoogleSignInResponse> => {
+  try {
+    const res = await client.post("/auth/google/link", { idToken, password });
+    const parsed = googleSignInResSchema.safeParse(res.data.data);
+    if (!parsed.success) throw new Error("유효하지 않은 응답 형식입니다");
+    return parsed.data;
+  } catch (err: unknown) {
+    if (isAxiosError(err)) {
+      throw new ApiError(err.response?.data?.error?.code || "UNKNOWN_ERROR");
+    }
+    throw err;
+  }
+};
+
 // 로그아웃 — 서버 HttpOnly 쿠키 삭제
 export const logoutRequest = async (): Promise<void> => {
   try {
