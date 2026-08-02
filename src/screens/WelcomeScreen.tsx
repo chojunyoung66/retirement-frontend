@@ -25,7 +25,7 @@ const PROCESS_STEPS = [
   {
     num: "01",
     title: "기본 정보",
-    desc: "출생 연도와 은퇴 시점만 입력하면 돼요.",
+    desc: "출생연도만 입력하면 돼요.",
   },
   {
     num: "02",
