@@ -9,6 +9,11 @@ import { ApiError } from "../api/client";
 import { showToast } from "../store/toast-slice";
 import type { AppDispatch } from "../store/store";
 import type { HousingPensionInput } from "../api/simulation-api";
+import {
+  mergePensionPreferPositive,
+  readPensionDraft,
+  writePensionDraft,
+} from "../utils/pension-draft";
 
 function formatWan(won: number): string {
   return `${Math.round(won / 10000).toLocaleString("ko-KR")}만원`;
@@ -182,12 +187,15 @@ export default function HousingPensionSimulationScreen() {
       setApplyNotice("계산된 월 수령액이 있을 때만 반영할 수 있어요");
       return;
     }
-    // 진단 수입에 월지급금 넣고 현금흐름 입력 화면으로 이동
+    // 세션이 비어도 초안의 국민·퇴직·개인연금을 유지한 채 주택연금만 갱신
+    const pension = {
+      ...mergePensionPreferPositive(state.pension, readPensionDraft()),
+      housing: out.monthlyPayout,
+    };
+    writePensionDraft(pension);
     dispatch({
       type: "UPDATE",
-      payload: {
-        pension: { ...state.pension, housing: out.monthlyPayout },
-      },
+      payload: { pension },
     });
     toastDispatch(
       showToast(

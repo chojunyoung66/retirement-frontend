@@ -25,17 +25,21 @@ function applyLoadFromServer(
   rec: DiagnosisRecord,
 ): DiagnosisState {
   const retirementAge = rec.retirementYear - rec.birthYear;
+  // MVP: 서버 연금 0이면 세션의 양수 입력을 유지
+  const pension = {
+    national: rec.nationalPension > 0 ? rec.nationalPension : state.pension.national,
+    retirement:
+      rec.retirementPension > 0 ? rec.retirementPension : state.pension.retirement,
+    personal:
+      rec.personalPension > 0 ? rec.personalPension : state.pension.personal,
+    housing: rec.housingPension > 0 ? rec.housingPension : state.pension.housing,
+  };
   const updated: DiagnosisState = {
     ...state,
     diagnosisType: rec.householdType as DiagnosisState["diagnosisType"],
     birthYear: rec.birthYear,
     retirementAge,
-    pension: {
-      national: rec.nationalPension,
-      retirement: rec.retirementPension,
-      personal: rec.personalPension,
-      housing: rec.housingPension,
-    },
+    pension,
     livingExpense: {
       ...state.livingExpense,
       desiredMonthly: rec.monthlyExpense,
@@ -78,6 +82,29 @@ describe("LOAD_FROM_SERVER 리듀서 로직", () => {
     expect(result.pension.retirement).toBe(300000);
     expect(result.pension.personal).toBe(200000);
     expect(result.pension.housing).toBe(400000);
+  });
+
+  it("서버 연금이 0이면 세션의 양수 입력을 유지한다", () => {
+    const withSession: DiagnosisState = {
+      ...initialState,
+      pension: {
+        national: 1_200_000,
+        retirement: 500_000,
+        personal: 300_000,
+        housing: 0,
+      },
+    };
+    const zeroIncomeRecord: DiagnosisRecord = {
+      ...sampleRecord,
+      nationalPension: 0,
+      retirementPension: 0,
+      personalPension: 0,
+      housingPension: 0,
+    };
+    const result = applyLoadFromServer(withSession, zeroIncomeRecord);
+    expect(result.pension.national).toBe(1_200_000);
+    expect(result.pension.retirement).toBe(500_000);
+    expect(result.pension.personal).toBe(300_000);
   });
 
   it("monthlyExpense를 livingExpense.desiredMonthly에 반영한다", () => {
