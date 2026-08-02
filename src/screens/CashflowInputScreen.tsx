@@ -34,6 +34,21 @@ export default function CashflowInputScreen() {
   const [housing, setHousing] = useState(toWanString(state.pension.housing));
   const [error, setError] = useState<string | undefined>();
 
+  // 로컬 폼 → 진단 세션에 반영 (화면 이탈 시 입력 유실 방지)
+  const flushPensionToDiagnosis = () => {
+    dispatch({
+      type: 'UPDATE',
+      payload: {
+        pension: {
+          national: toWonFromWan(national),
+          retirement: toWonFromWan(retirement),
+          personal: toWonFromWan(personal),
+          housing: toWonFromWan(housing),
+        },
+      },
+    });
+  };
+
   const handleNext = () => {
     const payload = {
       national: toWonFromWan(national),
@@ -51,6 +66,12 @@ export default function CashflowInputScreen() {
       payload: { pension: payload },
     });
     navigate('/scenario');
+  };
+
+  // 시뮬레이션 이동 전 입력을 세션에 남겨 복귀 시 초기화되지 않게 함
+  const handleOpenHousingSimulation = () => {
+    flushPensionToDiagnosis();
+    navigate('/simulation/housing-pension');
   };
 
   return (
@@ -112,7 +133,7 @@ export default function CashflowInputScreen() {
         <div className="mt-8">
           <Button
             variant="secondary"
-            onClick={() => navigate("/simulation/housing-pension")}
+            onClick={handleOpenHousingSimulation}
           >
             주택연금 시뮬레이션으로 계산하기
           </Button>
