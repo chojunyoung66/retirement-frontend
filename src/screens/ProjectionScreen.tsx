@@ -31,7 +31,7 @@ function getSaveErrorMessage(code: string): string {
 
 export default function ProjectionScreen() {
   const navigate = useNavigate();
-  const { state, dispatch: diagnosisDispatch } = useDiagnosis();
+  const { state } = useDiagnosis();
   const dispatch = useDispatch<AppDispatch>();
   const isLoggedIn = useSelector(
     (s: RootState) => s.auth.authStatus === "authenticated",
@@ -99,21 +99,25 @@ export default function ProjectionScreen() {
       try {
         const retirementYear =
           state.birthYear + (state.retirementAge ?? DEFAULT_RETIREMENT_AGE);
-        // 저장 응답으로 바로 불러오기(서버 SoT 반영)
-        const saved = await saveLatestDiagnosis({
+        // MVP: 예상은퇴 소득(연금)은 서버에 실값 저장 안 함 — 0만 전송
+        await saveLatestDiagnosis({
           householdType: state.diagnosisType,
           birthYear: state.birthYear,
           retirementYear,
-          nationalPension: state.pension.national,
-          retirementPension: state.pension.retirement,
-          personalPension: state.pension.personal,
-          housingPension: state.pension.housing,
+          nationalPension: 0,
+          retirementPension: 0,
+          personalPension: 0,
+          housingPension: 0,
           monthlyExpense: state.livingExpense.desiredMonthly,
           healthInsurance: state.medicalExpense.healthInsurance,
           privateInsurance: state.medicalExpense.privateInsurance,
         });
-        diagnosisDispatch({ type: "LOAD_FROM_SERVER", payload: saved });
-        dispatch(showToast("진단 결과를 저장하고 불러왔어요"));
+        // 로컬 세션의 연금 금액은 유지 (서버 0 응답으로 덮지 않음)
+        dispatch(
+          showToast(
+            "진단 요약을 저장했어요. 예상 은퇴 소득 금액은 서버에 저장하지 않아요",
+          ),
+        );
       } catch (err) {
         const message =
           err instanceof ApiError
@@ -361,6 +365,10 @@ export default function ProjectionScreen() {
             {isSaving ? "저장 중..." : "결과 저장하기"}
           </Button>
         </div>
+        <p className="form-hint mt-8" style={{ textAlign: "center" }}>
+          예상 은퇴 소득(국민·퇴직·개인·주택연금) 금액은 서버에 저장하지
+          않습니다. 출생 연도·은퇴 시점·생활비 등만 저장돼요.
+        </p>
       </div>
     </>
   );

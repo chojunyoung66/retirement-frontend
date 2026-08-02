@@ -60,6 +60,11 @@ export default function CashflowInputScreen() {
         <h2 className="card-title mb-8">예상 은퇴 소득</h2>
         <p className="card-subtitle mb-16">
           현재 예상 월 수령액을 만원 단위로 입력하세요.
+          <br />
+          <span className="form-hint">
+            예상 은퇴 소득 금액은 민감 정보로 서버에 저장하지 않아요. 이 기기
+            진단 세션에서만 계산에 사용됩니다.
+          </span>
         </p>
 
         <Input
