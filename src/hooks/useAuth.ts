@@ -7,6 +7,7 @@ import {
   signUpRequest,
   getMe,
   googleSignInRequest,
+  linkGoogleAccountRequest,
   logoutRequest,
   type SignInRequest,
   type SignUpRequest,
@@ -122,6 +123,33 @@ export function useAuth() {
     [dispatch],
   );
 
+  // 기존 계정에 Google 연결 (비밀번호 재인증)
+  const linkGoogleAccount = useCallback(
+    async (idToken: string, password: string) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const result = await linkGoogleAccountRequest(idToken, password);
+        dispatch(
+          signIn({
+            user: { id: result.id, email: result.email, name: result.name },
+          }),
+        );
+        return result;
+      } catch (err) {
+        const message =
+          err instanceof ApiError
+            ? `Google 계정 연결 실패: ${err.errorCode}`
+            : "Google 계정 연결 중 오류가 발생했습니다";
+        setError(message);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [dispatch],
+  );
+
   return {
     user,
     isLoggedIn: authStatus === "authenticated",
@@ -133,5 +161,6 @@ export function useAuth() {
     logout,
     checkAuth,
     googleLogin,
+    linkGoogleAccount,
   };
 }

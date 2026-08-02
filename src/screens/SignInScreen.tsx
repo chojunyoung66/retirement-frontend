@@ -21,6 +21,10 @@ function getGoogleErrorMessage(code: string): string {
   if (code === "INVALID_GOOGLE_TOKEN")
     return "Google 인증에 실패했어요. 다시 시도해주세요";
   if (code === "ACCESS_DENIED") return "미검증 이메일로는 연결할 수 없어요";
+  if (code === "GOOGLE_ACCOUNT_IN_USE")
+    return "이 Google 계정은 다른 사용자에게 이미 연결되어 있어요";
+  if (code === "INVALID_CREDENTIALS")
+    return "비밀번호가 올바르지 않아요";
   return "서버 오류가 발생했어요. 잠시 후 다시 시도해주세요";
 }
 
@@ -37,7 +41,7 @@ export default function SignInScreen() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { login, googleLogin } = useAuth();
+  const { login, googleLogin, linkGoogleAccount } = useAuth();
   const dispatch = useDispatch<AppDispatch>();
 
   const [email, setEmail] = useState("");
@@ -47,6 +51,13 @@ export default function SignInScreen() {
   );
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
+  // Google 연결 대기: ACCOUNT_LINK_REQUIRED 시 idToken 보관
+  const [pendingGoogleIdToken, setPendingGoogleIdToken] = useState<
+    string | null
+  >(null);
+  const [linkPassword, setLinkPassword] = useState("");
+  const [linkError, setLinkError] = useState<string | undefined>();
+  const [linkLoading, setLinkLoading] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
   // 미설정·빈 문자열이면 GSI 초기화 생략 (콘솔 "client ID is not found" 방지)
   const googleClientId = (
@@ -75,6 +86,7 @@ export default function SignInScreen() {
         callback: async ({ credential }) => {
           setGoogleLoading(true);
           setGoogleError(null);
+          setPendingGoogleIdToken(null);
           try {
             await googleLogin(credential);
             dispatch(showToast("Google 계정으로 로그인되었어요"));
@@ -82,6 +94,13 @@ export default function SignInScreen() {
           } catch (err) {
             setGoogleLoading(false);
             const code = err instanceof ApiError ? err.errorCode : "UNKNOWN";
+            // 기존 이메일 계정이면 비밀번호 재인증 연결 UI로 전환
+            if (code === "ACCOUNT_LINK_REQUIRED") {
+              setPendingGoogleIdToken(credential);
+              setLinkPassword("");
+              setLinkError(undefined);
+              return;
+            }
             setGoogleError(getGoogleErrorMessage(code));
           }
         },
@@ -165,6 +184,26 @@ export default function SignInScreen() {
     }
   };
 
+  const handleLinkGoogle = async () => {
+    if (!pendingGoogleIdToken) return;
+    if (linkPassword.length < 8) {
+      setLinkError("비밀번호는 8자 이상이어야 해요");
+      return;
+    }
+    setLinkLoading(true);
+    setLinkError(undefined);
+    try {
+      await linkGoogleAccount(pendingGoogleIdToken, linkPassword);
+      dispatch(showToast("Google 계정이 연결되었어요"));
+      navigate(getReturnTo(), { replace: true });
+    } catch (err) {
+      const code = err instanceof ApiError ? err.errorCode : "UNKNOWN";
+      setLinkError(getGoogleErrorMessage(code));
+    } finally {
+      setLinkLoading(false);
+    }
+  };
+
   return (
     <div className="screen-content">
       <h2 className="card-title mb-8">로그인</h2>
@@ -191,7 +230,7 @@ export default function SignInScreen() {
         <Button onClick={handleSubmit}>로그인</Button>
       </div>
 
-      {googleClientId && (
+      {googleClientId && !pendingGoogleIdToken && (
         <div className="mt-8" style={{ position: "relative" }}>
           {/* Google renderButton이 여기에 마운트됨 */}
           <div ref={googleBtnRef} style={{ width: "100%", minHeight: 44 }} />
@@ -228,6 +267,40 @@ export default function SignInScreen() {
               {googleError}
             </p>
           )}
+        </div>
+      )}
+
+      {pendingGoogleIdToken && (
+        <div className="mt-16">
+          <p className="card-subtitle mb-8">
+            이미 이메일로 가입된 계정이에요. 비밀번호를 확인하면 Google 계정을
+            연결합니다.
+          </p>
+          <Input
+            label="계정 비밀번호 확인"
+            type="password"
+            value={linkPassword}
+            onChange={setLinkPassword}
+            placeholder="8자 이상"
+            error={linkError}
+          />
+          <div className="mt-8">
+            <Button onClick={handleLinkGoogle} disabled={linkLoading}>
+              {linkLoading ? "연결 중..." : "비밀번호 확인 후 Google 연결"}
+            </Button>
+          </div>
+          <div className="mt-8">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setPendingGoogleIdToken(null);
+                setLinkPassword("");
+                setLinkError(undefined);
+              }}
+            >
+              취소
+            </Button>
+          </div>
         </div>
       )}
 
