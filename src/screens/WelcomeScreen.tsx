@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
 import {
   getWelcomeMetrics,
   getCashflowTrendSample,
@@ -10,15 +9,12 @@ import { useAuth } from "../hooks/useAuth";
 import { useCountUp } from "../hooks/useCountUp";
 import {
   getLatestDiagnosis,
-  deleteLatestDiagnosis,
   type DiagnosisRecord,
 } from "../api/diagnosis-api";
-import { showToast } from "../store/toast-slice";
 import { formatWan } from "../utils/format";
 import Button from "../components/Button";
 import MiniBarChart from "../components/MiniBarChart";
 import AvatarStack from "../components/AvatarStack";
-import type { AppDispatch } from "../store/store";
 
 const LABEL_POSITIONS = [0, 3, 6, 9, 12];
 
@@ -45,7 +41,6 @@ export default function WelcomeScreen() {
   const metrics = getWelcomeMetrics();
   const { dispatch: diagnosisDispatch } = useDiagnosis();
   const { isLoggedIn, authStatus } = useAuth();
-  const dispatch = useDispatch<AppDispatch>();
 
   const [savedDiagnosis, setSavedDiagnosis] = useState<
     DiagnosisRecord | null | "loading"
@@ -90,16 +85,6 @@ export default function WelcomeScreen() {
     if (!savedDiagnosis || savedDiagnosis === "loading") return;
     diagnosisDispatch({ type: "LOAD_FROM_SERVER", payload: savedDiagnosis });
     navigate("/result");
-  };
-
-  const handleDeleteDiagnosis = async () => {
-    try {
-      await deleteLatestDiagnosis();
-      setSavedDiagnosis(null);
-      dispatch(showToast("저장된 진단을 삭제했어요"));
-    } catch {
-      dispatch(showToast("삭제 중 오류가 발생했어요"));
-    }
   };
 
   return (
@@ -268,13 +253,6 @@ export default function WelcomeScreen() {
                   <div style={{ flex: 1 }}>
                     <Button onClick={handleRestoreDiagnosis}>결과 보기</Button>
                   </div>
-                  <Button
-                    variant="secondary"
-                    onClick={handleDeleteDiagnosis}
-                    fullWidth={false}
-                  >
-                    삭제
-                  </Button>
                 </div>
               </div>
             )}
