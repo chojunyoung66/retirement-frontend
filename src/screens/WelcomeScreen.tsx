@@ -263,7 +263,7 @@ export default function WelcomeScreen() {
       <div className="lp-cta-bar">
         <button className="lp-cta" onClick={handleStart}>
           {savedDiagnosis && savedDiagnosis !== "loading"
-            ? "저장된 값으로 다시 진단하기"
+            ? "다시 진단하기"
             : "1분 진단 시작하기"}{" "}
           <span aria-hidden="true">→</span>
         </button>
