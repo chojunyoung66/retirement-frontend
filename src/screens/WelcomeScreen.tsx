@@ -220,41 +220,10 @@ export default function WelcomeScreen() {
                     {savedDiagnosis.retirementYear}년
                   </span>
                 </div>
-                <div className="item-row">
-                  <span className="item-row-label">국민연금</span>
-                  <span className="item-row-value">
-                    {formatWan(savedDiagnosis.nationalPension)}
-                  </span>
-                </div>
-                <div className="item-row">
-                  <span className="item-row-label">퇴직연금</span>
-                  <span className="item-row-value">
-                    {formatWan(savedDiagnosis.retirementPension)}
-                  </span>
-                </div>
-                <div className="item-row">
-                  <span className="item-row-label">개인연금</span>
-                  <span className="item-row-value">
-                    {formatWan(savedDiagnosis.personalPension)}
-                  </span>
-                </div>
-                <div className="item-row">
-                  <span className="item-row-label">주택연금</span>
-                  <span className="item-row-value">
-                    {formatWan(savedDiagnosis.housingPension)}
-                  </span>
-                </div>
-                <div className="item-row">
-                  <span className="item-row-label">월 연금 합계</span>
-                  <span className="item-row-value">
-                    {formatWan(
-                      savedDiagnosis.nationalPension +
-                        savedDiagnosis.retirementPension +
-                        savedDiagnosis.personalPension +
-                        savedDiagnosis.housingPension,
-                    )}
-                  </span>
-                </div>
+                <p className="form-hint" style={{ margin: "8px 0" }}>
+                  예상 은퇴 소득(국민·퇴직·개인·주택연금) 금액은 서버에
+                  저장하지 않아요.
+                </p>
                 <div className="item-row">
                   <span className="item-row-label">월 생활비</span>
                   <span className="item-row-value">
