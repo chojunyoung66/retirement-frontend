@@ -48,6 +48,10 @@ export default function SignInScreen() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
   const googleBtnRef = useRef<HTMLDivElement>(null);
+  // 미설정·빈 문자열이면 GSI 초기화 생략 (콘솔 "client ID is not found" 방지)
+  const googleClientId = (
+    import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
+  )?.trim();
 
   const getReturnTo = () => {
     const state = location.state as LocationState | null;
@@ -55,14 +59,19 @@ export default function SignInScreen() {
   };
 
   useEffect(() => {
+    if (!googleClientId) return;
+
     const container = googleBtnRef.current;
     if (!container) return;
+
+    let cancelled = false;
+    let pollTimer: ReturnType<typeof setInterval> | undefined;
 
     const initBtn = () => {
       if (!window.google || !container) return false;
 
       window.google.accounts.id.initialize({
-        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID as string,
+        client_id: googleClientId,
         callback: async ({ credential }) => {
           setGoogleLoading(true);
           setGoogleError(null);
@@ -94,17 +103,40 @@ export default function SignInScreen() {
       return true;
     };
 
-    // GSI 스크립트 로드 전이면 최대 3초 대기
-    if (!initBtn()) {
+    // client ID가 있을 때만 GSI 스크립트 로드
+    const ensureGsi = () => {
+      if (window.google) {
+        initBtn();
+        return;
+      }
+      const existing = document.querySelector<HTMLScriptElement>(
+        'script[data-gsi-client="true"]',
+      );
+      if (!existing) {
+        const script = document.createElement("script");
+        script.src = "https://accounts.google.com/gsi/client";
+        script.async = true;
+        script.dataset.gsiClient = "true";
+        document.head.appendChild(script);
+      }
       let attempts = 0;
-      const timer = setInterval(() => {
+      pollTimer = setInterval(() => {
+        if (cancelled) {
+          clearInterval(pollTimer);
+          return;
+        }
         attempts += 1;
-        if (initBtn() || attempts >= 6) clearInterval(timer);
-      }, 500);
-      return () => clearInterval(timer);
-    }
+        if (initBtn() || attempts >= 12) clearInterval(pollTimer);
+      }, 250);
+    };
+
+    ensureGsi();
+    return () => {
+      cancelled = true;
+      if (pollTimer) clearInterval(pollTimer);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [googleClientId]);
 
   const handleSubmit = async () => {
     const result = signInSchema.safeParse({ email, password });
@@ -159,44 +191,45 @@ export default function SignInScreen() {
         <Button onClick={handleSubmit}>로그인</Button>
       </div>
 
-      <div className="mt-8" style={{ position: "relative" }}>
-        {/* Google renderButton이 여기에 마운트됨 (Safari 포함 전 브라우저 호환) */}
-        <div ref={googleBtnRef} style={{ width: "100%", minHeight: 44 }} />
+      {googleClientId && (
+        <div className="mt-8" style={{ position: "relative" }}>
+          {/* Google renderButton이 여기에 마운트됨 */}
+          <div ref={googleBtnRef} style={{ width: "100%", minHeight: 44 }} />
 
-        {/* API 호출 중 로딩 오버레이 */}
-        {googleLoading && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              background: "rgba(255,255,255,0.92)",
-              borderRadius: 4,
-            }}
-          >
-            <div className="btn-google-spinner" />
-            <span style={{ fontSize: 15, color: "#3c4043", fontWeight: 500 }}>
-              로그인 중...
-            </span>
-          </div>
-        )}
+          {googleLoading && (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                background: "rgba(255,255,255,0.92)",
+                borderRadius: 4,
+              }}
+            >
+              <div className="btn-google-spinner" />
+              <span style={{ fontSize: 15, color: "#3c4043", fontWeight: 500 }}>
+                로그인 중...
+              </span>
+            </div>
+          )}
 
-        {googleError && (
-          <p
-            style={{
-              color: "var(--error, #e74c3c)",
-              fontSize: 13,
-              marginTop: 6,
-              textAlign: "center",
-            }}
-          >
-            {googleError}
-          </p>
-        )}
-      </div>
+          {googleError && (
+            <p
+              style={{
+                color: "var(--error, #e74c3c)",
+                fontSize: 13,
+                marginTop: 6,
+                textAlign: "center",
+              }}
+            >
+              {googleError}
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="mt-8">
         <Button
