@@ -54,7 +54,7 @@ function reducer(state: DiagnosisState, action: Action): DiagnosisState {
           national: rec.nationalPension,
           retirement: rec.retirementPension,
           personal: rec.personalPension,
-          housing: state.pension.housing,
+          housing: rec.housingPension,
         },
         livingExpense: {
           ...state.livingExpense,

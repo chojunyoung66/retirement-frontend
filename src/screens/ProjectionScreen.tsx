@@ -106,6 +106,7 @@ export default function ProjectionScreen() {
           nationalPension: state.pension.national,
           retirementPension: state.pension.retirement,
           personalPension: state.pension.personal,
+          housingPension: state.pension.housing,
           monthlyExpense: state.livingExpense.desiredMonthly,
           healthInsurance: state.medicalExpense.healthInsurance,
           privateInsurance: state.medicalExpense.privateInsurance,

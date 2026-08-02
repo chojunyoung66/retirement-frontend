@@ -242,12 +242,19 @@ export default function WelcomeScreen() {
                   </span>
                 </div>
                 <div className="item-row">
+                  <span className="item-row-label">주택연금</span>
+                  <span className="item-row-value">
+                    {formatWan(savedDiagnosis.housingPension)}
+                  </span>
+                </div>
+                <div className="item-row">
                   <span className="item-row-label">월 연금 합계</span>
                   <span className="item-row-value">
                     {formatWan(
                       savedDiagnosis.nationalPension +
                         savedDiagnosis.retirementPension +
-                        savedDiagnosis.personalPension,
+                        savedDiagnosis.personalPension +
+                        savedDiagnosis.housingPension,
                     )}
                   </span>
                 </div>
