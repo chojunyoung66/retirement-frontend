@@ -31,7 +31,7 @@ function getSaveErrorMessage(code: string): string {
 
 export default function ProjectionScreen() {
   const navigate = useNavigate();
-  const { state } = useDiagnosis();
+  const { state, dispatch: diagnosisDispatch } = useDiagnosis();
   const dispatch = useDispatch<AppDispatch>();
   const isLoggedIn = useSelector(
     (s: RootState) => s.auth.authStatus === "authenticated",
@@ -99,7 +99,8 @@ export default function ProjectionScreen() {
       try {
         const retirementYear =
           state.birthYear + (state.retirementAge ?? DEFAULT_RETIREMENT_AGE);
-        await saveLatestDiagnosis({
+        // 저장 응답으로 바로 불러오기(서버 SoT 반영)
+        const saved = await saveLatestDiagnosis({
           householdType: state.diagnosisType,
           birthYear: state.birthYear,
           retirementYear,
@@ -111,7 +112,8 @@ export default function ProjectionScreen() {
           healthInsurance: state.medicalExpense.healthInsurance,
           privateInsurance: state.medicalExpense.privateInsurance,
         });
-        dispatch(showToast("진단 결과를 저장했어요"));
+        diagnosisDispatch({ type: "LOAD_FROM_SERVER", payload: saved });
+        dispatch(showToast("진단 결과를 저장하고 불러왔어요"));
       } catch (err) {
         const message =
           err instanceof ApiError
