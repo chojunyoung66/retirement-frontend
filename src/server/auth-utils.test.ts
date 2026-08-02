@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveSession, isOwner } from './auth-utils';
+import { resolveSession, isOwner, AUTH_COOKIE_NAME } from './auth-utils';
 import type { Session, Portfolio } from './database';
 
 const sessions: Session[] = [
@@ -8,8 +8,9 @@ const sessions: Session[] = [
 ];
 
 describe('resolveSession', () => {
-  it('Authorization 헤더가 없으면 null을 반환한다', () => {
+  it('Authorization·Cookie가 없으면 null을 반환한다', () => {
     expect(resolveSession(null, sessions)).toBeNull();
+    expect(resolveSession(null, sessions, null)).toBeNull();
   });
 
   it('유효하지 않은 토큰이면 null을 반환한다', () => {
@@ -29,6 +30,21 @@ describe('resolveSession', () => {
 
   it('세션 목록이 비어 있으면 null을 반환한다', () => {
     expect(resolveSession('Bearer token-user1', [])).toBeNull();
+  });
+
+  it('HttpOnly 쿠키로 세션을 해석한다', () => {
+    const session = resolveSession(
+      null,
+      sessions,
+      `${AUTH_COOKIE_NAME}=token-user1; Path=/`,
+    );
+    expect(session?.userId).toBe(1);
+  });
+
+  it('유효하지 않은 쿠키면 null을 반환한다', () => {
+    expect(
+      resolveSession(null, sessions, `${AUTH_COOKIE_NAME}=unknown`),
+    ).toBeNull();
   });
 });
 

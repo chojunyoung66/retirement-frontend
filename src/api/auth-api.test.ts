@@ -48,14 +48,13 @@ describe("getMe — GET /auth/me", () => {
 });
 
 describe("googleSignInRequest — POST /auth/google", () => {
-  it("idToken으로 /auth/google 호출 후 token과 사용자 정보를 반환한다", async () => {
+  it("idToken으로 /auth/google 호출 후 사용자 정보를 반환한다", async () => {
     mockPost.mockResolvedValue({
       data: {
         data: {
           id: 2,
           email: "google@example.com",
           name: "Google유저",
-          token: "jwt-token",
         },
       },
     });
@@ -65,7 +64,7 @@ describe("googleSignInRequest — POST /auth/google", () => {
     expect(mockPost).toHaveBeenCalledWith("/auth/google", {
       idToken: "google-id-token",
     });
-    expect(result.token).toBe("jwt-token");
+    expect(result.id).toBe(2);
     expect(result.email).toBe("google@example.com");
   });
 

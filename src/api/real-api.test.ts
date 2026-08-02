@@ -20,35 +20,39 @@ const api = axios.create({ baseURL: env.VITE_API_BASE_URL ?? '/api' });
 describe('실제 API 모드 통합 테스트', () => {
   const email = `ci_test_${Date.now()}@example.com`;
   const password = 'Test1234!';
-  let token = '';
+  let sessionCookie = '';
 
   beforeAll(async () => {
     if (!runE2E) return;
     await api.post('/auth/signup', { email, password, name: 'E2E테스터' });
     const res = await api.post('/auth/signin', { email, password });
-    token = res.data.data.token;
+    // body에 JWT 없음 — Set-Cookie만 세션
+    expect(res.data.data.token).toBeUndefined();
+    const setCookie = res.headers['set-cookie'];
+    const cookieLine = Array.isArray(setCookie) ? setCookie[0] : setCookie;
+    sessionCookie = cookieLine?.split(';')[0] ?? '';
   });
 
   it.skipIf(!runE2E)('signup → signin 플로우가 정상 동작한다', () => {
-    expect(token).toBeTruthy();
+    expect(sessionCookie).toMatch(/^retirement_token=/);
   });
 
-  it.skipIf(!runE2E)('토큰으로 /users/me를 조회할 수 있다', async () => {
-    const res = await api.get('/users/me', {
-      headers: { Authorization: `Bearer ${token}` },
+  it.skipIf(!runE2E)('쿠키로 /auth/me를 조회할 수 있다', async () => {
+    const res = await api.get('/auth/me', {
+      headers: { Cookie: sessionCookie },
     });
     expect(res.status).toBe(200);
     expect(res.data.data.email).toBe(email);
   });
 
-  it.skipIf(!runE2E)('토큰 없이 /users/me 요청 시 401을 반환한다', async () => {
-    await expect(api.get('/users/me')).rejects.toMatchObject({
+  it.skipIf(!runE2E)('쿠키 없이 /auth/me 요청 시 401을 반환한다', async () => {
+    await expect(api.get('/auth/me')).rejects.toMatchObject({
       response: { status: 401 },
     });
   });
 
   it.skipIf(!runE2E)('건강보험 시뮬레이션 생성 후 latest로 조회된다', async () => {
-    const headers = { Authorization: `Bearer ${token}` };
+    const headers = { Cookie: sessionCookie };
     const input = {
       pensionIncome: 14400000,
       laborIncome: 0,
