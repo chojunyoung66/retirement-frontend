@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
 import {
   getWelcomeMetrics,
   getCashflowTrendSample,
@@ -12,12 +11,10 @@ import {
   getLatestDiagnosis,
   type DiagnosisRecord,
 } from "../api/diagnosis-api";
-import { showToast } from "../store/toast-slice";
 import { formatWan } from "../utils/format";
 import Button from "../components/Button";
 import MiniBarChart from "../components/MiniBarChart";
 import AvatarStack from "../components/AvatarStack";
-import type { AppDispatch } from "../store/store";
 
 const LABEL_POSITIONS = [0, 3, 6, 9, 12];
 
@@ -44,7 +41,6 @@ export default function WelcomeScreen() {
   const metrics = getWelcomeMetrics();
   const { dispatch: diagnosisDispatch } = useDiagnosis();
   const { isLoggedIn, authStatus } = useAuth();
-  const dispatch = useDispatch<AppDispatch>();
 
   const [savedDiagnosis, setSavedDiagnosis] = useState<
     DiagnosisRecord | null | "loading"
