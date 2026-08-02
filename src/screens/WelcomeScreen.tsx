@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
 import {
   getWelcomeMetrics,
   getCashflowTrendSample,
@@ -11,10 +12,12 @@ import {
   getLatestDiagnosis,
   type DiagnosisRecord,
 } from "../api/diagnosis-api";
+import { showToast } from "../store/toast-slice";
 import { formatWan } from "../utils/format";
 import Button from "../components/Button";
 import MiniBarChart from "../components/MiniBarChart";
 import AvatarStack from "../components/AvatarStack";
+import type { AppDispatch } from "../store/store";
 
 const LABEL_POSITIONS = [0, 3, 6, 9, 12];
 
@@ -41,6 +44,7 @@ export default function WelcomeScreen() {
   const metrics = getWelcomeMetrics();
   const { dispatch: diagnosisDispatch } = useDiagnosis();
   const { isLoggedIn, authStatus } = useAuth();
+  const dispatch = useDispatch<AppDispatch>();
 
   const [savedDiagnosis, setSavedDiagnosis] = useState<
     DiagnosisRecord | null | "loading"
@@ -77,7 +81,15 @@ export default function WelcomeScreen() {
   }, [isLoggedIn, authStatus]);
 
   const handleStart = () => {
-    diagnosisDispatch({ type: "RESET" });
+    // 로그인 + 저장된 진단이 있으면 입력란에 미리 채우고, 없으면 처음부터
+    if (savedDiagnosis && savedDiagnosis !== "loading") {
+      diagnosisDispatch({ type: "LOAD_FROM_SERVER", payload: savedDiagnosis });
+      dispatch(
+        showToast("저장된 진단으로 채워 두었어요. 바꿀 부분만 수정하세요"),
+      );
+    } else {
+      diagnosisDispatch({ type: "RESET" });
+    }
     navigate("/diagnosis");
   };
 
@@ -281,7 +293,10 @@ export default function WelcomeScreen() {
 
       <div className="lp-cta-bar">
         <button className="lp-cta" onClick={handleStart}>
-          1분 진단 시작하기 <span aria-hidden="true">→</span>
+          {savedDiagnosis && savedDiagnosis !== "loading"
+            ? "저장된 값으로 다시 진단하기"
+            : "1분 진단 시작하기"}{" "}
+          <span aria-hidden="true">→</span>
         </button>
       </div>
     </div>
