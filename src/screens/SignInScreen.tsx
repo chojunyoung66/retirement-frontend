@@ -43,7 +43,10 @@ function readEmailFromGoogleIdToken(idToken: string): string | null {
 
 const signInSchema = z.object({
   email: z.string().email({ message: "올바른 이메일 형식이 아니에요" }),
-  password: z.string().min(8, { message: "비밀번호는 8자 이상이어야 해요" }),
+  password: z
+    .string()
+    .min(8, { message: "비밀번호는 8자 이상이어야 해요" })
+    .max(72, { message: "비밀번호는 72자 이하여야 해요" }),
 });
 
 interface LocationState {

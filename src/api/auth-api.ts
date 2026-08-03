@@ -2,10 +2,29 @@ import { isAxiosError } from "axios";
 import z from "zod";
 import client, { ApiError } from "./client";
 
+/** Axios 오류를 ApiError로 변환 — 네트워크/HTTP status 구분 */
+function throwApiError(err: unknown): never {
+  if (isAxiosError(err)) {
+    if (!err.response) {
+      throw new ApiError("NETWORK_ERROR");
+    }
+    throw new ApiError(
+      err.response.data?.error?.code || "UNKNOWN_ERROR",
+      err.response.status,
+    );
+  }
+  throw err;
+}
+
+const PASSWORD_MAX = 72;
+
 // 회원가입 요청 스키마
 const signUpReqSchema = z.object({
   email: z.string().email("유효하지 않은 이메일입니다"),
-  password: z.string().min(8, "비밀번호는 8자 이상이어야 합니다"),
+  password: z
+    .string()
+    .min(8, "비밀번호는 8자 이상이어야 합니다")
+    .max(PASSWORD_MAX, "비밀번호는 72자 이하여야 합니다"),
   name: z.string().min(1, "이름은 필수입니다"),
 });
 
@@ -19,7 +38,10 @@ const signUpResSchema = z.object({
 // 로그인 요청 스키마
 const signInReqSchema = z.object({
   email: z.string().email("유효하지 않은 이메일입니다"),
-  password: z.string().min(8, "비밀번호는 8자 이상이어야 합니다"),
+  password: z
+    .string()
+    .min(8, "비밀번호는 8자 이상이어야 합니다")
+    .max(PASSWORD_MAX, "비밀번호는 72자 이하여야 합니다"),
 });
 
 // 로그인 응답 스키마
@@ -53,10 +75,8 @@ export const signUpRequest = async (
 
     return parsed.data;
   } catch (err: unknown) {
-    if (isAxiosError(err)) {
-      throw new ApiError(err.response?.data?.error?.code || "UNKNOWN_ERROR");
-    }
-    throw err;
+    if (err instanceof ApiError) throw err;
+    throwApiError(err);
   }
 };
 
@@ -79,10 +99,8 @@ export const signInRequest = async (
 
     return parsed.data;
   } catch (err: unknown) {
-    if (isAxiosError(err)) {
-      throw new ApiError(err.response?.data?.error?.code || "UNKNOWN_ERROR");
-    }
-    throw err;
+    if (err instanceof ApiError) throw err;
+    throwApiError(err);
   }
 };
 
@@ -92,10 +110,7 @@ export const getMe = async () => {
     const res = await client.get("/auth/me");
     return res.data.data;
   } catch (err: unknown) {
-    if (isAxiosError(err)) {
-      throw new ApiError(err.response?.data?.error?.code || "UNKNOWN_ERROR");
-    }
-    throw err;
+    throwApiError(err);
   }
 };
 
@@ -119,10 +134,7 @@ export const googleSignInRequest = async (
     if (!parsed.success) throw new Error("유효하지 않은 응답 형식입니다");
     return parsed.data;
   } catch (err: unknown) {
-    if (isAxiosError(err)) {
-      throw new ApiError(err.response?.data?.error?.code || "UNKNOWN_ERROR");
-    }
-    throw err;
+    throwApiError(err);
   }
 };
 
@@ -137,10 +149,7 @@ export const linkGoogleAccountRequest = async (
     if (!parsed.success) throw new Error("유효하지 않은 응답 형식입니다");
     return parsed.data;
   } catch (err: unknown) {
-    if (isAxiosError(err)) {
-      throw new ApiError(err.response?.data?.error?.code || "UNKNOWN_ERROR");
-    }
-    throw err;
+    throwApiError(err);
   }
 };
 
@@ -149,9 +158,6 @@ export const logoutRequest = async (): Promise<void> => {
   try {
     await client.post("/auth/logout");
   } catch (err: unknown) {
-    if (isAxiosError(err)) {
-      throw new ApiError(err.response?.data?.error?.code || "UNKNOWN_ERROR");
-    }
-    throw err;
+    throwApiError(err);
   }
 };
