@@ -48,6 +48,8 @@ const signInSchema = z.object({
 interface LocationState {
   from?: string;
   intent?: "save";
+  fromGoogleOnlySignup?: boolean;
+  emailHint?: string;
 }
 
 // StrictMode/재진입 시 initialize 중복 호출 방지
@@ -83,6 +85,18 @@ export default function SignInScreen() {
   const googleClientId = (
     import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
   )?.trim();
+
+  const locationState = location.state as LocationState | null;
+  const [googleOnlyHint] = useState(
+    () => Boolean(locationState?.fromGoogleOnlySignup),
+  );
+
+  useEffect(() => {
+    if (locationState?.emailHint) {
+      setEmail(locationState.emailHint);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const getReturnTo = () => {
     const state = location.state as LocationState | null;
@@ -335,6 +349,21 @@ export default function SignInScreen() {
         </div>
       ) : (
         <>
+          {googleOnlyHint && (
+            <div
+              className="card mb-16"
+              style={{
+                borderColor: "var(--primary)",
+                background: "var(--primary-light, #eef6f4)",
+              }}
+            >
+              <p className="card-subtitle" style={{ margin: 0 }}>
+                이 이메일은 <strong>Google로만 가입된 계정</strong>이에요.
+                아래 <strong>Google로 로그인</strong>을 이용해 주세요. (이메일
+                비밀번호로는 로그인할 수 없어요)
+              </p>
+            </div>
+          )}
           <p className="card-subtitle mb-16">
             결과 확인은 로그인 없이 가능해요. 저장하려면 로그인해주세요.
           </p>
