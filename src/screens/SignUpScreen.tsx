@@ -10,7 +10,10 @@ import { showToast } from '../store/toast-slice';
 import type { AppDispatch } from '../store/store';
 
 function getSignUpErrorMessage(code: string): string {
-  if (code === 'DUPLICATE_EMAIL') return '이미 사용 중인 이메일입니다';
+  if (code === 'GOOGLE_ONLY_ACCOUNT') {
+    return '이 이메일은 Google로 가입된 계정이에요. 로그인 화면에서 Google로 들어와 주세요';
+  }
+  if (code === 'DUPLICATE_EMAIL') return '이미 사용 중인 이메일입니다. 로그인해 주세요';
   return '회원가입 중 오류가 발생했습니다';
 }
 
@@ -89,10 +92,22 @@ export default function SignUpScreen() {
         state: state?.intent ? { intent: state.intent } : undefined,
       });
     } catch (err) {
-      const message = err instanceof ApiError
-        ? getSignUpErrorMessage(err.errorCode)
+      const code = err instanceof ApiError ? err.errorCode : undefined;
+      const message = code
+        ? getSignUpErrorMessage(code)
         : '회원가입 중 오류가 발생했습니다';
       dispatch(showToast(message));
+      // Google-only면 로그인 화면으로 유도
+      if (code === 'GOOGLE_ONLY_ACCOUNT') {
+        navigate('/signin', {
+          replace: true,
+          state: {
+            ...(location.state as LocationState | null),
+            fromGoogleOnlySignup: true,
+            emailHint: email,
+          },
+        });
+      }
     }
   };
 
