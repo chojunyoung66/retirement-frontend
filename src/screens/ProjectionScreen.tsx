@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useDiagnosis } from "../hooks/useDiagnosis";
 import {
@@ -413,8 +413,11 @@ export default function ProjectionScreen() {
         </div>
         <p className="form-hint mt-8" style={{ textAlign: "center" }}>
           {isLoggedIn
-            ? "예상 은퇴 소득(국민·퇴직·개인·주택연금) 금액은 서버에 저장하지 않습니다. 출생 연도·은퇴 시점·생활비 등만 저장돼요."
-            : "결과는 이 기기에서만 보여요. 저장하려면 로그인하세요. 예상 은퇴 소득 금액은 서버에 저장하지 않아요."}
+            ? "저장 시 계정·진단 요약(출생 연도·은퇴 시점·생활비 등)이 서버에 보관됩니다. 예상 은퇴 소득(연금) 금액은 저장하지 않아요."
+            : "결과는 이 기기에서만 보여요. 저장하려면 로그인하세요. 예상 은퇴 소득 금액은 서버에 저장하지 않아요."}{" "}
+          <Link to="/privacy">개인정보처리방침</Link>
+          {" · "}
+          <Link to="/terms">이용약관</Link>
         </p>
       </div>
     </>

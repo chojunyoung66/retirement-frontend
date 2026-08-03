@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import Input from "../components/Input";
 import Button from "../components/Button";
@@ -345,6 +345,12 @@ export default function HousingPensionSimulationScreen() {
       <Button onClick={handleSubmit} disabled={calculating}>
         {calculating ? "계산 중..." : "예상액 보기"}
       </Button>
+      {isLoggedIn && (
+        <p className="form-hint mt-8" style={{ textAlign: "center" }}>
+          로그인 상태에서 계산하면 입력·결과가 서버에 저장될 수 있어요.{" "}
+          <Link to="/privacy">개인정보처리방침</Link>
+        </p>
+      )}
 
       {isLoggedIn && (
         <button

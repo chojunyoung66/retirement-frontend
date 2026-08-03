@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { z } from 'zod';
 import { useAuth } from '../hooks/useAuth';
@@ -139,6 +139,13 @@ export default function SignUpScreen() {
       <div className="mt-16">
         <Button onClick={handleSubmit}>회원가입</Button>
       </div>
+      <p className="form-hint mt-8" style={{ textAlign: 'center' }}>
+        가입하면{' '}
+        <Link to="/privacy">개인정보처리방침</Link>
+        {' · '}
+        <Link to="/terms">이용약관</Link>
+        에 동의한 것으로 봐요.
+      </p>
       <div className="mt-8">
         <Button
           variant="secondary"

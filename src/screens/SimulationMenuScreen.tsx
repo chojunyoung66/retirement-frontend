@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 interface SimulationMenuItem {
   key: string;
@@ -71,6 +71,10 @@ export default function SimulationMenuScreen() {
           은퇴 준비를 위한 시뮬레이션을 제공합니다.
           <br />
           원하는 항목을 선택하세요.
+        </p>
+        <p className="form-hint mt-8">
+          계산 시 입력·결과가 서버에 저장될 수 있어요.{" "}
+          <Link to="/privacy">개인정보처리방침</Link>
         </p>
       </section>
 
