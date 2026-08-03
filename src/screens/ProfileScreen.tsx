@@ -13,12 +13,24 @@ import {
 } from '../utils/format';
 import type { IncomeStatus } from '../domain/plan';
 
+const MIN_RETIREMENT_AGE = 55;
+const MAX_RETIREMENT_AGE = 70;
+
 const profileSchema = z.object({
   birthYear: z
     .number({ message: '출생연도를 입력하세요' })
     .int()
     .min(1940, { message: '1940년 이후로 입력하세요' })
     .max(2010, { message: '2010년 이전으로 입력하세요' }),
+  retirementAge: z
+    .number({ message: '희망 퇴직 나이를 입력하세요' })
+    .int()
+    .min(MIN_RETIREMENT_AGE, {
+      message: `${MIN_RETIREMENT_AGE}세 이상으로 입력하세요`,
+    })
+    .max(MAX_RETIREMENT_AGE, {
+      message: `${MAX_RETIREMENT_AGE}세 이하로 입력하세요`,
+    }),
   incomeStatus: z.enum(['employed', 'self-employed', 'retired'], {
     message: '소득 상태를 선택하세요',
   }),
@@ -36,14 +48,28 @@ export default function ProfileScreen() {
   const [birthYearInput, setBirthYearInput] = useState<string>(
     state.birthYear ? String(state.birthYear) : '',
   );
-  const [errors, setErrors] = useState<{ birthYear?: string; incomeStatus?: string }>({});
+  // 미입력이면 현행 가정(60세)을 기본값으로 보여 줌
+  const [retirementAgeInput, setRetirementAgeInput] = useState<string>(
+    String(state.retirementAge ?? DEFAULT_RETIREMENT_AGE),
+  );
+  const [errors, setErrors] = useState<{
+    birthYear?: string;
+    retirementAge?: string;
+    incomeStatus?: string;
+  }>({});
 
   const parsedBirthYear = birthYearInput ? Number(birthYearInput) : null;
-
-  const retirementAge = state.retirementAge ?? DEFAULT_RETIREMENT_AGE;
+  const parsedRetirementAge = retirementAgeInput
+    ? Number(retirementAgeInput)
+    : null;
+  const retirementAge =
+    parsedRetirementAge && Number.isFinite(parsedRetirementAge)
+      ? parsedRetirementAge
+      : DEFAULT_RETIREMENT_AGE;
 
   const ageInfo = useMemo(() => {
-    if (!parsedBirthYear || parsedBirthYear < 1900 || parsedBirthYear > 2020) return null;
+    if (!parsedBirthYear || parsedBirthYear < 1900 || parsedBirthYear > 2020)
+      return null;
     const age = formatAge(parsedBirthYear);
     const years = formatYearsToRetirement(parsedBirthYear, retirementAge);
     return { age, years };
@@ -56,17 +82,36 @@ export default function ProfileScreen() {
     if (state.incomeStatus === 'retired') {
       return `만 ${age}세 · 은퇴/무직 상태`;
     }
-    // 재직 중 / 자영업: 설정된 정년 기준 안내
-    if (state.incomeStatus === 'employed' || state.incomeStatus === 'self-employed') {
-      if (age >= retirementAge) return `만 ${age}세 · 정년(${retirementAge}세) 도달`;
-      return `만 ${age}세 · 정년(${retirementAge}세)까지 ${years}년`;
+    // 재직 중 / 자영업: 희망 퇴직 나이 기준 안내
+    if (
+      state.incomeStatus === 'employed' ||
+      state.incomeStatus === 'self-employed'
+    ) {
+      if (age >= retirementAge)
+        return `만 ${age}세 · 희망 퇴직(${retirementAge}세) 도달`;
+      return `만 ${age}세 · 희망 퇴직(${retirementAge}세)까지 ${years}년`;
     }
     // 소득 상태 미선택: 나이만 표시
     return `만 ${age}세`;
   }, [ageInfo, state.incomeStatus, retirementAge]);
 
+  const retirementHint = useMemo(() => {
+    if (!ageInfo) return `${MIN_RETIREMENT_AGE}~${MAX_RETIREMENT_AGE}세 · 기본 ${DEFAULT_RETIREMENT_AGE}세`;
+    if (state.incomeStatus === 'retired') {
+      return '이미 은퇴하셨다면 진단 시작 나이로 쓰여요';
+    }
+    if (ageInfo.age >= retirementAge) {
+      return `현재 나이가 희망 퇴직 이상이에요`;
+    }
+    return `퇴직까지 약 ${ageInfo.years}년 · 회사·법 개정에 따라 달라질 수 있어요`;
+  }, [ageInfo, retirementAge, state.incomeStatus]);
+
   const handleBirthYear = (value: string) => {
     setBirthYearInput(value.replace(/[^0-9]/g, '').slice(0, 4));
+  };
+
+  const handleRetirementAge = (value: string) => {
+    setRetirementAgeInput(value.replace(/[^0-9]/g, '').slice(0, 2));
   };
 
   const handleIncome = (status: IncomeStatus) => {
@@ -76,21 +121,31 @@ export default function ProfileScreen() {
   const handleNext = () => {
     const result = profileSchema.safeParse({
       birthYear: parsedBirthYear,
+      retirementAge: parsedRetirementAge,
       incomeStatus: state.incomeStatus || undefined,
     });
     if (!result.success) {
-      const fieldErrors: { birthYear?: string; incomeStatus?: string } = {};
+      const fieldErrors: {
+        birthYear?: string;
+        retirementAge?: string;
+        incomeStatus?: string;
+      } = {};
       for (const issue of result.error.issues) {
         const path = issue.path[0];
         if (path === 'birthYear') fieldErrors.birthYear = issue.message;
+        if (path === 'retirementAge') fieldErrors.retirementAge = issue.message;
         if (path === 'incomeStatus') fieldErrors.incomeStatus = issue.message;
       }
       setErrors(fieldErrors);
       return;
     }
+    // 출생연도·희망 퇴직 나이를 진단 세션에 반영
     dispatch({
       type: 'UPDATE',
-      payload: { birthYear: result.data.birthYear },
+      payload: {
+        birthYear: result.data.birthYear,
+        retirementAge: result.data.retirementAge,
+      },
     });
     navigate('/cashflow');
   };
@@ -113,6 +168,17 @@ export default function ProfileScreen() {
           hint={ageHint}
         />
 
+        <Input
+          label="희망 퇴직 나이"
+          type="number"
+          value={retirementAgeInput}
+          onChange={handleRetirementAge}
+          placeholder={`예: ${DEFAULT_RETIREMENT_AGE}`}
+          suffix="세"
+          error={errors.retirementAge}
+          hint={retirementHint}
+        />
+
         <div className="form-group">
           <label className="form-label">소득 상태</label>
           {INCOME_OPTIONS.map((opt) => (
@@ -125,7 +191,9 @@ export default function ProfileScreen() {
               <div className="option-card-desc">{opt.desc}</div>
             </div>
           ))}
-          {errors.incomeStatus && <div className="form-error">{errors.incomeStatus}</div>}
+          {errors.incomeStatus && (
+            <div className="form-error">{errors.incomeStatus}</div>
+          )}
         </div>
 
         {state.diagnosisType === 'couple' && (
