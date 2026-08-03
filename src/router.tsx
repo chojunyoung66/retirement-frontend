@@ -37,14 +37,8 @@ export const router = createBrowserRouter([
       { path: "cashflow", element: <CashflowInputScreen /> },
       { path: "scenario", element: <ScenarioScreen /> },
       { path: "medical", element: <MedicalExpenseScreen /> },
-      {
-        path: "result",
-        element: (
-          <ProtectedRoute>
-            <ProjectionScreen />
-          </ProtectedRoute>
-        ),
-      },
+      // 게스트도 결과 열람 가능 — 저장만 로그인 요구
+      { path: "result", element: <ProjectionScreen /> },
       {
         path: "summary",
         element: (
@@ -135,14 +129,8 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-      {
-        path: "simulation/housing-pension",
-        element: (
-          <ProtectedRoute>
-            <HousingPensionSimulationScreen />
-          </ProtectedRoute>
-        ),
-      },
+      // 진단 중 주택연금: 게스트는 로컬 계산, 저장/불러오기는 로그인
+      { path: "simulation/housing-pension", element: <HousingPensionSimulationScreen /> },
       {
         path: "simulation/dashboard",
         element: (
