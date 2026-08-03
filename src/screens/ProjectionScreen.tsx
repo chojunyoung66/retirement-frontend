@@ -13,6 +13,12 @@ import { showToast } from "../store/toast-slice";
 import { ApiError } from "../api/client";
 import { saveLatestDiagnosis } from "../api/diagnosis-api";
 import type { AppDispatch, RootState } from "../store/store";
+import {
+  persistDiagnosisState,
+  resolveDraftFields,
+} from "../utils/diagnosis-draft";
+import type { DiagnosisState } from "../domain/plan";
+import { calculateProjection } from "../service/retirement-service";
 
 function getSaveErrorMessage(code: string): string {
   if (code === "UNAUTHORIZED") return "로그인이 필요해요. 다시 로그인해주세요";
@@ -38,7 +44,7 @@ const PENDING_SAVE_KEY = "retirement_pending_result_save";
 export default function ProjectionScreen() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { state } = useDiagnosis();
+  const { state, dispatch: diagnosisDispatch } = useDiagnosis();
   const dispatch = useDispatch<AppDispatch>();
   const isLoggedIn = useSelector(
     (s: RootState) => s.auth.authStatus === "authenticated",
@@ -75,7 +81,27 @@ export default function ProjectionScreen() {
   }, [projection]);
 
   const handleSave = async () => {
-    if (!state.birthYear) {
+    // 로그인 리다이렉트·리로드로 메모리가 비었으면 세션 초안에서 동기 복구
+    let snap: DiagnosisState = state;
+    if (!snap.birthYear) {
+      const draft = resolveDraftFields();
+      if (!draft?.birthYear) {
+        dispatch(showToast("진단 결과가 없어요. 진단을 다시 진행해주세요"));
+        return;
+      }
+      diagnosisDispatch({ type: "HYDRATE_FROM_DRAFT" });
+      snap = {
+        ...state,
+        ...draft,
+        projection: calculateProjection({ ...state, ...draft }),
+      };
+    }
+
+    // 로그인 전에도 초안을 남겨 복귀 후 자동 저장 가능하게 함
+    persistDiagnosisState(snap);
+
+    const birthYear = snap.birthYear;
+    if (birthYear == null) {
       dispatch(showToast("진단 결과가 없어요. 진단을 다시 진행해주세요"));
       return;
     }
@@ -96,19 +122,19 @@ export default function ProjectionScreen() {
     setIsSaving(true);
     try {
       const retirementYear =
-        state.birthYear + (state.retirementAge ?? DEFAULT_RETIREMENT_AGE);
+        birthYear + (snap.retirementAge ?? DEFAULT_RETIREMENT_AGE);
       // MVP: 예상은퇴 소득(연금)은 서버에 실값 저장 안 함 — 0만 전송
       await saveLatestDiagnosis({
-        householdType: state.diagnosisType,
-        birthYear: state.birthYear,
+        householdType: snap.diagnosisType,
+        birthYear,
         retirementYear,
         nationalPension: 0,
         retirementPension: 0,
         personalPension: 0,
         housingPension: 0,
-        monthlyExpense: state.livingExpense.desiredMonthly,
-        healthInsurance: state.medicalExpense.healthInsurance,
-        privateInsurance: state.medicalExpense.privateInsurance,
+        monthlyExpense: snap.livingExpense.desiredMonthly,
+        healthInsurance: snap.medicalExpense.healthInsurance,
+        privateInsurance: snap.medicalExpense.privateInsurance,
       });
       try {
         sessionStorage.removeItem(PENDING_SAVE_KEY);
@@ -143,8 +169,18 @@ export default function ProjectionScreen() {
       // ignore
     }
     if (!pending) return;
-    if (authStatus === "checking" || !isLoggedIn) return;
-    if (!projection || !state.birthYear) return;
+    if (authStatus === "checking" || authStatus === "error" || !isLoggedIn)
+      return;
+
+    // 메모리 유실 시 세션 초안으로 복구 후 저장
+    if (!state.birthYear || !projection) {
+      const draft = resolveDraftFields();
+      if (draft?.birthYear) {
+        diagnosisDispatch({ type: "HYDRATE_FROM_DRAFT" });
+      }
+      return;
+    }
+
     if (autoSaveStarted.current || isSaving) return;
     autoSaveStarted.current = true;
     if (locState?.intent === "save") {

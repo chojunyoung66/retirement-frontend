@@ -9,6 +9,11 @@ import type { DiagnosisState, PensionState } from "../domain/plan";
 import type { DiagnosisRecord } from "../api/diagnosis-api";
 import { calculateProjection } from "../service/retirement-service";
 import {
+  clearDiagnosisDraft,
+  persistDiagnosisState,
+  resolveDraftFields,
+} from "../utils/diagnosis-draft";
+import {
   clearPensionDraft,
   mergePensionPreferPositive,
   readPensionDraft,
@@ -23,15 +28,28 @@ const emptyPension = (): PensionState => ({
 });
 
 function createInitialState(): DiagnosisState {
-  // 리로드·인증 리다이렉트 후에도 입력 초안 복원
-  const draft = readPensionDraft();
+  // 리로드·로그인 리다이렉트 후에도 진단 요약(출생연도 등) 복원
+  const draft = resolveDraftFields();
+  if (draft) {
+    const base: DiagnosisState = {
+      ...draft,
+      projection: null,
+    };
+    // 저장에 필요한 핵심 입력이 있으면 결과도 다시 계산
+    if (draft.birthYear != null) {
+      return { ...base, projection: calculateProjection(base) };
+    }
+    return base;
+  }
+
+  const pensionDraft = readPensionDraft();
   return {
     diagnosisType: "individual",
     householdSize: 2,
     birthYear: null,
     retirementAge: null,
     incomeStatus: "",
-    pension: draft ?? emptyPension(),
+    pension: pensionDraft ?? emptyPension(),
     livingExpense: { desiredMonthly: 0, guideMinimum: 0, guideRecommended: 0 },
     medicalExpense: { healthInsurance: 0, privateInsurance: 0 },
     projection: null,
@@ -43,7 +61,8 @@ type Action =
   | { type: "CALCULATE" }
   | { type: "UPDATE_AND_CALCULATE"; payload: Partial<DiagnosisState> }
   | { type: "RESET" }
-  | { type: "LOAD_FROM_SERVER"; payload: DiagnosisRecord };
+  | { type: "LOAD_FROM_SERVER"; payload: DiagnosisRecord }
+  | { type: "HYDRATE_FROM_DRAFT" };
 
 function persistPensionIfPresent(pension: PensionState | undefined) {
   if (pension) writePensionDraft(pension);
@@ -54,21 +73,43 @@ function reducer(state: DiagnosisState, action: Action): DiagnosisState {
     case "UPDATE": {
       const next = { ...state, ...action.payload };
       persistPensionIfPresent(action.payload.pension);
+      persistDiagnosisState(next);
       return next;
     }
     case "CALCULATE": {
       const projection = calculateProjection(state);
-      return { ...state, projection };
+      const next = { ...state, projection };
+      persistDiagnosisState(next);
+      return next;
     }
     case "UPDATE_AND_CALCULATE": {
       const updated = { ...state, ...action.payload };
       persistPensionIfPresent(action.payload.pension);
       const projection = calculateProjection(updated);
-      return { ...updated, projection };
+      const next = { ...updated, projection };
+      persistDiagnosisState(next);
+      return next;
     }
     case "RESET":
       clearPensionDraft();
+      clearDiagnosisDraft();
       return createInitialState();
+    case "HYDRATE_FROM_DRAFT": {
+      // 저장 직전 메모리 유실 시 세션 초안으로 복구
+      const draft = resolveDraftFields();
+      if (!draft?.birthYear) return state;
+      const updated: DiagnosisState = {
+        ...state,
+        ...draft,
+        pension: mergePensionPreferPositive(draft.pension, state.pension),
+      };
+      const next = {
+        ...updated,
+        projection: calculateProjection(updated),
+      };
+      persistDiagnosisState(next);
+      return next;
+    }
     case "LOAD_FROM_SERVER": {
       const rec = action.payload;
       // MVP: 서버 연금은 0 저장 — 세션/초안의 양수 입력은 덮어쓰지 않음
@@ -97,7 +138,9 @@ function reducer(state: DiagnosisState, action: Action): DiagnosisState {
           privateInsurance: rec.privateInsurance,
         },
       };
-      return { ...updated, projection: calculateProjection(updated) };
+      const next = { ...updated, projection: calculateProjection(updated) };
+      persistDiagnosisState(next);
+      return next;
     }
     default:
       return state;
