@@ -48,6 +48,21 @@ export function clearPensionDraft(): void {
   }
 }
 
+/** 탈퇴·로그아웃 시 retirement_* 세션 잔여(연금 초안·저장 플래그 등) 제거 */
+export function clearClientRetirementSession(): void {
+  clearPensionDraft();
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < sessionStorage.length; i += 1) {
+      const key = sessionStorage.key(i);
+      if (key?.startsWith("retirement_")) keys.push(key);
+    }
+    for (const key of keys) sessionStorage.removeItem(key);
+  } catch {
+    // ignore
+  }
+}
+
 /** 필드별 양수 값을 우선해 병합 (세션 유실 보완) */
 export function mergePensionPreferPositive(
   primary: PensionState,

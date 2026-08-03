@@ -14,7 +14,7 @@ import Input from "../components/Input";
 import Button from "../components/Button";
 import { showToast } from "../store/toast-slice";
 import type { AppDispatch } from "../store/store";
-import { clearPensionDraft } from "../utils/pension-draft";
+import { clearClientRetirementSession } from "../utils/pension-draft";
 
 function getDeleteErrorMessage(code: string): string {
   if (code === "INVALID_CREDENTIALS") return "비밀번호가 올바르지 않아요";
@@ -79,9 +79,9 @@ export default function AccountScreen() {
           phrase: WITHDRAWAL_PHRASE,
         });
       }
-      // 로컬 진단 세션·연금 초안 정리
+      // 로컬 진단 세션·연금/시뮬 초안 정리 (서버 cascade와 별개로 기기 잔여 제거)
       diagnosisDispatch({ type: "RESET" });
-      clearPensionDraft();
+      clearClientRetirementSession();
       await logout();
       dispatch(showToast("계정이 삭제되었어요"));
       navigate("/", { replace: true });
