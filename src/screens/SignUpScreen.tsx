@@ -8,6 +8,7 @@ import Input from '../components/Input';
 import Button from '../components/Button';
 import { showToast } from '../store/toast-slice';
 import type { AppDispatch } from '../store/store';
+import { resolveSafeReturnTo } from '../utils/safe-return-to';
 
 function getSignUpErrorMessage(code: string): string {
   if (code === 'GOOGLE_ONLY_ACCOUNT') {
@@ -86,7 +87,10 @@ export default function SignUpScreen() {
       });
       dispatch(showToast('회원가입이 완료되었어요'));
       const state = location.state as LocationState | null;
-      const returnTo = state?.from ?? searchParams.get('returnTo') ?? '/result';
+      const returnTo = resolveSafeReturnTo(
+        state?.from ?? searchParams.get('returnTo'),
+        '/result',
+      );
       navigate(returnTo, {
         replace: true,
         state: state?.intent ? { intent: state.intent } : undefined,
