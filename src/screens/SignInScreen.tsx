@@ -27,6 +27,19 @@ function getGoogleErrorMessage(code: string): string {
   return "서버 오류가 발생했어요. 잠시 후 다시 시도해주세요";
 }
 
+/** Google ID Token 페이로드에서 이메일만 표시용으로 추출 (서명 검증 없음) */
+function readEmailFromGoogleIdToken(idToken: string): string | null {
+  try {
+    const part = idToken.split(".")[1];
+    if (!part) return null;
+    const normalized = part.replace(/-/g, "+").replace(/_/g, "/");
+    const json = JSON.parse(atob(normalized)) as { email?: unknown };
+    return typeof json.email === "string" ? json.email : null;
+  } catch {
+    return null;
+  }
+}
+
 const signInSchema = z.object({
   email: z.string().email({ message: "올바른 이메일 형식이 아니에요" }),
   password: z.string().min(8, { message: "비밀번호는 8자 이상이어야 해요" }),
@@ -58,10 +71,14 @@ export default function SignInScreen() {
   const [pendingGoogleIdToken, setPendingGoogleIdToken] = useState<
     string | null
   >(null);
+  const [pendingGoogleEmail, setPendingGoogleEmail] = useState<string | null>(
+    null,
+  );
   const [linkPassword, setLinkPassword] = useState("");
   const [linkError, setLinkError] = useState<string | undefined>();
   const [linkLoading, setLinkLoading] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
+  const linkPanelRef = useRef<HTMLDivElement>(null);
   // 미설정·빈 문자열이면 GSI 초기화 생략 (콘솔 "client ID is not found" 방지)
   const googleClientId = (
     import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
@@ -98,9 +115,24 @@ export default function SignInScreen() {
       const code = err instanceof ApiError ? err.errorCode : "UNKNOWN";
       // 기존 이메일 계정이면 비밀번호 재인증 연결 UI로 전환
       if (code === "ACCOUNT_LINK_REQUIRED") {
+        const linkedEmail = readEmailFromGoogleIdToken(credential);
         setPendingGoogleIdToken(credential);
+        setPendingGoogleEmail(linkedEmail);
+        if (linkedEmail) setEmail(linkedEmail);
         setLinkPassword("");
         setLinkError(undefined);
+        dispatch(
+          showPersistentToast(
+            "다음 단계: 이 이메일로 가입할 때 쓴 비밀번호를 입력해 Google을 연결하세요",
+          ),
+        );
+        // 연결 안내 패널로 스크롤·포커스
+        requestAnimationFrame(() => {
+          linkPanelRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        });
         return;
       }
       setGoogleError(getGoogleErrorMessage(code));
@@ -108,7 +140,7 @@ export default function SignInScreen() {
   };
 
   useEffect(() => {
-    if (!googleClientId) return;
+    if (!googleClientId || pendingGoogleIdToken) return;
 
     const container = googleBtnRef.current;
     if (!container) return;
@@ -177,7 +209,7 @@ export default function SignInScreen() {
       cancelled = true;
       if (pollTimer) clearInterval(pollTimer);
     };
-  }, [googleClientId]);
+  }, [googleClientId, pendingGoogleIdToken]);
 
   const handleSubmit = async () => {
     const result = signInSchema.safeParse({ email, password });
@@ -216,11 +248,21 @@ export default function SignInScreen() {
     setLinkError(undefined);
     try {
       await linkGoogleAccount(pendingGoogleIdToken, linkPassword);
-      dispatch(showToast("Google 계정이 연결되었어요"));
+      dispatch(
+        showToast(
+          "Google 연결 완료. 다음부터는 Google 버튼만으로 로그인돼요",
+        ),
+      );
       navigateAfterAuth();
     } catch (err) {
       const code = err instanceof ApiError ? err.errorCode : "UNKNOWN";
-      setLinkError(getGoogleErrorMessage(code));
+      if (code === "INVALID_GOOGLE_TOKEN") {
+        setLinkError(
+          "인증 유효 시간이 지났어요. 취소 후 Google 버튼을 다시 눌러 주세요",
+        );
+      } else {
+        setLinkError(getGoogleErrorMessage(code));
+      }
     } finally {
       setLinkLoading(false);
     }
@@ -229,85 +271,48 @@ export default function SignInScreen() {
   return (
     <div className="screen-content">
       <h2 className="card-title mb-8">로그인</h2>
-      <p className="card-subtitle mb-16">
-        결과 확인은 로그인 없이 가능해요. 저장하려면 로그인해주세요.
-      </p>
 
-      <Input
-        label="이메일"
-        type="text"
-        value={email}
-        onChange={setEmail}
-        placeholder="you@example.com"
-        error={errors.email}
-      />
-      <Input
-        label="비밀번호"
-        type="password"
-        value={password}
-        onChange={setPassword}
-        placeholder="8자 이상"
-        error={errors.password}
-      />
-
-      <div className="mt-16">
-        <Button onClick={handleSubmit}>로그인</Button>
-      </div>
-
-      {googleClientId && !pendingGoogleIdToken && (
-        <div className="mt-8" style={{ position: "relative" }}>
-          {/* Google renderButton이 여기에 마운트됨 */}
-          <div ref={googleBtnRef} style={{ width: "100%", minHeight: 44 }} />
-
-          {googleLoading && (
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                background: "rgba(255,255,255,0.92)",
-                borderRadius: 4,
-              }}
-            >
-              <div className="btn-google-spinner" />
-              <span style={{ fontSize: 15, color: "#3c4043", fontWeight: 500 }}>
-                로그인 중...
-              </span>
-            </div>
-          )}
-
-          {googleError && (
-            <p
-              style={{
-                color: "var(--error, #e74c3c)",
-                fontSize: 13,
-                marginTop: 6,
-                textAlign: "center",
-              }}
-            >
-              {googleError}
+      {pendingGoogleIdToken ? (
+        <div
+          ref={linkPanelRef}
+          className="card mb-16"
+          style={{
+            borderColor: "var(--primary)",
+            background: "var(--primary-light, #eef6f4)",
+          }}
+        >
+          <div className="card-title" style={{ fontSize: "1.1rem" }}>
+            Google 연결 — 비밀번호 확인이 필요해요
+          </div>
+          <p className="card-subtitle mt-8">
+            Google 계정 선택은 끝났어요. 같은 이메일로 이미 가입된 계정이 있어,
+            <strong> 이메일 가입 때 사용한 비밀번호</strong>로 한 번 더 확인해
+            주세요. (Google 비밀번호가 아니에요)
+          </p>
+          {pendingGoogleEmail && (
+            <p className="form-hint mt-8">
+              연결할 이메일: <strong>{pendingGoogleEmail}</strong>
             </p>
           )}
-        </div>
-      )}
-
-      {pendingGoogleIdToken && (
-        <div className="mt-16">
-          <p className="card-subtitle mb-8">
-            이미 이메일로 가입된 계정이에요. 비밀번호를 확인하면 Google 계정을
-            연결합니다.
-          </p>
-          <Input
-            label="계정 비밀번호 확인"
-            type="password"
-            value={linkPassword}
-            onChange={setLinkPassword}
-            placeholder="8자 이상"
-            error={linkError}
-          />
+          <ol
+            className="form-hint mt-8"
+            style={{ paddingLeft: 18, margin: 0, lineHeight: 1.6 }}
+          >
+            <li>아래 비밀번호 입력</li>
+            <li>「비밀번호 확인 후 Google 연결」 누르기</li>
+          </ol>
+          <div className="mt-12">
+            <Input
+              label="이메일 계정 비밀번호"
+              type="password"
+              value={linkPassword}
+              onChange={setLinkPassword}
+              placeholder="가입할 때 사용한 비밀번호"
+              hint="비밀번호를 잊었다면 이메일로 로그인한 뒤 계정에서 확인·변경하세요"
+              error={linkError}
+              autoFocus
+            />
+          </div>
           <div className="mt-8">
             <Button onClick={handleLinkGoogle} disabled={linkLoading}>
               {linkLoading ? "연결 중..." : "비밀번호 확인 후 Google 연결"}
@@ -318,14 +323,91 @@ export default function SignInScreen() {
               variant="secondary"
               onClick={() => {
                 setPendingGoogleIdToken(null);
+                setPendingGoogleEmail(null);
                 setLinkPassword("");
                 setLinkError(undefined);
+                dispatch(showToast("Google 연결을 취소했어요"));
               }}
             >
-              취소
+              취소하고 일반 로그인
             </Button>
           </div>
         </div>
+      ) : (
+        <>
+          <p className="card-subtitle mb-16">
+            결과 확인은 로그인 없이 가능해요. 저장하려면 로그인해주세요.
+          </p>
+
+          <Input
+            label="이메일"
+            type="text"
+            value={email}
+            onChange={setEmail}
+            placeholder="you@example.com"
+            error={errors.email}
+          />
+          <Input
+            label="비밀번호"
+            type="password"
+            value={password}
+            onChange={setPassword}
+            placeholder="8자 이상"
+            error={errors.password}
+          />
+
+          <div className="mt-16">
+            <Button onClick={handleSubmit}>로그인</Button>
+          </div>
+
+          {googleClientId && (
+            <div className="mt-8" style={{ position: "relative" }}>
+              <p className="form-hint mb-8" style={{ textAlign: "center" }}>
+                이미 이메일로 가입했다면, Google 로그인 후{" "}
+                <strong>비밀번호 확인</strong>이 한 번 더 필요할 수 있어요.
+              </p>
+              <div
+                ref={googleBtnRef}
+                style={{ width: "100%", minHeight: 44 }}
+              />
+
+              {googleLoading && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    background: "rgba(255,255,255,0.92)",
+                    borderRadius: 4,
+                  }}
+                >
+                  <div className="btn-google-spinner" />
+                  <span
+                    style={{ fontSize: 15, color: "#3c4043", fontWeight: 500 }}
+                  >
+                    로그인 중...
+                  </span>
+                </div>
+              )}
+
+              {googleError && (
+                <p
+                  style={{
+                    color: "var(--error, #e74c3c)",
+                    fontSize: 13,
+                    marginTop: 6,
+                    textAlign: "center",
+                  }}
+                >
+                  {googleError}
+                </p>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       <div className="mt-8">
