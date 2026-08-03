@@ -15,6 +15,18 @@ import {
 import { ApiError } from "../api/client";
 import { clearClientRetirementSession } from "../utils/pension-draft";
 
+const UNAUTH_CODES = new Set([
+  "UNAUTHORIZED",
+  "SESSION_EXPIRED",
+  "INVALID_TOKEN",
+]);
+
+function isUnauthenticatedError(err: unknown): boolean {
+  if (!(err instanceof ApiError)) return false;
+  if (err.httpStatus === 401) return true;
+  return UNAUTH_CODES.has(err.errorCode);
+}
+
 export function useAuth() {
   const dispatch = useDispatch<AppDispatch>();
   const user = useSelector((s: RootState) => s.auth.user);
@@ -88,13 +100,18 @@ export function useAuth() {
     setError(null);
   }, [dispatch]);
 
-  // 앱 시작 시 쿠키 세션 확인
+  // 앱 시작 시 쿠키 세션 확인 — 401만 비로그인, 네트워크/5xx는 재시도 가능
   const checkAuth = useCallback(async () => {
+    dispatch(setAuthStatus({ status: "checking" }));
     try {
       const profile = await getMe();
       dispatch(setAuthStatus({ status: "authenticated", user: profile }));
-    } catch {
-      dispatch(setAuthStatus({ status: "unauthenticated" }));
+    } catch (err) {
+      if (isUnauthenticatedError(err)) {
+        dispatch(setAuthStatus({ status: "unauthenticated" }));
+        return;
+      }
+      dispatch(setAuthStatus({ status: "error" }));
     }
   }, [dispatch]);
 

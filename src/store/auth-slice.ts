@@ -7,7 +7,7 @@ interface AuthUser {
 }
 
 interface AuthState {
-  authStatus: "checking" | "authenticated" | "unauthenticated";
+  authStatus: "checking" | "authenticated" | "unauthenticated" | "error";
   user: AuthUser | null;
 }
 
@@ -40,14 +40,14 @@ const authSlice = createSlice({
     setAuthStatus(
       state,
       action: PayloadAction<{
-        status: "authenticated" | "unauthenticated";
+        status: "checking" | "authenticated" | "unauthenticated" | "error";
         user?: AuthUser;
       }>,
     ) {
       state.authStatus = action.payload.status;
       if (action.payload.status === "authenticated" && action.payload.user) {
         state.user = action.payload.user;
-      } else {
+      } else if (action.payload.status === "unauthenticated") {
         state.user = null;
       }
     },

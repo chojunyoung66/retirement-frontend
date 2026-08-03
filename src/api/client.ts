@@ -41,10 +41,12 @@ client.interceptors.response.use(
 
 export class ApiError extends Error {
   errorCode: string;
+  httpStatus?: number;
 
-  constructor(errorCode: string) {
+  constructor(errorCode: string, httpStatus?: number) {
     super();
     this.errorCode = errorCode;
+    this.httpStatus = httpStatus;
   }
 }
 
