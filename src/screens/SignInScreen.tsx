@@ -6,7 +6,7 @@ import { useAuth } from "../hooks/useAuth";
 import { ApiError } from "../api/client";
 import Input from "../components/Input";
 import Button from "../components/Button";
-import { showToast, showPersistentToast } from "../store/toast-slice";
+import { showToast, hideToast } from "../store/toast-slice";
 import type { AppDispatch } from "../store/store";
 
 function getAuthErrorMessage(code: string): string {
@@ -92,6 +92,12 @@ export default function SignInScreen() {
   );
 
   useEffect(() => {
+    // 이전 화면에서 남은 지속 토스트가 비밀번호 패널 없이 메시지만 남는 현상 방지
+    dispatch(hideToast());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     if (locationState?.emailHint) {
       setEmail(locationState.emailHint);
     }
@@ -135,16 +141,12 @@ export default function SignInScreen() {
         if (linkedEmail) setEmail(linkedEmail);
         setLinkPassword("");
         setLinkError(undefined);
-        dispatch(
-          showPersistentToast(
-            "다음 단계: 이 이메일로 가입할 때 쓴 비밀번호를 입력해 Google을 연결하세요",
-          ),
-        );
-        // 연결 안내 패널로 스크롤·포커스
+        // 지속 토스트 대신 아래 비밀번호 확인 패널이 주 UI
+        dispatch(hideToast());
         requestAnimationFrame(() => {
           linkPanelRef.current?.scrollIntoView({
             behavior: "smooth",
-            block: "center",
+            block: "start",
           });
         });
         return;
@@ -238,7 +240,7 @@ export default function SignInScreen() {
       return;
     }
 
-    dispatch(showPersistentToast("로그인 중..."));
+    dispatch(showToast("로그인 중..."));
     try {
       await login(result.data);
       dispatch(showToast("로그인되었어요"));
@@ -286,35 +288,112 @@ export default function SignInScreen() {
     <div className="screen-content">
       <h2 className="card-title mb-8">로그인</h2>
 
-      {pendingGoogleIdToken ? (
+      {googleOnlyHint && (
         <div
-          ref={linkPanelRef}
           className="card mb-16"
           style={{
             borderColor: "var(--primary)",
             background: "var(--primary-light, #eef6f4)",
           }}
         >
+          <p className="card-subtitle" style={{ margin: 0 }}>
+            이 이메일은 <strong>Google로만 가입된 계정</strong>이에요. 아래{" "}
+            <strong>Google로 로그인</strong>을 이용해 주세요. (이메일
+            비밀번호로는 로그인할 수 없어요)
+          </p>
+        </div>
+      )}
+
+      <p className="card-subtitle mb-16">
+        결과 확인은 로그인 없이 가능해요. 저장하려면 로그인해주세요.
+      </p>
+
+      <Input
+        label="이메일"
+        type="text"
+        value={email}
+        onChange={setEmail}
+        placeholder="you@example.com"
+        error={errors.email}
+      />
+      <Input
+        label="비밀번호"
+        type="password"
+        value={password}
+        onChange={setPassword}
+        placeholder="8자 이상"
+        error={errors.password}
+      />
+
+      <div className="mt-16">
+        <Button onClick={handleSubmit}>로그인</Button>
+      </div>
+
+      {googleClientId && !pendingGoogleIdToken && (
+        <div className="mt-8" style={{ position: "relative" }}>
+          <p className="form-hint mb-8" style={{ textAlign: "center" }}>
+            이미 이메일로 가입했다면, Google 로그인 후{" "}
+            <strong>비밀번호 확인</strong>이 한 번 더 필요할 수 있어요.
+          </p>
+          <div ref={googleBtnRef} style={{ width: "100%", minHeight: 44 }} />
+
+          {googleLoading && (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+                background: "rgba(255,255,255,0.92)",
+                borderRadius: 4,
+              }}
+            >
+              <div className="btn-google-spinner" />
+              <span style={{ fontSize: 15, color: "#3c4043", fontWeight: 500 }}>
+                로그인 중...
+              </span>
+            </div>
+          )}
+
+          {googleError && (
+            <p
+              style={{
+                color: "var(--error, #e74c3c)",
+                fontSize: 13,
+                marginTop: 6,
+                textAlign: "center",
+              }}
+            >
+              {googleError}
+            </p>
+          )}
+        </div>
+      )}
+
+      {pendingGoogleIdToken && (
+        <div
+          ref={linkPanelRef}
+          className="card mt-16"
+          style={{
+            borderColor: "var(--primary)",
+            background: "var(--primary-light, #eef6f4)",
+          }}
+        >
           <div className="card-title" style={{ fontSize: "1.1rem" }}>
-            Google 연결 — 비밀번호 확인이 필요해요
+            Google 연결 — 비밀번호 확인
           </div>
           <p className="card-subtitle mt-8">
-            Google 계정 선택은 끝났어요. 같은 이메일로 이미 가입된 계정이 있어,
-            <strong> 이메일 가입 때 사용한 비밀번호</strong>로 한 번 더 확인해
-            주세요. (Google 비밀번호가 아니에요)
+            Google 계정 선택은 끝났어요.{" "}
+            <strong>이메일 가입 때 사용한 비밀번호</strong>를 입력한 뒤 아래
+            연결 버튼을 눌러 주세요. (Google 비밀번호가 아니에요)
           </p>
           {pendingGoogleEmail && (
             <p className="form-hint mt-8">
               연결할 이메일: <strong>{pendingGoogleEmail}</strong>
             </p>
           )}
-          <ol
-            className="form-hint mt-8"
-            style={{ paddingLeft: 18, margin: 0, lineHeight: 1.6 }}
-          >
-            <li>아래 비밀번호 입력</li>
-            <li>「비밀번호 확인 후 Google 연결」 누르기</li>
-          </ol>
           <div className="mt-12">
             <Input
               label="이메일 계정 비밀번호"
@@ -322,7 +401,7 @@ export default function SignInScreen() {
               value={linkPassword}
               onChange={setLinkPassword}
               placeholder="가입할 때 사용한 비밀번호"
-              hint="비밀번호를 잊었다면 이메일로 로그인한 뒤 계정에서 확인·변경하세요"
+              hint="이 단계의 「비밀번호 확인 후 Google 연결」을 눌러야 연결이 완료돼요"
               error={linkError}
               autoFocus
             />
@@ -340,103 +419,13 @@ export default function SignInScreen() {
                 setPendingGoogleEmail(null);
                 setLinkPassword("");
                 setLinkError(undefined);
-                dispatch(showToast("Google 연결을 취소했어요"));
+                dispatch(hideToast());
               }}
             >
-              취소하고 일반 로그인
+              취소
             </Button>
           </div>
         </div>
-      ) : (
-        <>
-          {googleOnlyHint && (
-            <div
-              className="card mb-16"
-              style={{
-                borderColor: "var(--primary)",
-                background: "var(--primary-light, #eef6f4)",
-              }}
-            >
-              <p className="card-subtitle" style={{ margin: 0 }}>
-                이 이메일은 <strong>Google로만 가입된 계정</strong>이에요.
-                아래 <strong>Google로 로그인</strong>을 이용해 주세요. (이메일
-                비밀번호로는 로그인할 수 없어요)
-              </p>
-            </div>
-          )}
-          <p className="card-subtitle mb-16">
-            결과 확인은 로그인 없이 가능해요. 저장하려면 로그인해주세요.
-          </p>
-
-          <Input
-            label="이메일"
-            type="text"
-            value={email}
-            onChange={setEmail}
-            placeholder="you@example.com"
-            error={errors.email}
-          />
-          <Input
-            label="비밀번호"
-            type="password"
-            value={password}
-            onChange={setPassword}
-            placeholder="8자 이상"
-            error={errors.password}
-          />
-
-          <div className="mt-16">
-            <Button onClick={handleSubmit}>로그인</Button>
-          </div>
-
-          {googleClientId && (
-            <div className="mt-8" style={{ position: "relative" }}>
-              <p className="form-hint mb-8" style={{ textAlign: "center" }}>
-                이미 이메일로 가입했다면, Google 로그인 후{" "}
-                <strong>비밀번호 확인</strong>이 한 번 더 필요할 수 있어요.
-              </p>
-              <div
-                ref={googleBtnRef}
-                style={{ width: "100%", minHeight: 44 }}
-              />
-
-              {googleLoading && (
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: 8,
-                    background: "rgba(255,255,255,0.92)",
-                    borderRadius: 4,
-                  }}
-                >
-                  <div className="btn-google-spinner" />
-                  <span
-                    style={{ fontSize: 15, color: "#3c4043", fontWeight: 500 }}
-                  >
-                    로그인 중...
-                  </span>
-                </div>
-              )}
-
-              {googleError && (
-                <p
-                  style={{
-                    color: "var(--error, #e74c3c)",
-                    fontSize: 13,
-                    marginTop: 6,
-                    textAlign: "center",
-                  }}
-                >
-                  {googleError}
-                </p>
-              )}
-            </div>
-          )}
-        </>
       )}
 
       <div className="mt-8">
