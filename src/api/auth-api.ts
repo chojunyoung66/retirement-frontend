@@ -105,10 +105,14 @@ export const signInRequest = async (
 };
 
 // 사용자 프로필 조회
-export const getMe = async () => {
+export const getMe = async (): Promise<SignInResponse> => {
   try {
     const res = await client.get("/auth/me");
-    return res.data.data;
+    const parsed = signInResSchema.safeParse(res.data.data);
+    if (!parsed.success) {
+      throw new Error("유효하지 않은 응답 형식입니다");
+    }
+    return parsed.data;
   } catch (err: unknown) {
     throwApiError(err);
   }

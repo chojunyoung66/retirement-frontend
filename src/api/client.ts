@@ -1,10 +1,11 @@
-import axios, { type InternalAxiosRequestConfig } from 'axios';
-import store from '../store/store';
-import { signOut } from '../store/auth-slice';
-import { router } from '../router';
+import axios, { type InternalAxiosRequestConfig } from "axios";
+import store from "../store/store";
+import { signOut } from "../store/auth-slice";
+import { router } from "../router";
+import { clearClientRetirementSession } from "../utils/pension-draft";
 
 const client = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? "/api",
   withCredentials: true,
 });
 
@@ -31,6 +32,7 @@ client.interceptors.response.use(
       // 부트 checkAuth(/auth/me)의 비로그인 401은 정상 — 로그 생략
       if (authStatus === "authenticated") {
         console.error(`[API] 401 Unauthorized - ${method} ${url}`);
+        clearClientRetirementSession();
         store.dispatch(signOut());
         router.navigate("/signin", {
           state: { from: window.location.pathname },
@@ -42,7 +44,7 @@ client.interceptors.response.use(
     }
 
     return Promise.reject(error);
-  }
+  },
 );
 
 export class ApiError extends Error {
