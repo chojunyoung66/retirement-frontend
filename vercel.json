@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://retirement-backend-1.onrender.com/api/:path*"
+      "destination": "https://retirement-backend-ph7y.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",
