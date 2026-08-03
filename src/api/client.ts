@@ -21,12 +21,18 @@ client.interceptors.response.use(
     const url = config?.url;
 
     if (status === 401) {
+      const errorCode = error.response?.data?.error?.code as string | undefined;
+      // 이미 로그인된 상태의 재인증 실패(틀린 비밀번호)는 세션 만료가 아님
+      if (errorCode === "INVALID_CREDENTIALS") {
+        return Promise.reject(error);
+      }
+
       const { authStatus } = store.getState().auth;
       // 부트 checkAuth(/auth/me)의 비로그인 401은 정상 — 로그 생략
-      if (authStatus === 'authenticated') {
+      if (authStatus === "authenticated") {
         console.error(`[API] 401 Unauthorized - ${method} ${url}`);
         store.dispatch(signOut());
-        router.navigate('/signin', {
+        router.navigate("/signin", {
           state: { from: window.location.pathname },
           replace: true,
         });
