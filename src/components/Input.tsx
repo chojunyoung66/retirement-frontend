@@ -8,6 +8,7 @@ interface InputProps {
   error?: string;
   hint?: string;
   max?: number;
+  autoFocus?: boolean;
 }
 
 // 정수: 소수점 이후 버리고 숫자만 허용, 선행 0 제거, 빈 값 유지
@@ -43,6 +44,7 @@ export default function Input({
   error,
   hint,
   max,
+  autoFocus,
 }: InputProps) {
   const isInteger = type === 'number';
   const isDecimal = type === 'decimal';
@@ -57,6 +59,7 @@ export default function Input({
           inputMode={isDecimal ? 'decimal' : isInteger ? 'numeric' : undefined}
           value={value}
           placeholder={placeholder}
+          autoFocus={autoFocus}
           onChange={(e) => {
             let val: string;
             if (isInteger) {
