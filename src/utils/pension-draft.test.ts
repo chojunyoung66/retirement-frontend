@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
+  clearClientRetirementSession,
   clearPensionDraft,
   mergePensionPreferPositive,
   readPensionDraft,
@@ -32,6 +33,19 @@ describe('pension-draft', () => {
     });
     clearPensionDraft();
     expect(readPensionDraft()).toBeNull();
+  });
+
+  it('clearClientRetirementSession은 retirement_ 세션 키를 모두 지운다', () => {
+    writePensionDraft({
+      national: 1,
+      retirement: 0,
+      personal: 0,
+      housing: 2,
+    });
+    sessionStorage.setItem('retirement_pending_result_save', '1');
+    clearClientRetirementSession();
+    expect(readPensionDraft()).toBeNull();
+    expect(sessionStorage.getItem('retirement_pending_result_save')).toBeNull();
   });
 
   it('mergePensionPreferPositive는 primary 양수를 우선한다', () => {
