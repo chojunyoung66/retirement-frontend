@@ -13,6 +13,7 @@ import {
   type SignUpRequest,
 } from "../api/auth-api";
 import { ApiError } from "../api/client";
+import { clearClientRetirementSession } from "../utils/pension-draft";
 
 export function useAuth() {
   const dispatch = useDispatch<AppDispatch>();
@@ -75,13 +76,14 @@ export function useAuth() {
     [dispatch],
   );
 
-  // 로그아웃 — 서버 HttpOnly 쿠키 삭제 후 로컬 상태 정리
+  // 로그아웃 — 서버 HttpOnly 쿠키 삭제 후 로컬 상태·세션 초안 정리
   const logout = useCallback(async () => {
     try {
       await logoutRequest();
     } catch {
       // 네트워크 실패해도 클라이언트 세션은 종료
     }
+    clearClientRetirementSession();
     dispatch(signOut());
     setError(null);
   }, [dispatch]);

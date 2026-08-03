@@ -8,6 +8,7 @@ import Input from "../components/Input";
 import Button from "../components/Button";
 import { showToast, hideToast } from "../store/toast-slice";
 import type { AppDispatch } from "../store/store";
+import { resolveSafeReturnTo } from "../utils/safe-return-to";
 
 function getAuthErrorMessage(code: string): string {
   if (code === "INVALID_CREDENTIALS")
@@ -106,7 +107,10 @@ export default function SignInScreen() {
 
   const getReturnTo = () => {
     const state = location.state as LocationState | null;
-    return state?.from ?? searchParams.get("returnTo") ?? "/result";
+    return resolveSafeReturnTo(
+      state?.from ?? searchParams.get("returnTo"),
+      "/result",
+    );
   };
 
   // 로그인 후 복귀 시 저장 intent 유지
