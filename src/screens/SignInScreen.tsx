@@ -34,6 +34,7 @@ const signInSchema = z.object({
 
 interface LocationState {
   from?: string;
+  intent?: "save";
 }
 
 // StrictMode/재진입 시 initialize 중복 호출 방지
@@ -71,6 +72,15 @@ export default function SignInScreen() {
     return state?.from ?? searchParams.get("returnTo") ?? "/result";
   };
 
+  // 로그인 후 복귀 시 저장 intent 유지
+  const navigateAfterAuth = () => {
+    const state = location.state as LocationState | null;
+    navigate(getReturnTo(), {
+      replace: true,
+      state: state?.intent ? { intent: state.intent } : undefined,
+    });
+  };
+
   // initialize 콜백은 최신 핸들러를 참조 (재initialize 불필요)
   const googleCredentialHandlerRef = useRef<(credential: string) => void>(
     () => {},
@@ -82,7 +92,7 @@ export default function SignInScreen() {
     try {
       await googleLogin(credential);
       dispatch(showToast("Google 계정으로 로그인되었어요"));
-      navigate(getReturnTo(), { replace: true });
+      navigateAfterAuth();
     } catch (err) {
       setGoogleLoading(false);
       const code = err instanceof ApiError ? err.errorCode : "UNKNOWN";
@@ -186,7 +196,7 @@ export default function SignInScreen() {
     try {
       await login(result.data);
       dispatch(showToast("로그인되었어요"));
-      navigate(getReturnTo(), { replace: true });
+      navigateAfterAuth();
     } catch (err) {
       const message =
         err instanceof ApiError
@@ -207,7 +217,7 @@ export default function SignInScreen() {
     try {
       await linkGoogleAccount(pendingGoogleIdToken, linkPassword);
       dispatch(showToast("Google 계정이 연결되었어요"));
-      navigate(getReturnTo(), { replace: true });
+      navigateAfterAuth();
     } catch (err) {
       const code = err instanceof ApiError ? err.errorCode : "UNKNOWN";
       setLinkError(getGoogleErrorMessage(code));
@@ -219,7 +229,9 @@ export default function SignInScreen() {
   return (
     <div className="screen-content">
       <h2 className="card-title mb-8">로그인</h2>
-      <p className="card-subtitle mb-16">결과 저장을 위해 로그인해주세요.</p>
+      <p className="card-subtitle mb-16">
+        결과 확인은 로그인 없이 가능해요. 저장하려면 로그인해주세요.
+      </p>
 
       <Input
         label="이메일"

@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { useDiagnosis } from "../hooks/useDiagnosis";
 import {
@@ -29,14 +29,24 @@ function getSaveErrorMessage(code: string): string {
   return "저장에 실패했어요. 잠시 후 다시 시도해주세요";
 }
 
+interface ResultLocationState {
+  intent?: "save";
+}
+
+const PENDING_SAVE_KEY = "retirement_pending_result_save";
+
 export default function ProjectionScreen() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { state } = useDiagnosis();
   const dispatch = useDispatch<AppDispatch>();
   const isLoggedIn = useSelector(
     (s: RootState) => s.auth.authStatus === "authenticated",
   );
+  const authStatus = useSelector((s: RootState) => s.auth.authStatus);
   const [isSaving, setIsSaving] = useState(false);
+  // 로그인 복귀 후 자동 저장은 한 번만
+  const autoSaveStarted = useRef(false);
 
   const projection = state.projection;
 
@@ -64,6 +74,86 @@ export default function ProjectionScreen() {
     };
   }, [projection]);
 
+  const handleSave = async () => {
+    if (!state.birthYear) {
+      dispatch(showToast("진단 결과가 없어요. 진단을 다시 진행해주세요"));
+      return;
+    }
+
+    if (!isLoggedIn) {
+      try {
+        sessionStorage.setItem(PENDING_SAVE_KEY, "1");
+      } catch {
+        // ignore
+      }
+      dispatch(showToast("로그인 후 결과를 저장할 수 있어요"));
+      navigate("/signin", {
+        state: { from: "/result", intent: "save" satisfies "save" },
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const retirementYear =
+        state.birthYear + (state.retirementAge ?? DEFAULT_RETIREMENT_AGE);
+      // MVP: 예상은퇴 소득(연금)은 서버에 실값 저장 안 함 — 0만 전송
+      await saveLatestDiagnosis({
+        householdType: state.diagnosisType,
+        birthYear: state.birthYear,
+        retirementYear,
+        nationalPension: 0,
+        retirementPension: 0,
+        personalPension: 0,
+        housingPension: 0,
+        monthlyExpense: state.livingExpense.desiredMonthly,
+        healthInsurance: state.medicalExpense.healthInsurance,
+        privateInsurance: state.medicalExpense.privateInsurance,
+      });
+      try {
+        sessionStorage.removeItem(PENDING_SAVE_KEY);
+      } catch {
+        // ignore
+      }
+      // 로컬 세션의 연금 금액은 유지 (서버 0 응답으로 덮지 않음)
+      dispatch(
+        showToast(
+          "진단 요약을 저장했어요. 예상 은퇴 소득 금액은 서버에 저장하지 않아요",
+        ),
+      );
+      navigate("/summary");
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? getSaveErrorMessage(err.errorCode)
+          : "일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요";
+      dispatch(showToast(message));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // 저장 의도(세션 플래그 또는 location state) + 로그인 확정 시 자동 저장
+  useEffect(() => {
+    const locState = location.state as ResultLocationState | null;
+    let pending = locState?.intent === "save";
+    try {
+      pending = pending || sessionStorage.getItem(PENDING_SAVE_KEY) === "1";
+    } catch {
+      // ignore
+    }
+    if (!pending) return;
+    if (authStatus === "checking" || !isLoggedIn) return;
+    if (!projection || !state.birthYear) return;
+    if (autoSaveStarted.current || isSaving) return;
+    autoSaveStarted.current = true;
+    if (locState?.intent === "save") {
+      navigate("/result", { replace: true, state: {} });
+    }
+    void handleSave();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authStatus, isLoggedIn, location.state, projection, state.birthYear]);
+
   if (!projection || !chartValues) {
     return (
       <>
@@ -86,54 +176,6 @@ export default function ProjectionScreen() {
   const gapLabel = isNegative ? "월 부족액" : "월 여유금액";
   const retirementAge = state.retirementAge ?? DEFAULT_RETIREMENT_AGE;
   const longTermEndAge = retirementAge + 19;
-
-  const handleSave = async () => {
-    if (state.birthYear) {
-      if (!isLoggedIn) {
-        dispatch(showToast("로그인 후 결과를 저장할 수 있어요"));
-        navigate("/signin", { state: { from: "/result" } });
-        return;
-      }
-
-      setIsSaving(true);
-      try {
-        const retirementYear =
-          state.birthYear + (state.retirementAge ?? DEFAULT_RETIREMENT_AGE);
-        // MVP: 예상은퇴 소득(연금)은 서버에 실값 저장 안 함 — 0만 전송
-        await saveLatestDiagnosis({
-          householdType: state.diagnosisType,
-          birthYear: state.birthYear,
-          retirementYear,
-          nationalPension: 0,
-          retirementPension: 0,
-          personalPension: 0,
-          housingPension: 0,
-          monthlyExpense: state.livingExpense.desiredMonthly,
-          healthInsurance: state.medicalExpense.healthInsurance,
-          privateInsurance: state.medicalExpense.privateInsurance,
-        });
-        // 로컬 세션의 연금 금액은 유지 (서버 0 응답으로 덮지 않음)
-        dispatch(
-          showToast(
-            "진단 요약을 저장했어요. 예상 은퇴 소득 금액은 서버에 저장하지 않아요",
-          ),
-        );
-      } catch (err) {
-        const message =
-          err instanceof ApiError
-            ? getSaveErrorMessage(err.errorCode)
-            : "일시적인 오류가 발생했어요. 잠시 후 다시 시도해주세요";
-        dispatch(showToast(message));
-        return;
-      } finally {
-        setIsSaving(false);
-      }
-    } else {
-      dispatch(showToast("진단 결과를 저장했어요"));
-    }
-
-    navigate("/summary");
-  };
 
   return (
     <>
@@ -362,12 +404,17 @@ export default function ProjectionScreen() {
 
         <div className="button-row">
           <Button onClick={handleSave} disabled={isSaving}>
-            {isSaving ? "저장 중..." : "결과 저장하기"}
+            {isSaving
+              ? "저장 중..."
+              : isLoggedIn
+                ? "결과 저장하기"
+                : "로그인하고 결과 저장하기"}
           </Button>
         </div>
         <p className="form-hint mt-8" style={{ textAlign: "center" }}>
-          예상 은퇴 소득(국민·퇴직·개인·주택연금) 금액은 서버에 저장하지
-          않습니다. 출생 연도·은퇴 시점·생활비 등만 저장돼요.
+          {isLoggedIn
+            ? "예상 은퇴 소득(국민·퇴직·개인·주택연금) 금액은 서버에 저장하지 않습니다. 출생 연도·은퇴 시점·생활비 등만 저장돼요."
+            : "결과는 이 기기에서만 보여요. 저장하려면 로그인하세요. 예상 은퇴 소득 금액은 서버에 저장하지 않아요."}
         </p>
       </div>
     </>

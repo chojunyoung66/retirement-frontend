@@ -1,14 +1,15 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import Input from "../components/Input";
 import Button from "../components/Button";
 import { useSimulation } from "../hooks/useSimulation";
 import { useDiagnosis } from "../hooks/useDiagnosis";
 import { ApiError } from "../api/client";
 import { showToast } from "../store/toast-slice";
-import type { AppDispatch } from "../store/store";
-import type { HousingPensionInput } from "../api/simulation-api";
+import type { AppDispatch, RootState } from "../store/store";
+import type { HousingPensionInput, Simulation } from "../api/simulation-api";
+import { calculateHousingPension } from "../service/housing-pension-service";
 import {
   mergePensionPreferPositive,
   readPensionDraft,
@@ -77,6 +78,9 @@ function reasonMessage(codes: string[]): string {
 export default function HousingPensionSimulationScreen() {
   const navigate = useNavigate();
   const toastDispatch = useDispatch<AppDispatch>();
+  const isLoggedIn = useSelector(
+    (s: RootState) => s.auth.authStatus === "authenticated",
+  );
   const {
     housingPensionSimulation,
     createHousingPension,
@@ -85,6 +89,11 @@ export default function HousingPensionSimulationScreen() {
     error,
   } = useSimulation();
   const { state, dispatch } = useDiagnosis();
+  // 게스트: 서버 없이 로컬 HF 산식 결과 보관
+  const [guestSimulation, setGuestSimulation] = useState<Simulation | null>(
+    null,
+  );
+  const [guestCalculating, setGuestCalculating] = useState(false);
 
   // 진단에 출생연도가 있으면 만 나이를 기본값으로 채움
   const defaultAge = useMemo(() => {
@@ -160,7 +169,27 @@ export default function HousingPensionSimulationScreen() {
     const input = buildInput();
     if (!input) return;
 
+    // 게스트는 로컬 산식만 사용 (서버 시뮬 API는 인증 필요)
+    if (!isLoggedIn) {
+      setGuestCalculating(true);
+      try {
+        const outputData = calculateHousingPension(input);
+        setGuestSimulation({
+          id: -1,
+          userId: 0,
+          type: "HOUSING_PENSION",
+          inputData: input as unknown as Record<string, unknown>,
+          outputData: outputData as unknown as Record<string, unknown>,
+          createdAt: new Date().toISOString(),
+        });
+      } finally {
+        setGuestCalculating(false);
+      }
+      return;
+    }
+
     try {
+      setGuestSimulation(null);
       await createHousingPension(input);
     } catch {
       // hook에서 error 상태 관리
@@ -182,7 +211,8 @@ export default function HousingPensionSimulationScreen() {
   };
 
   const handleApplyToDiagnosis = () => {
-    const out = housingPensionSimulation?.outputData as HousingOutput | undefined;
+    const active = isLoggedIn ? housingPensionSimulation : guestSimulation;
+    const out = active?.outputData as HousingOutput | undefined;
     if (!out?.eligible || !out.monthlyPayout) {
       setApplyNotice("계산된 월 수령액이 있을 때만 반영할 수 있어요");
       return;
@@ -205,7 +235,11 @@ export default function HousingPensionSimulationScreen() {
     navigate("/cashflow");
   };
 
-  const output = housingPensionSimulation?.outputData as HousingOutput | undefined;
+  const activeSimulation = isLoggedIn
+    ? housingPensionSimulation
+    : guestSimulation;
+  const output = activeSimulation?.outputData as HousingOutput | undefined;
+  const calculating = isLoading || guestCalculating;
 
   return (
     <div className="screen-content">
@@ -308,18 +342,20 @@ export default function HousingPensionSimulationScreen() {
       {formError && <div className="form-error mb-8">{formError}</div>}
       {error && <div className="form-error mb-8">{error}</div>}
 
-      <Button onClick={handleSubmit} disabled={isLoading}>
-        {isLoading ? "계산 중..." : "예상액 보기"}
+      <Button onClick={handleSubmit} disabled={calculating}>
+        {calculating ? "계산 중..." : "예상액 보기"}
       </Button>
 
-      <button
-        className="btn-back"
-        style={{ marginTop: 8, width: "100%" }}
-        onClick={handleLoadLatest}
-        disabled={isLoading}
-      >
-        이전 결과 불러오기
-      </button>
+      {isLoggedIn && (
+        <button
+          className="btn-back"
+          style={{ marginTop: 8, width: "100%" }}
+          onClick={handleLoadLatest}
+          disabled={calculating}
+        >
+          이전 결과 불러오기
+        </button>
+      )}
       {loadNotice && <p className="form-hint mt-4">{loadNotice}</p>}
 
       {output && (
@@ -363,9 +399,10 @@ export default function HousingPensionSimulationScreen() {
             </>
           )}
 
-          {housingPensionSimulation && housingPensionSimulation.id < 0 && (
+          {activeSimulation && activeSimulation.id < 0 && (
             <p className="form-hint mt-4">
-              지금은 이 기기에서만 계산 결과를 보여드려요. 저장은 곧 연결될 예정이에요.
+              지금은 이 기기에서만 계산 결과를 보여드려요. 진단 반영은 가능하고,
+              서버 저장·불러오기는 로그인 후 이용할 수 있어요.
             </p>
           )}
 

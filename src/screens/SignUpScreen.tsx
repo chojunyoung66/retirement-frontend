@@ -28,6 +28,7 @@ const signUpSchema = z
 
 interface LocationState {
   from?: string;
+  intent?: 'save';
 }
 
 export default function SignUpScreen() {
@@ -83,7 +84,10 @@ export default function SignUpScreen() {
       dispatch(showToast('회원가입이 완료되었어요'));
       const state = location.state as LocationState | null;
       const returnTo = state?.from ?? searchParams.get('returnTo') ?? '/result';
-      navigate(returnTo, { replace: true });
+      navigate(returnTo, {
+        replace: true,
+        state: state?.intent ? { intent: state.intent } : undefined,
+      });
     } catch (err) {
       const message = err instanceof ApiError
         ? getSignUpErrorMessage(err.errorCode)
@@ -95,7 +99,9 @@ export default function SignUpScreen() {
   return (
     <div className="screen-content">
       <h2 className="card-title mb-8">회원가입</h2>
-      <p className="card-subtitle mb-16">결과 저장을 위해 계정을 만들어주세요.</p>
+      <p className="card-subtitle mb-16">
+        결과 확인은 로그인 없이 가능해요. 저장하려면 계정을 만들어주세요.
+      </p>
 
       <Input
         label="이름"

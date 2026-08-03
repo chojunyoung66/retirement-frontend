@@ -111,6 +111,8 @@ export default function WelcomeScreen() {
         국민·퇴직·개인연금과 주택연금까지 한 번에 계산.
         <br />
         1분 진단으로 은퇴 후 월 현금흐름을 숫자로 확인하세요.
+        <br />
+        결과는 로그인 없이 볼 수 있고, 저장·불러오기만 계정이 필요해요.
       </p>
 
       <div className="lp-figure">
