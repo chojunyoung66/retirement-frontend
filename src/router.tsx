@@ -22,6 +22,8 @@ import PortfolioScreen from "./screens/PortfolioScreen";
 import SimulationDashboardScreen from "./screens/SimulationDashboardScreen";
 import UnemploymentBenefitSimulationScreen from "./screens/UnemploymentBenefitSimulationScreen";
 import HousingPensionSimulationScreen from "./screens/HousingPensionSimulationScreen";
+import PrivacyScreen from "./screens/PrivacyScreen";
+import TermsScreen from "./screens/TermsScreen";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
 
@@ -49,6 +51,8 @@ export const router = createBrowserRouter([
       },
       { path: "signin", element: <SignInScreen /> },
       { path: "signup", element: <SignUpScreen /> },
+      { path: "privacy", element: <PrivacyScreen /> },
+      { path: "terms", element: <TermsScreen /> },
       {
         path: "account",
         element: (

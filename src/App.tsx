@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { useAuth } from "./hooks/useAuth";
 import Toast from "./components/Toast";
@@ -64,7 +64,12 @@ export default function App() {
       </header>
       <Outlet />
       <footer className="app-footer">
-        © 2026 은퇴현금 설계센터 · 진단은 참고용 예측입니다.
+        <p>© 2026 은퇴현금 설계센터 · 진단은 참고용 예측입니다.</p>
+        <p className="app-footer-links">
+          <Link to="/privacy">개인정보처리방침</Link>
+          <span aria-hidden="true"> · </span>
+          <Link to="/terms">이용약관</Link>
+        </p>
       </footer>
       <Toast />
     </div>
