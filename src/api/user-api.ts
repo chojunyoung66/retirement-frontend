@@ -41,7 +41,11 @@ export const deleteAccountRequest = async (
     await client.delete("/users/me", { data: body });
   } catch (err: unknown) {
     if (isAxiosError(err)) {
-      throw new ApiError(err.response?.data?.error?.code || "UNKNOWN_ERROR");
+      if (!err.response) throw new ApiError("NETWORK_ERROR");
+      throw new ApiError(
+        err.response.data?.error?.code || "UNKNOWN_ERROR",
+        err.response.status,
+      );
     }
     throw err;
   }
