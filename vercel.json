@@ -23,6 +23,10 @@
       "destination": "https://retirement-backend-ph7y.onrender.com/api/:path*"
     },
     {
+      "source": "/health",
+      "destination": "https://retirement-backend-ph7y.onrender.com/health"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
