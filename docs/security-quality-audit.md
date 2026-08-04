@@ -3,7 +3,8 @@
 > 갱신: 2026-08-04 · **보안 고도화 라운드 종료**  
 > 대상: `retirement-frontend` + `retirement-backend`  
 > 원본 보드: Cursor Canvas `prod-security-quality-audit`  
-> 정본: 이 문서 (BE는 동일 경로에 요약 포인터만 유지)
+> 정본: 이 문서 (BE는 동일 경로에 요약 포인터만 유지)  
+> 기능·흐름 핸드오프: [feature-design-flow.md](./feature-design-flow.md) (다음 미션: 지표·로그)
 
 ## 1. 라운드 결론
 
