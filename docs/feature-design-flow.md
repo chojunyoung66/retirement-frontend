@@ -3,7 +3,7 @@
 > 갱신: 2026-08-04 · **현 미션(보안·품질 고도화) 마감 핸드오프**  
 > 대상: `retirement-frontend` + `retirement-backend` (제품: 은퇴현금 설계센터)  
 > 정본: 이 문서 · BE 요약: `retirement-backend/docs/feature-design-flow.md`  
-> 관련: [security-quality-audit.md](./security-quality-audit.md)  
+> 보안 감사 상세 표는 레포 외부(Drive 등) 보관 · Deferred 요약만 §7  
 > 다음 미션: **지표(metrics) · 로그(logging) 설계** — §8 계측 포인트를 이어서 사용
 
 ---
@@ -129,10 +129,8 @@ sequenceDiagram
 |------|------|
 | Critical / High 보안 | Fixed (IDOR·CORS·redirect·열거·레거시 등) |
 | CSP style unsafe-inline | Accepted (Low, 미착수) |
-| JWT denylist · 비밀번호 복잡도 | Deferred → 다음 이후 선택 |
+| JWT denylist · 비밀번호 복잡도 | Deferred → 제품·인프라 합의 후 |
 | 프로덕션 핵심 플로우 | 운영 확인 완료 |
-
-상세 표·PR 이력: [security-quality-audit.md](./security-quality-audit.md)
 
 ---
 
