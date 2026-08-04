@@ -9,6 +9,7 @@ import Button from "../components/Button";
 import { showToast, hideToast } from "../store/toast-slice";
 import type { AppDispatch } from "../store/store";
 import { resolveSafeReturnTo } from "../utils/safe-return-to";
+import { warmBackend } from "../utils/warm-backend";
 
 function getAuthErrorMessage(code: string): string {
   if (code === "INVALID_CREDENTIALS")
@@ -18,13 +19,16 @@ function getAuthErrorMessage(code: string): string {
 }
 
 function getGoogleErrorMessage(code: string): string {
-  if (code === "NETWORK_ERROR") return "네트워크 오류가 발생했어요";
+  if (code === "NETWORK_ERROR")
+    return "서버 응답이 지연되고 있어요. 첫 요청은 최대 1분 걸릴 수 있으니, 끝날 때까지 Google 버튼을 다시 누르지 말아 주세요";
   if (code === "INVALID_GOOGLE_TOKEN")
     return "Google 인증에 실패했어요. 다시 시도해주세요";
   if (code === "ACCESS_DENIED") return "미검증 이메일로는 연결할 수 없어요";
   if (code === "GOOGLE_ACCOUNT_IN_USE")
     return "이 Google 계정은 다른 사용자에게 이미 연결되어 있어요";
   if (code === "INVALID_CREDENTIALS") return "비밀번호가 올바르지 않아요";
+  if (code === "TOO_MANY_REQUESTS")
+    return "요청이 너무 많아요. 잠시 후 다시 시도해 주세요";
   return "서버 오류가 발생했어요. 잠시 후 다시 시도해주세요";
 }
 
@@ -72,6 +76,7 @@ export default function SignInScreen() {
     {},
   );
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleSlowHint, setGoogleSlowHint] = useState(false);
   const [googleError, setGoogleError] = useState<string | null>(null);
   // Google 연결 대기: ACCOUNT_LINK_REQUIRED 시 idToken 보관
   const [pendingGoogleIdToken, setPendingGoogleIdToken] = useState<
@@ -85,6 +90,8 @@ export default function SignInScreen() {
   const [linkLoading, setLinkLoading] = useState(false);
   const googleBtnRef = useRef<HTMLDivElement>(null);
   const linkPanelRef = useRef<HTMLDivElement>(null);
+  // 콜드스타트 중 중복 Google 콜백 무시
+  const googleInFlightRef = useRef(false);
   // 미설정·빈 문자열이면 GSI 초기화 생략 (콘솔 "client ID is not found" 방지)
   const googleClientId = (
     import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
@@ -96,10 +103,22 @@ export default function SignInScreen() {
   );
 
   useEffect(() => {
+    // Render 슬립 대비 — 로그인 화면 진입 시 백엔드 깨우기
+    warmBackend();
     // 이전 화면에서 남은 지속 토스트가 비밀번호 패널 없이 메시지만 남는 현상 방지
     dispatch(hideToast());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Google 요청이 5초 넘으면 콜드스타트 안내로 전환
+  useEffect(() => {
+    if (!googleLoading) {
+      setGoogleSlowHint(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setGoogleSlowHint(true), 5000);
+    return () => window.clearTimeout(timer);
+  }, [googleLoading]);
 
   useEffect(() => {
     if (locationState?.emailHint) {
@@ -130,6 +149,9 @@ export default function SignInScreen() {
     () => {},
   );
   googleCredentialHandlerRef.current = async (credential: string) => {
+    // 콜드스타트 대기 중 2·3회 연타는 무시
+    if (googleInFlightRef.current) return;
+    googleInFlightRef.current = true;
     setGoogleLoading(true);
     setGoogleError(null);
     setPendingGoogleIdToken(null);
@@ -159,6 +181,8 @@ export default function SignInScreen() {
         return;
       }
       setGoogleError(getGoogleErrorMessage(code));
+    } finally {
+      googleInFlightRef.current = false;
     }
   };
 
@@ -342,6 +366,10 @@ export default function SignInScreen() {
             이미 이메일로 가입했다면, Google 로그인 후{" "}
             <strong>비밀번호 확인</strong>이 한 번 더 필요할 수 있어요.
           </p>
+          <p className="form-hint mb-8" style={{ textAlign: "center" }}>
+            첫 접속·새벽 이후에는 서버 준비에 최대 1분 걸릴 수 있어요. 응답이
+            올 때까지 Google 버튼을 다시 누르지 말아 주세요.
+          </p>
           <div ref={googleBtnRef} style={{ width: "100%", minHeight: 44 }} />
 
           {googleLoading && (
@@ -355,11 +383,14 @@ export default function SignInScreen() {
                 gap: 8,
                 background: "rgba(255,255,255,0.92)",
                 borderRadius: 4,
+                padding: 8,
               }}
             >
               <div className="btn-google-spinner" />
-              <span style={{ fontSize: 15, color: "#3c4043", fontWeight: 500 }}>
-                로그인 중...
+              <span style={{ fontSize: 14, color: "#3c4043", fontWeight: 500 }}>
+                {googleSlowHint
+                  ? "서버를 깨우는 중이에요. 최대 1분 걸릴 수 있어요"
+                  : "로그인 중..."}
               </span>
             </div>
           )}

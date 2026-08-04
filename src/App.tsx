@@ -6,6 +6,7 @@ import Toast from "./components/Toast";
 import { showToast } from "./store/toast-slice";
 import type { AppDispatch } from "./store/store";
 import logo from "./assets/logo.png";
+import { warmBackend } from "./utils/warm-backend";
 
 export default function App() {
   const navigate = useNavigate();
@@ -13,8 +14,9 @@ export default function App() {
   const { isLoggedIn, logout, checkAuth } = useAuth();
   const dispatch = useDispatch<AppDispatch>();
 
-  // 앱 마운트 시 저장된 토큰의 유효성 확인 (checking 상태 해소)
+  // Render 콜드스타트 완화 후 세션 확인
   useEffect(() => {
+    warmBackend();
     checkAuth();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
