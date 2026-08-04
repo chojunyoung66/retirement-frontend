@@ -35,7 +35,13 @@ const handlers = [
     // 이미 존재하는 사용자 확인
     if (loadedDatabase.users.some((user) => user.email === email)) {
       return HttpResponse.json(
-        { error: { code: "DUPLICATE_EMAIL", message: "이미 존재하는 이메일입니다" } },
+        {
+          error: {
+            code: "REGISTRATION_UNAVAILABLE",
+            message:
+              "이 이메일로는 새로 가입할 수 없습니다. 이미 계정이 있다면 로그인해 주세요",
+          },
+        },
         { status: 409 }
       );
     }

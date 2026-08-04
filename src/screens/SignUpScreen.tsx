@@ -11,10 +11,10 @@ import type { AppDispatch } from '../store/store';
 import { resolveSafeReturnTo } from '../utils/safe-return-to';
 
 function getSignUpErrorMessage(code: string): string {
-  if (code === 'GOOGLE_ONLY_ACCOUNT') {
-    return '이 이메일은 Google로 가입된 계정이에요. 로그인 화면에서 Google로 들어와 주세요';
+  // 서버는 존재·가입 방식을 구분하지 않음 (열거 방지)
+  if (code === 'REGISTRATION_UNAVAILABLE' || code === 'DUPLICATE_EMAIL') {
+    return '이 이메일로는 새로 가입할 수 없어요. 이미 계정이 있다면 로그인해 주세요. Google로 가입했다면 Google 로그인을 이용해 주세요';
   }
-  if (code === 'DUPLICATE_EMAIL') return '이미 사용 중인 이메일입니다. 로그인해 주세요';
   return '회원가입 중 오류가 발생했습니다';
 }
 
@@ -101,17 +101,6 @@ export default function SignUpScreen() {
         ? getSignUpErrorMessage(code)
         : '회원가입 중 오류가 발생했습니다';
       dispatch(showToast(message));
-      // Google-only면 로그인 화면으로 유도
-      if (code === 'GOOGLE_ONLY_ACCOUNT') {
-        navigate('/signin', {
-          replace: true,
-          state: {
-            ...(location.state as LocationState | null),
-            fromGoogleOnlySignup: true,
-            emailHint: email,
-          },
-        });
-      }
     }
   };
 

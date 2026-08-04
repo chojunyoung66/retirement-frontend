@@ -1,6 +1,6 @@
 # 최종 서비스 품질 · 보안 안정성 검토
 
-> 갱신: 2026-08-03 · 대상: `retirement-frontend` + `retirement-backend`  
+> 갱신: 2026-08-04 · 대상: `retirement-frontend` + `retirement-backend`  
 > 원본 보드: Cursor Canvas `prod-security-quality-audit`  
 > 용도: 다음 미션(고도화) 착수 시 Open / Deferred 우선순위 참고
 
@@ -8,11 +8,11 @@
 
 | 구분 | 건수 | 요약 |
 |------|------|------|
-| Fixed | 12 | Critical IDOR·CORS·redirect·세션·쿠키·탈퇴 UX 등 반영 |
-| Open | 2 | 이메일 열거, CSP `style-src 'unsafe-inline'` |
+| Fixed | 13 | Critical IDOR·CORS·redirect·세션·쿠키·탈퇴 UX·가입 열거 등 반영 |
+| Open | 1 | CSP `style-src 'unsafe-inline'` |
 | Deferred | 2 | JWT 서버 폐기(denylist), 비밀번호 복잡도 |
 
-**결론:** 라이브 경로(`index` → `bootstrap`) 기준 Critical는 해소. 다음 미션은 Open 2건과 Deferred 중 제품 합의가 된 항목부터.
+**결론:** 라이브 경로(`index` → `bootstrap`) 기준 Critical는 해소. 다음 미션은 Open 1건과 Deferred 중 제품 합의가 된 항목부터.
 
 ## 2. 추적 표
 
@@ -23,7 +23,7 @@
 | Fixed | High | BE · CORS | FRONTEND_ORIGIN fail-closed | BE #19 | production 미설정 시 기동 실패 |
 | Fixed | High | FE · Redirect | returnTo open redirect | FE #30 | 상대 경로만 허용 |
 | Fixed | High | BE · Legacy | 레거시 app/server 열린 CORS | BE #22 | 기동 거부 |
-| Open | High | BE · Auth UX | 가입/연동 이메일 열거 | auth.service.ts | DUPLICATE_EMAIL 등 · 카피·타이밍 균일화 |
+| Fixed | High | BE/FE · Auth | 가입 이메일 열거 완화 | BE · FE | `REGISTRATION_UNAVAILABLE` 단일 응답·해시 타이밍 · Google 연동 게이트 유지 |
 | Fixed | Medium | FE · Session | logout / 401 시 sessionStorage 정리 | FE #30 · #34 | clearClientRetirementSession |
 | Fixed | Medium | FE · Auth | checkAuth 네트워크 vs 401 | FE #31 | error + 재시도 UI |
 | Fixed | Medium | BE/FE · Password | password max 72 | BE #20 · FE #31 | 복잡도 규칙은 Deferred |
@@ -59,22 +59,18 @@
 | FE | #32 | 진단 draft persist |
 | FE | #33 | 탈퇴 INVALID_CREDENTIALS 시 로그아웃 방지 |
 | FE | #34 | 401 시 draft clear, getMe Zod |
+| FE | #35 | Render cold-start Google 로그인 UX |
 
 ## 5. 다음 미션 후보 (권장 순서)
 
-1. **이메일 열거 완화 (Open · High)**  
-   - 위치: `retirement-backend` `auth.service.ts`  
-   - 충돌점: 가입 UX(이미 가입 / Google-only 안내)와 보안 균일 응답  
-   - 방향: 응답 코드·타이밍·카피 설계 합의 후 적용 (단순 코드 숨김만으로는 UX 깨짐)
-
-2. **CSP style 강화 (Open · Low)**  
+1. **CSP style 강화 (Open · Low)**  
    - 위치: `retirement-frontend` `vercel.json`  
    - 방향: `'unsafe-inline'` 제거 또는 nonce/hash. Google GSI·인라인 스타일 회귀 테스트 필수
 
-3. **비밀번호 복잡도 (Deferred · Medium)**  
+2. **비밀번호 복잡도 (Deferred · Medium)**  
    - 제품 정책(문자 종류·금지 패턴) 확정 후 FE/BE Zod 동시 반영
 
-4. **JWT denylist (Deferred · Medium)**  
+3. **JWT denylist (Deferred · Medium)**  
    - 로그아웃·탈퇴 즉시 무효화. Redis 등 저장소·TTL·쿠키 슬라이딩과 설계 필요  
    - 현재 완화: HttpOnly 쿠키, idle 30분, absolute 12시간
 
@@ -84,6 +80,7 @@
 - 유휴 30분 슬라이딩 + 절대 12시간
 - helmet + auth/API rate limit + trust proxy
 - Google ID 토큰 audience 검증, 연동 시 비밀번호 재인증
+- 가입 실패 시 `REGISTRATION_UNAVAILABLE` 단일 응답 (방식·존재 비공개). `ACCOUNT_LINK_REQUIRED`는 Google 증명 후 게이트로 유지
 - 계정 삭제 트랜잭션 + Cascade purge
 - 진단 `/me` 스코프, 포트폴리오·시뮬레이션 소유권
 - Prisma only, Zod write 경로, 프로덕션 CORS 잠금
@@ -97,3 +94,4 @@
 - [ ] 타 사용자 portfolio/simulation id → 403
 - [ ] `FRONTEND_ORIGIN` 미설정 production 기동 실패
 - [ ] `/signin?returnTo=//evil.com` → `/result`로 폴백
+- [ ] 이미 가입된 이메일로 signup → `REGISTRATION_UNAVAILABLE` (Google-only와 동일 코드·카피)
