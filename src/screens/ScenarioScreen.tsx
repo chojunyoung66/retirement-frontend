@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useDiagnosis } from '../hooks/useDiagnosis';
@@ -7,6 +7,7 @@ import Input from '../components/Input';
 import Button from '../components/Button';
 import { getLivingExpenseGuide } from '../service/retirement-service';
 import { formatWan } from '../utils/format';
+import { trackStepCompleted, trackStepViewed } from '../analytics';
 
 const scenarioSchema = z.object({
   desiredMonthly: z
@@ -35,6 +36,10 @@ export default function ScenarioScreen() {
   const [desired, setDesired] = useState(toWanString(state.livingExpense.desiredMonthly));
   const [error, setError] = useState<string | undefined>();
 
+  useEffect(() => {
+    trackStepViewed('scenario');
+  }, []);
+
   const handleNext = () => {
     const desiredWon = toWon(desired);
     const parsed = scenarioSchema.safeParse({ desiredMonthly: desiredWon });
@@ -52,6 +57,7 @@ export default function ScenarioScreen() {
         },
       },
     });
+    trackStepCompleted('scenario');
     navigate('/medical');
   };
 

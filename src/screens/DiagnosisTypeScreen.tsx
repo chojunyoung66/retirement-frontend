@@ -1,15 +1,27 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDiagnosis } from '../hooks/useDiagnosis';
 import ProgressBar from '../components/ProgressBar';
 import Button from '../components/Button';
 import type { DiagnosisType } from '../domain/plan';
+import { setUserProperties, trackStepCompleted, trackStepViewed } from '../analytics';
 
 export default function DiagnosisTypeScreen() {
   const navigate = useNavigate();
   const { state, dispatch } = useDiagnosis();
 
+  useEffect(() => {
+    trackStepViewed('type');
+  }, []);
+
   const select = (type: DiagnosisType) => {
     dispatch({ type: 'UPDATE', payload: { diagnosisType: type } });
+    setUserProperties({ diagnosis_type: type });
+  };
+
+  const handleNext = () => {
+    trackStepCompleted('type');
+    navigate('/profile');
   };
 
   return (
@@ -36,7 +48,7 @@ export default function DiagnosisTypeScreen() {
         </div>
 
         <div className="button-row">
-          <Button onClick={() => navigate('/profile')}>다음</Button>
+          <Button onClick={handleNext}>다음</Button>
         </div>
       </div>
     </>

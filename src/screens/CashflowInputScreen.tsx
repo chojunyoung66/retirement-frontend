@@ -11,6 +11,7 @@ import {
   writePensionDraft,
 } from '../utils/pension-draft';
 import type { PensionState } from '../domain/plan';
+import { trackStepCompleted, trackStepViewed } from '../analytics';
 
 const cashflowSchema = z.object({
   national: z
@@ -45,6 +46,10 @@ export default function CashflowInputScreen() {
   const [personal, setPersonal] = useState(toWanString(initial.personal));
   const [housing, setHousing] = useState(toWanString(initial.housing));
   const [error, setError] = useState<string | undefined>();
+
+  useEffect(() => {
+    trackStepViewed('cashflow');
+  }, []);
 
   const formPension = (): PensionState => ({
     national: toWonFromWan(national),
@@ -81,6 +86,7 @@ export default function CashflowInputScreen() {
       type: 'UPDATE',
       payload: { pension: payload },
     });
+    trackStepCompleted('cashflow');
     navigate('/scenario');
   };
 

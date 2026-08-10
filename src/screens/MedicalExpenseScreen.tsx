@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useDiagnosis } from '../hooks/useDiagnosis';
 import ProgressBar from '../components/ProgressBar';
 import Input from '../components/Input';
 import Button from '../components/Button';
+import { trackStepCompleted, trackStepViewed } from '../analytics';
 
 const medicalSchema = z.object({
   healthInsurance: z.number().min(0),
@@ -30,6 +31,10 @@ export default function MedicalExpenseScreen() {
   );
   const [error, setError] = useState<string | undefined>();
 
+  useEffect(() => {
+    trackStepViewed('medical');
+  }, []);
+
   const handleNext = () => {
     const payload = {
       healthInsurance: toWon(health),
@@ -41,6 +46,7 @@ export default function MedicalExpenseScreen() {
       return;
     }
     dispatch({ type: 'UPDATE_AND_CALCULATE', payload: { medicalExpense: payload } });
+    trackStepCompleted('medical');
     navigate('/result');
   };
 
