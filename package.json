@@ -12,6 +12,7 @@
     "test:ui": "vitest --ui"
   },
   "dependencies": {
+    "@amplitude/analytics-browser": "^2.45.5",
     "@reduxjs/toolkit": "^2.5.1",
     "@types/node": "^26.1.1",
     "axios": "^1.18.1",

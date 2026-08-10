@@ -19,6 +19,11 @@ import {
 } from "../utils/diagnosis-draft";
 import type { DiagnosisState } from "../domain/plan";
 import { calculateProjection } from "../service/retirement-service";
+import {
+  trackDesignCtaClicked,
+  trackDiagnosisCompleted,
+  trackResultSaved,
+} from "../analytics";
 
 function getSaveErrorMessage(code: string): string {
   if (code === "UNAUTHORIZED") return "로그인이 필요해요. 다시 로그인해주세요";
@@ -55,6 +60,12 @@ export default function ProjectionScreen() {
   const autoSaveStarted = useRef(false);
 
   const projection = state.projection;
+
+  // 결과 최초 도달 = 아하 모먼트 (diagnosis_id당 1회)
+  useEffect(() => {
+    if (!projection) return;
+    trackDiagnosisCompleted(state.diagnosisType);
+  }, [projection, state.diagnosisType]);
 
   const longTermSummary = useMemo(() => {
     if (!projection) return null;
@@ -147,6 +158,7 @@ export default function ProjectionScreen() {
           "진단 요약을 저장했어요. 예상 은퇴 소득 금액은 서버에 저장하지 않아요",
         ),
       );
+      trackResultSaved(snap.diagnosisType);
       navigate("/summary");
     } catch (err) {
       const message =
@@ -433,13 +445,22 @@ export default function ProjectionScreen() {
         <button
           className="btn-cta"
           style={{ marginBottom: 12, background: "var(--primary-dark)" }}
-          onClick={() => navigate("/cashflow-plan")}
+          onClick={() => {
+            trackDesignCtaClicked("cashflow_plan", "secondary");
+            navigate("/cashflow-plan");
+          }}
         >
           📊 장기 현금 흐름 설계 보기 (최대 100세)
         </button>
 
         <div className="button-row">
-          <Button onClick={handleSave} disabled={isSaving}>
+          <Button
+            onClick={() => {
+              trackDesignCtaClicked("save_result", "primary");
+              void handleSave();
+            }}
+            disabled={isSaving}
+          >
             {isSaving
               ? "저장 중..."
               : isLoggedIn

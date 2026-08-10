@@ -18,6 +18,7 @@ import Button from "../components/Button";
 import MiniBarChart from "../components/MiniBarChart";
 import AvatarStack from "../components/AvatarStack";
 import type { AppDispatch } from "../store/store";
+import { trackDiagnosisStarted } from "../analytics";
 
 const LABEL_POSITIONS = [0, 3, 6, 9, 12];
 
@@ -84,11 +85,13 @@ export default function WelcomeScreen() {
     // 로그인 + 저장된 진단이 있으면 입력란에 미리 채우고, 없으면 처음부터
     if (savedDiagnosis && savedDiagnosis !== "loading") {
       diagnosisDispatch({ type: "LOAD_FROM_SERVER", payload: savedDiagnosis });
+      trackDiagnosisStarted("resume_saved");
       dispatch(
         showToast("저장된 진단으로 채워 두었어요. 바꿀 부분만 수정하세요"),
       );
     } else {
       diagnosisDispatch({ type: "RESET" });
+      trackDiagnosisStarted("new");
     }
     navigate("/diagnosis");
   };

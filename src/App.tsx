@@ -7,11 +7,17 @@ import { showToast } from "./store/toast-slice";
 import type { AppDispatch } from "./store/store";
 import logo from "./assets/logo.png";
 import { warmBackend } from "./utils/warm-backend";
+import {
+  captureUtmFromLocation,
+  identifyUser,
+  setUserProperties,
+  trackPageView,
+} from "./analytics";
 
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isLoggedIn, logout, checkAuth } = useAuth();
+  const { isLoggedIn, logout, checkAuth, user } = useAuth();
   const dispatch = useDispatch<AppDispatch>();
 
   // Render 콜드스타트 완화 후 세션 확인
@@ -21,9 +27,27 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // SPA page_view는 Router 한 지점에서만 전송
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [location.pathname]);
+    const utm = captureUtmFromLocation(location.search);
+    if (utm.utm_source || utm.utm_campaign) {
+      setUserProperties({
+        utm_source: utm.utm_source,
+        utm_medium: utm.utm_medium,
+        utm_campaign: utm.utm_campaign,
+      });
+    }
+    trackPageView(location.pathname);
+  }, [location.pathname, location.search]);
+
+  // 로그인 상태를 Amplitude user_id·User Property에 반영
+  useEffect(() => {
+    identifyUser(isLoggedIn && user?.id != null ? String(user.id) : null);
+    setUserProperties({
+      auth_status: isLoggedIn ? "logged_in" : "guest",
+    });
+  }, [isLoggedIn, user?.id]);
 
   const handleAuthClick = async () => {
     if (isLoggedIn) {

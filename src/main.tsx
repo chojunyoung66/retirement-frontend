@@ -5,6 +5,7 @@ import { RouterProvider } from 'react-router-dom';
 import { store } from './store/store';
 import { router } from './router';
 import { DiagnosisProvider } from './hooks/useDiagnosis';
+import { initAnalytics, captureUtmFromLocation } from './analytics';
 import './index.css';
 
 // MSW는 비활성화됨 - 실제 Backend 서버 사용
@@ -12,6 +13,10 @@ import './index.css';
 const ENABLE_MSW = false;
 
 async function initializeApp() {
+  // Amplitude·GA4 초기화 및 랜딩 UTM 보존
+  initAnalytics();
+  captureUtmFromLocation();
+
   if (ENABLE_MSW) {
     const { worker } = await import('./server/worker');
     await worker.start();

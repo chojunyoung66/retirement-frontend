@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useDiagnosis } from '../hooks/useDiagnosis';
@@ -12,6 +12,7 @@ import {
   formatYearsToRetirement,
 } from '../utils/format';
 import type { IncomeStatus } from '../domain/plan';
+import { trackStepCompleted, trackStepViewed } from '../analytics';
 
 const MIN_RETIREMENT_AGE = 55;
 const MAX_RETIREMENT_AGE = 70;
@@ -57,6 +58,10 @@ export default function ProfileScreen() {
     retirementAge?: string;
     incomeStatus?: string;
   }>({});
+
+  useEffect(() => {
+    trackStepViewed('profile');
+  }, []);
 
   const parsedBirthYear = birthYearInput ? Number(birthYearInput) : null;
   const parsedRetirementAge = retirementAgeInput
@@ -147,6 +152,7 @@ export default function ProfileScreen() {
         retirementAge: result.data.retirementAge,
       },
     });
+    trackStepCompleted('profile');
     navigate('/cashflow');
   };
 
