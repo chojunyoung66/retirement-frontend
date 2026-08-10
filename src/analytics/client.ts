@@ -6,7 +6,7 @@ import {
   getOrCreateSessionId,
   getStoredUtm,
 } from "./session";
-import { mirrorToGa4 } from "./ga4";
+import { mirrorToGa4, initGa4 } from "./ga4";
 
 let initialized = false;
 
@@ -48,8 +48,9 @@ export function initAnalytics(): void {
   }
 
   const gaId = import.meta.env.VITE_GA4_MEASUREMENT_ID;
+  // 동적 import 없이 즉시 초기화 — 첫 page_view 유실 방지
   if (gaId) {
-    void import("./ga4").then(({ initGa4 }) => initGa4(gaId));
+    initGa4(gaId);
   }
 }
 
