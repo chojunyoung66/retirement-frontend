@@ -1,63 +1,65 @@
 # 미션 9-1 · 증빙 요약
 
-갱신: 2026-08-11
+갱신: 2026-08-11 · 운영 반영·문서 최신화 완료
 
-## 1. Amplitude 프로젝트
+## 1. Amplitude
 
 - Org: `long-shadow-923551`
 - Project: 은퇴현금 설계센터 (`appId: 850754`)
-- 로컬 검증일: 2026-08-11
+- 검증: 로컬 2026-08-11 · 운영 배포 동일 키
 
-## 2. P0 이벤트 수집 확인
+| 이벤트 | queryable |
+|--------|-----------|
+| `page_view` | ✓ |
+| `diagnosis_started` | ✓ |
+| `step_viewed` / `step_completed` | ✓ |
+| `diagnosis_completed` | ✓ |
+| `design_cta_clicked` | ✓ |
+| `result_saved` | ✓ |
 
-| 이벤트 | Amplitude queryable | 비고 |
-|--------|---------------------|------|
-| `page_view` | ✓ (로컬·개발 수집) | |
-| `diagnosis_started` | ✓ | |
-| `step_viewed` / `step_completed` | ✓ | |
-| `diagnosis_completed` | ✓ | |
-| `design_cta_clicked` | ✓ | `cta_name=save_result` 포함 |
-| `result_saved` | ✓ | 로그인 후 저장 성공 시 |
-
-### `result_saved` 장애·수정
+### 장애·수정 이력
 
 | 이슈 | 원인 | 조치 |
 |------|------|------|
-| 이벤트 미수집 | 로그인 `user_id`가 `1` 등 5자 미만 → Amplitude 400 | `user_${id}` 접두 적용 |
-| 콘솔에 로그 없음 | 브라우저 DevTools가 아닌 백엔드 터미널을 확인 | FE 콘솔 `[analytics] result_saved` 확인 |
-| 중복 다수 전송 | Strict Mode + Summary 백업 | diagnosis_id당 1회 + 성공 시 백업 스킵 |
-| `/auth/me` 429 | auth rate limit 20/15분에 `/me` 포함 | `/me`·`/logout` 제외, 개발 한도 상향 |
-| DB 저장 실패 | `housingPension` 마이그레이션 미적용 | `prisma migrate deploy` |
+| `result_saved` 미수집 | `user_id` 5자 미만 → 400 | `user_{id}` |
+| 콘솔 로그 혼동 | 백엔드 터미널 vs DevTools | FE `console.warn` |
+| 중복 전송 | Strict Mode + Summary 백업 | diagnosis_id 1회 |
+| `/auth/me` 429 | auth limiter에 `/me` 포함 | BE skip `/me`·`/logout` |
+| DB 저장 실패 | `housingPension` 미마이그레이션 | `prisma migrate deploy` |
+| GA4 DebugView 로컬 실패 | gtag 배열 push | `arguments` push + event `debug_mode` |
+| GA4 DebugView 운영 미표시 | prod에 debug_mode 없음 | `/?debug_mode=1` (의도) |
 
-## 3. Amplitude 차트
+## 2. 차트
 
 | 차트 | URL |
 |------|-----|
-| Save Funnel (completed → save CTA → result_saved) | https://app.amplitude.com/analytics/long-shadow-923551/chart/rz0rpnvs |
+| Save Funnel | https://app.amplitude.com/analytics/long-shadow-923551/chart/rz0rpnvs |
 
-퍼널 스냅샷 (Last 30 Days, 2026-08-11 조회):
+스냅샷 (Last 30 Days, 2026-08-11): completed 6 → save CTA 6 → saved 1 · 전환 **16.7%**
 
-- `diagnosis_completed`: 6
-- `design_cta_clicked` (`save_result`): 6
-- `result_saved`: 1
-- 전체 전환율: **16.7%**
+## 3. GA4
 
-## 4. GA4
+- Measurement ID: `G-P429T2H21F` (로컬·Vercel Production/Preview)
+- 로컬 DebugView: DEV `debug_mode` 자동
+- 운영 DebugView: `https://retirement-frontend-y2dn.vercel.app/?debug_mode=1`
+- 일반 트래픽: GA4 **실시간** 보고서
 
-- Measurement ID: `G-P429T2H21F` (로컬 `.env.local`)
-- `gtag` arguments 푸시 버그 수정 후 Debug/실시간 수집 확인
+## 4. UTM
 
-## 5. UTM
+- 문서: `06_utm_promotion.md`
+- 캡처: `utm-captures/` (랜딩 3종 · 소재 · 게시 시뮬레이션)
+- ※ SNS 실제 계정 게시는 동일 파일명으로 교체 가능
 
-- 링크·소재: `06_utm_promotion.md`
-- 배포 도메인: `https://retirement-frontend-y2dn.vercel.app`
-- 캡처 폴더: `utm-captures/`
-  - 랜딩 3종 + 게시 소재 미리보기 + 인스타 카드
-  - 채널 게시 화면 시뮬레이션 3종 (`post_*_live.png`)
-  - ※ 실제 SNS 계정 게시물 교체 가능
+## 5. 배포
 
-## 6. 산출물 파일
+| 항목 | 값 |
+|------|-----|
+| Frontend prod | https://retirement-frontend-y2dn.vercel.app |
+| Git `main` | analytics + GA4 debug flag 포함 |
+| Backend `main` | auth rate-limit skip `/me` |
 
-- `01_metrics.md` ~ `08_evidence.md`
-- `utm-captures/` (랜딩·소재·게시 시뮬레이션)
-- ZIP: `dist/mission9-1_evidence_*.zip`
+## 6. 산출물
+
+- `README.md` ~ `08_evidence.md`
+- `utm-captures/`
+- ZIP: `dist/mission9-1_evidence_*.zip` (gitignore · 로컬 제출용)
