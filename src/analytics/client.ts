@@ -76,10 +76,23 @@ export function track(event: AnalyticsEventName, props: EventProps = {}): void {
   mirrorToGa4(event, cleaned);
 }
 
+/** Amplitude HTTP API: user_id/device_id 최소 5자 */
+const AMPLITUDE_MIN_ID_LEN = 5;
+
+/** DB 숫자 id → Amplitude 허용 길이의 user_id */
+export function toAmplitudeUserId(rawId: string | number): string {
+  return `user_${rawId}`;
+}
+
+function isUsableAmplitudeId(id: string | undefined | null): id is string {
+  return typeof id === "string" && id.length >= AMPLITUDE_MIN_ID_LEN;
+}
+
 export function identifyUser(userId: string | null): void {
   if (!import.meta.env.VITE_AMPLITUDE_API_KEY) return;
   if (userId) {
-    amplitude.setUserId(userId);
+    // "1", "12" 등 짧은 id는 400 Invalid id length 유발
+    amplitude.setUserId(toAmplitudeUserId(userId));
   } else {
     amplitude.setUserId(undefined);
   }
@@ -123,16 +136,25 @@ export async function trackViaHttp(
     cleaned[k] = v;
   }
 
-  const userId = amplitude.getUserId();
-  const deviceId = amplitude.getDeviceId();
+  const rawUserId = amplitude.getUserId();
+  const rawDeviceId = amplitude.getDeviceId();
+  // 짧은 id는 omit — device_id는 UUID fallback
+  const userId = isUsableAmplitudeId(rawUserId)
+    ? rawUserId
+    : rawUserId
+      ? toAmplitudeUserId(rawUserId)
+      : undefined;
+  const deviceId = isUsableAmplitudeId(rawDeviceId)
+    ? rawDeviceId
+    : getOrCreateSessionId();
   const insertId = String(cleaned.event_id ?? createEventId());
 
   const body = JSON.stringify({
     api_key: apiKey,
     events: [
       {
-        user_id: userId || undefined,
-        device_id: deviceId || getOrCreateSessionId(),
+        ...(userId ? { user_id: userId } : {}),
+        device_id: deviceId,
         event_type: event,
         time: Date.now(),
         insert_id: insertId,
@@ -151,10 +173,11 @@ export async function trackViaHttp(
       },
       body,
       keepalive: true,
+      signal: AbortSignal.timeout(2000),
     });
     if (import.meta.env.DEV) {
       // eslint-disable-next-line no-console
-      console.info("[analytics] http", event, res.status);
+      console.warn("[analytics] http", event, res.status);
     }
     return res.ok;
   } catch {

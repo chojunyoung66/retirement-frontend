@@ -1,14 +1,14 @@
 # UTM 홍보 · 3채널
 
-랜딩 URL은 배포 주소로 교체한다. (예: `https://YOUR_DOMAIN/`)
+랜딩 URL (운영): `https://retirement-frontend-y2dn.vercel.app/`
 
 ## 링크표
 
 | 채널 | URL |
 |------|-----|
-| 카카오톡 | `https://YOUR_DOMAIN/?utm_source=kakao&utm_medium=messenger&utm_campaign=mvp_launch_aug&utm_content=text_a` |
-| 네이버 블로그 | `https://YOUR_DOMAIN/?utm_source=naver_blog&utm_medium=content&utm_campaign=mvp_launch_aug&utm_content=article_a` |
-| 인스타그램 | `https://YOUR_DOMAIN/?utm_source=instagram&utm_medium=social&utm_campaign=mvp_launch_aug&utm_content=card_a` |
+| 카카오톡 | `https://retirement-frontend-y2dn.vercel.app/?utm_source=kakao&utm_medium=messenger&utm_campaign=mvp_launch_aug&utm_content=text_a` |
+| 네이버 블로그 | `https://retirement-frontend-y2dn.vercel.app/?utm_source=naver_blog&utm_medium=content&utm_campaign=mvp_launch_aug&utm_content=article_a` |
+| 인스타그램 | `https://retirement-frontend-y2dn.vercel.app/?utm_source=instagram&utm_medium=social&utm_campaign=mvp_launch_aug&utm_content=card_a` |
 
 소재를 바꾸면 `utm_content`만 변경한다. (예: `text_b`, `card_b`)
 
@@ -30,6 +30,7 @@
 
 ## 게시 후 확인
 
-1. 링크 클릭 → 랜딩 정상
+1. 링크 클릭 → 랜딩 정상 (증빙: `utm-captures/utm_landing_*.png`)
 2. GA4 실시간에서 source/medium 구분
-3. 게시 화면 캡처를 `06_utm_promotion`에 저장
+3. 게시 소재 미리보기: `utm-captures/utm_post_previews.png`
+4. 채널 게시 화면 시뮬레이션: `utm-captures/post_*_live.png` (실제 계정 게시 시 동일 파일명으로 교체)

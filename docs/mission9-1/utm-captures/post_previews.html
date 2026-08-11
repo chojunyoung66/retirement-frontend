@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UTM 게시 미리보기 · 3채널</title>
+  <style>
+    :root {
+      --ink: #12263a;
+      --muted: #5b6b7c;
+      --bg: #e8eef2;
+      --card: #fff;
+      --kakao: #fee500;
+      --naver: #03c75a;
+      --ig: #e1306c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Pretendard", "Apple SD Gothic Neo", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      padding: 32px 20px 48px;
+    }
+    h1 { font-size: 22px; margin: 0 0 8px; }
+    .note { color: var(--muted); font-size: 13px; margin-bottom: 28px; }
+    .grid { display: grid; gap: 24px; max-width: 920px; margin: 0 auto; }
+    .channel { background: var(--card); border-radius: 16px; padding: 20px; box-shadow: 0 8px 24px rgba(18,38,58,.08); }
+    .badge {
+      display: inline-block; font-size: 12px; font-weight: 700; padding: 4px 10px;
+      border-radius: 999px; margin-bottom: 12px;
+    }
+    .badge.kakao { background: var(--kakao); color: #191600; }
+    .badge.naver { background: var(--naver); color: #fff; }
+    .badge.ig { background: var(--ig); color: #fff; }
+    .post {
+      border: 1px solid #d7dee6; border-radius: 12px; padding: 16px; background: #fafbfc;
+    }
+    .meta { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+    .body { font-size: 15px; line-height: 1.55; white-space: pre-wrap; }
+    .link {
+      display: block; margin-top: 12px; font-size: 12px; word-break: break-all;
+      color: #0b5fff; text-decoration: none;
+    }
+    .utm {
+      margin-top: 10px; font-size: 12px; color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: #f0f3f6; padding: 8px 10px; border-radius: 8px;
+    }
+    img.card {
+      width: 220px; height: 220px; object-fit: cover; border-radius: 12px; margin-top: 12px;
+      border: 1px solid #d7dee6;
+    }
+  </style>
+</head>
+<body>
+  <div class="grid">
+    <div>
+      <h1>UTM 3채널 게시 소재 · 미리보기</h1>
+      <p class="note">미션 9-1 증빙용. 아래 문구·링크를 각 채널에 게시한 뒤, 실제 게시 화면을 이 폴더에 추가로 캡처하세요.</p>
+    </div>
+
+    <section class="channel" id="kakao">
+      <span class="badge kakao">카카오톡 · text_a</span>
+      <div class="post">
+        <div class="meta">채팅방 메시지 초안 · 2026-08-11</div>
+        <div class="body">내 연금으로 매달 얼마 들어올까요?
+1분 진단으로 은퇴 후 월 현금흐름을 숫자로 확인해 보세요.</div>
+        <a class="link" href="https://retirement-frontend-y2dn.vercel.app/?utm_source=kakao&utm_medium=messenger&utm_campaign=mvp_launch_aug&utm_content=text_a">
+          https://retirement-frontend-y2dn.vercel.app/?utm_source=kakao&utm_medium=messenger&utm_campaign=mvp_launch_aug&utm_content=text_a
+        </a>
+        <div class="utm">utm_source=kakao · utm_medium=messenger · utm_campaign=mvp_launch_aug · utm_content=text_a</div>
+      </div>
+    </section>
+
+    <section class="channel" id="naver">
+      <span class="badge naver">네이버 블로그 · article_a</span>
+      <div class="post">
+        <div class="meta">블로그 글 초안 · 2026-08-11</div>
+        <div class="body"><strong>은퇴 후 월 현금흐름, 1분이면 대략 알 수 있습니다</strong>
+
+국민·퇴직·개인·주택연금을 한 번에 넣어 보고, 희망 생활비와 비교해 보세요. 로그인 없이 결과 확인 가능.</div>
+        <a class="link" href="https://retirement-frontend-y2dn.vercel.app/?utm_source=naver_blog&utm_medium=content&utm_campaign=mvp_launch_aug&utm_content=article_a">
+          https://retirement-frontend-y2dn.vercel.app/?utm_source=naver_blog&utm_medium=content&utm_campaign=mvp_launch_aug&utm_content=article_a
+        </a>
+        <div class="utm">utm_source=naver_blog · utm_medium=content · utm_campaign=mvp_launch_aug · utm_content=article_a</div>
+      </div>
+    </section>
+
+    <section class="channel" id="instagram">
+      <span class="badge ig">인스타그램 · card_a</span>
+      <div class="post">
+        <div class="meta">피드/스토리 초안 · 2026-08-11</div>
+        <div class="body">「내 연금, 매달 얼마?」
+「1분 진단 · 은퇴현금 설계센터」</div>
+        <img class="card" src="./instagram_card_a.png" alt="인스타 카드 소재" />
+        <a class="link" href="https://retirement-frontend-y2dn.vercel.app/?utm_source=instagram&utm_medium=social&utm_campaign=mvp_launch_aug&utm_content=card_a">
+          https://retirement-frontend-y2dn.vercel.app/?utm_source=instagram&utm_medium=social&utm_campaign=mvp_launch_aug&utm_content=card_a
+        </a>
+        <div class="utm">utm_source=instagram · utm_medium=social · utm_campaign=mvp_launch_aug · utm_content=card_a</div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

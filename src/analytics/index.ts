@@ -1,7 +1,7 @@
 /**
  * Analytics public API — Amplitude + optional GA4 mirror.
  */
-export { initAnalytics, track, identifyUser, setUserProperties, flushAnalytics, trackViaHttp } from "./client";
+export { initAnalytics, track, identifyUser, toAmplitudeUserId, setUserProperties, flushAnalytics, trackViaHttp } from "./client";
 export {
   captureUtmFromLocation,
   getOrCreateDiagnosisId,
