@@ -12,6 +12,9 @@ import {
   getLatestDiagnosis,
   deleteLatestDiagnosis,
 } from '../api/diagnosis-api';
+import { trackResultSaved } from '../analytics';
+
+const PENDING_RESULT_SAVED_EVENT_KEY = 'rc_emit_result_saved';
 
 export default function SummaryScreen() {
   const navigate = useNavigate();
@@ -22,6 +25,19 @@ export default function SummaryScreen() {
   const [savedDiagnosis, setSavedDiagnosis] = useState<DiagnosisRecord | null>(null);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  // 저장 직후 진입 시 result_saved 보완 전송 (이동 직전 유실 대비)
+  useEffect(() => {
+    let householdType: string | null = null;
+    try {
+      householdType = sessionStorage.getItem(PENDING_RESULT_SAVED_EVENT_KEY);
+      if (householdType) sessionStorage.removeItem(PENDING_RESULT_SAVED_EVENT_KEY);
+    } catch {
+      // ignore
+    }
+    if (!householdType) return;
+    void trackResultSaved(householdType);
+  }, []);
 
   // 저장 직후 진입·재방문 시 서버 진단 불러오기
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { track, setUserProperties } from "./client";
+import { track, setUserProperties, flushAnalytics } from "./client";
 import {
   markDiagnosisCompleted,
   markStepCompleted,
@@ -46,6 +46,12 @@ export function trackDesignCtaClicked(
   });
 }
 
-export function trackResultSaved(householdType: string): void {
+/** 저장 성공 — flush로 전송 보장 */
+export async function trackResultSaved(householdType: string): Promise<void> {
   track("result_saved", { household_type: householdType });
+  if (import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.info("[analytics] result_saved", householdType);
+  }
+  await flushAnalytics();
 }
