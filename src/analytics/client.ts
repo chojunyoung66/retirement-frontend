@@ -44,10 +44,9 @@ export function initAnalytics(): void {
     amplitude.init(apiKey, undefined, {
       defaultTracking: false,
       autocapture: false,
-      // 전환 직후 라우트 이동 시에도 전송되도록 beacon 사용
-      transport: "beacon",
+      // 전환 이벤트는 flush()로 즉시 전송
       flushIntervalMillis: 1000,
-      flushQueueSize: 10,
+      flushQueueSize: 5,
     });
   }
 
@@ -77,10 +76,23 @@ export function track(event: AnalyticsEventName, props: EventProps = {}): void {
   mirrorToGa4(event, cleaned);
 }
 
+/** Amplitude HTTP API: user_id/device_id 최소 5자 */
+const AMPLITUDE_MIN_ID_LEN = 5;
+
+/** DB 숫자 id → Amplitude 허용 길이의 user_id */
+export function toAmplitudeUserId(rawId: string | number): string {
+  return `user_${rawId}`;
+}
+
+function isUsableAmplitudeId(id: string | undefined | null): id is string {
+  return typeof id === "string" && id.length >= AMPLITUDE_MIN_ID_LEN;
+}
+
 export function identifyUser(userId: string | null): void {
   if (!import.meta.env.VITE_AMPLITUDE_API_KEY) return;
   if (userId) {
-    amplitude.setUserId(userId);
+    // "1", "12" 등 짧은 id는 400 Invalid id length 유발
+    amplitude.setUserId(toAmplitudeUserId(userId));
   } else {
     amplitude.setUserId(undefined);
   }
@@ -103,5 +115,72 @@ export async function flushAnalytics(): Promise<void> {
     await amplitude.flush().promise;
   } catch {
     // 전송 실패해도 UX는 막지 않음
+  }
+}
+
+/**
+ * SDK 큐를 우회해 Amplitude HTTP API로 즉시 전송한다.
+ * 저장 전환처럼 navigate 직전 유실이 치명적일 때 사용.
+ */
+export async function trackViaHttp(
+  event: AnalyticsEventName,
+  props: EventProps = {},
+): Promise<boolean> {
+  const apiKey = import.meta.env.VITE_AMPLITUDE_API_KEY;
+  if (!apiKey || typeof fetch === "undefined") return false;
+
+  const payload = { ...commonProps(), ...props };
+  const cleaned: Record<string, string | number | boolean> = {};
+  for (const [k, v] of Object.entries(payload)) {
+    if (v === null || v === undefined) continue;
+    cleaned[k] = v;
+  }
+
+  const rawUserId = amplitude.getUserId();
+  const rawDeviceId = amplitude.getDeviceId();
+  // 짧은 id는 omit — device_id는 UUID fallback
+  const userId = isUsableAmplitudeId(rawUserId)
+    ? rawUserId
+    : rawUserId
+      ? toAmplitudeUserId(rawUserId)
+      : undefined;
+  const deviceId = isUsableAmplitudeId(rawDeviceId)
+    ? rawDeviceId
+    : getOrCreateSessionId();
+  const insertId = String(cleaned.event_id ?? createEventId());
+
+  const body = JSON.stringify({
+    api_key: apiKey,
+    events: [
+      {
+        ...(userId ? { user_id: userId } : {}),
+        device_id: deviceId,
+        event_type: event,
+        time: Date.now(),
+        insert_id: insertId,
+        event_properties: cleaned,
+        session_id: amplitude.getSessionId() ?? undefined,
+      },
+    ],
+  });
+
+  try {
+    const res = await fetch("https://api2.amplitude.com/2/httpapi", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "*/*",
+      },
+      body,
+      keepalive: true,
+      signal: AbortSignal.timeout(2000),
+    });
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.warn("[analytics] http", event, res.status);
+    }
+    return res.ok;
+  } catch {
+    return false;
   }
 }

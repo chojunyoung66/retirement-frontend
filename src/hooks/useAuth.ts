@@ -111,6 +111,7 @@ export function useAuth() {
         dispatch(setAuthStatus({ status: "unauthenticated" }));
         return;
       }
+      // 429 등 — 즉시 재호출하지 않음 (rate limit 악화 방지)
       dispatch(setAuthStatus({ status: "error" }));
     }
   }, [dispatch]);

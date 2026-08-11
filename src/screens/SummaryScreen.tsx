@@ -26,17 +26,33 @@ export default function SummaryScreen() {
   const [fetchLoading, setFetchLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  // 저장 직후 진입 시 result_saved 보완 전송 (이동 직전 유실 대비)
+  // 저장 직후 진입 시 result_saved 보완 전송 (1차 전송 실패 시에만)
   useEffect(() => {
-    let householdType: string | null = null;
-    try {
-      householdType = sessionStorage.getItem(PENDING_RESULT_SAVED_EVENT_KEY);
-      if (householdType) sessionStorage.removeItem(PENDING_RESULT_SAVED_EVENT_KEY);
-    } catch {
-      // ignore
-    }
-    if (!householdType) return;
-    void trackResultSaved(householdType);
+    let cancelled = false;
+    (async () => {
+      let householdType: string | null = null;
+      try {
+        householdType = sessionStorage.getItem(PENDING_RESULT_SAVED_EVENT_KEY);
+        // Strict Mode 이중 실행 방지 — 즉시 claim
+        if (householdType) {
+          sessionStorage.removeItem(PENDING_RESULT_SAVED_EVENT_KEY);
+        }
+      } catch {
+        // ignore
+      }
+      if (!householdType || cancelled) return;
+      // eslint-disable-next-line no-console
+      console.warn('[analytics] result_saved backup from Summary', householdType);
+      try {
+        await trackResultSaved(householdType);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('[analytics] result_saved backup failed', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // 저장 직후 진입·재방문 시 서버 진단 불러오기

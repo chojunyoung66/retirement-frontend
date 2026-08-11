@@ -148,12 +148,33 @@ export default function ProjectionScreen() {
         healthInsurance: snap.medicalExpense.healthInsurance,
         privateInsurance: snap.medicalExpense.privateInsurance,
       });
+      // 분석 실패해도 저장 UX는 진행
+      let tracked = false;
+      try {
+        tracked = await trackResultSaved(snap.diagnosisType);
+      } catch (analyticsErr) {
+        // eslint-disable-next-line no-console
+        console.warn("[analytics] result_saved failed", analyticsErr);
+      }
+      // 전송 실패 시에만 Summary 백업 플래그 유지
+      try {
+        if (tracked) {
+          sessionStorage.removeItem(PENDING_RESULT_SAVED_EVENT_KEY);
+        } else {
+          sessionStorage.setItem(
+            PENDING_RESULT_SAVED_EVENT_KEY,
+            snap.diagnosisType,
+          );
+        }
+      } catch {
+        // ignore
+      }
+
       try {
         sessionStorage.removeItem(PENDING_SAVE_KEY);
       } catch {
         // ignore
       }
-      // 로컬 세션의 연금 금액은 유지 (서버 0 응답으로 덮지 않음)
       dispatch(
         showToast(
           "진단 요약을 저장했어요. 예상 은퇴 소득 금액은 서버에 저장하지 않아요",

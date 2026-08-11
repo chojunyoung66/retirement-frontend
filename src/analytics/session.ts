@@ -5,6 +5,7 @@ const KEYS = {
   sessionId: "rc_session_id",
   completedSteps: "rc_completed_steps",
   diagnosisDone: "rc_diagnosis_completed",
+  resultSaved: "rc_result_saved",
   utm: "rc_utm",
 } as const;
 
@@ -54,6 +55,7 @@ export function resetDiagnosisId(): string {
   try {
     sessionStorage.removeItem(KEYS.completedSteps);
     sessionStorage.removeItem(KEYS.diagnosisDone);
+    sessionStorage.removeItem(KEYS.resultSaved);
   } catch {
     // ignore
   }
@@ -95,6 +97,16 @@ export function wasDiagnosisCompleted(): boolean {
   const done = read(KEYS.diagnosisDone);
   const current = read(KEYS.diagnosisId);
   return Boolean(done && current && done === current);
+}
+
+export function markResultSaved(): void {
+  write(KEYS.resultSaved, getOrCreateDiagnosisId());
+}
+
+export function wasResultSaved(): boolean {
+  const saved = read(KEYS.resultSaved);
+  const current = read(KEYS.diagnosisId);
+  return Boolean(saved && current && saved === current);
 }
 
 export type UtmBag = {

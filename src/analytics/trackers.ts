@@ -1,12 +1,34 @@
-import { track, setUserProperties, flushAnalytics } from "./client";
+import {
+  track,
+  setUserProperties,
+  flushAnalytics,
+  trackViaHttp,
+} from "./client";
 import {
   markDiagnosisCompleted,
+  markResultSaved,
   markStepCompleted,
   resetDiagnosisId,
   wasDiagnosisCompleted,
+  wasResultSaved,
   wasStepCompleted,
 } from "./session";
 import type { CtaName, StepName } from "./types";
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch(() => {
+        clearTimeout(timer);
+        resolve(null);
+      });
+  });
+}
 
 export function trackPageView(path: string): void {
   track("page_view", { path });
@@ -46,12 +68,26 @@ export function trackDesignCtaClicked(
   });
 }
 
-/** 저장 성공 — flush로 전송 보장 */
-export async function trackResultSaved(householdType: string): Promise<void> {
-  track("result_saved", { household_type: householdType });
-  if (import.meta.env.DEV) {
-    // eslint-disable-next-line no-console
-    console.info("[analytics] result_saved", householdType);
-  }
-  await flushAnalytics();
+/** 저장 성공 — diagnosis_id당 1회만 전송 */
+export async function trackResultSaved(
+  householdType: string,
+): Promise<boolean> {
+  // Strict Mode·Summary 백업 중복 방지
+  if (wasResultSaved()) return true;
+  markResultSaved();
+
+  const props = { household_type: householdType };
+  // eslint-disable-next-line no-console
+  console.warn("[analytics] result_saved", householdType);
+
+  const httpOk = await withTimeout(trackViaHttp("result_saved", props), 2500);
+  track("result_saved", props);
+  await withTimeout(flushAnalytics(), 2000);
+
+  // eslint-disable-next-line no-console
+  console.warn("[analytics] result_saved done", {
+    householdType,
+    httpOk,
+  });
+  return httpOk === true;
 }
