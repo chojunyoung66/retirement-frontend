@@ -180,6 +180,16 @@ export default function ProjectionScreen() {
           "진단 요약을 저장했어요. 예상 은퇴 소득 금액은 서버에 저장하지 않아요",
         ),
       );
+      // 요약 화면에서 전송 — 저장 직후 이동으로 인한 이벤트 유실 방지
+      try {
+        sessionStorage.setItem(
+          PENDING_RESULT_SAVED_EVENT_KEY,
+          snap.diagnosisType,
+        );
+      } catch {
+        // ignore
+      }
+      void trackResultSaved(snap.diagnosisType);
       navigate("/summary");
     } catch (err) {
       const message =
