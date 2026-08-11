@@ -159,7 +159,7 @@ export default function ProjectionScreen() {
           "진단 요약을 저장했어요. 예상 은퇴 소득 금액은 서버에 저장하지 않아요",
         ),
       );
-      // 요약 화면에서 전송 — 저장 직후 이동으로 인한 이벤트 유실 방지
+      // 요약 화면 보완 전송용 플래그
       try {
         sessionStorage.setItem(
           PENDING_RESULT_SAVED_EVENT_KEY,
@@ -168,7 +168,13 @@ export default function ProjectionScreen() {
       } catch {
         // ignore
       }
-      void trackResultSaved(snap.diagnosisType);
+      // flush 완료 후에만 이동 — 전환 이벤트 유실 방지
+      await trackResultSaved(snap.diagnosisType);
+      try {
+        sessionStorage.removeItem(PENDING_RESULT_SAVED_EVENT_KEY);
+      } catch {
+        // ignore
+      }
       navigate("/summary");
     } catch (err) {
       const message =

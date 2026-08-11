@@ -44,10 +44,9 @@ export function initAnalytics(): void {
     amplitude.init(apiKey, undefined, {
       defaultTracking: false,
       autocapture: false,
-      // 전환 직후 라우트 이동 시에도 전송되도록 beacon 사용
-      transport: "beacon",
+      // 전환 이벤트는 flush()로 즉시 전송
       flushIntervalMillis: 1000,
-      flushQueueSize: 10,
+      flushQueueSize: 5,
     });
   }
 
