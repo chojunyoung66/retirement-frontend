@@ -44,6 +44,10 @@ export function initAnalytics(): void {
     amplitude.init(apiKey, undefined, {
       defaultTracking: false,
       autocapture: false,
+      // 전환 직후 라우트 이동 시에도 전송되도록 beacon 사용
+      transport: "beacon",
+      flushIntervalMillis: 1000,
+      flushQueueSize: 10,
     });
   }
 
@@ -90,4 +94,14 @@ export function setUserProperties(props: Record<string, string | null>): void {
     identify.set(key, value);
   }
   amplitude.identify(identify);
+}
+
+/** 전환 이벤트 직후 네비게이션 전 전송 보장 */
+export async function flushAnalytics(): Promise<void> {
+  if (!import.meta.env.VITE_AMPLITUDE_API_KEY) return;
+  try {
+    await amplitude.flush().promise;
+  } catch {
+    // 전송 실패해도 UX는 막지 않음
+  }
 }
