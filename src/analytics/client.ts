@@ -104,3 +104,60 @@ export async function flushAnalytics(): Promise<void> {
     // 전송 실패해도 UX는 막지 않음
   }
 }
+
+/**
+ * SDK 큐를 우회해 Amplitude HTTP API로 즉시 전송한다.
+ * 저장 전환처럼 navigate 직전 유실이 치명적일 때 사용.
+ */
+export async function trackViaHttp(
+  event: AnalyticsEventName,
+  props: EventProps = {},
+): Promise<boolean> {
+  const apiKey = import.meta.env.VITE_AMPLITUDE_API_KEY;
+  if (!apiKey || typeof fetch === "undefined") return false;
+
+  const payload = { ...commonProps(), ...props };
+  const cleaned: Record<string, string | number | boolean> = {};
+  for (const [k, v] of Object.entries(payload)) {
+    if (v === null || v === undefined) continue;
+    cleaned[k] = v;
+  }
+
+  const userId = amplitude.getUserId();
+  const deviceId = amplitude.getDeviceId();
+  const insertId = String(cleaned.event_id ?? createEventId());
+
+  const body = JSON.stringify({
+    api_key: apiKey,
+    events: [
+      {
+        user_id: userId || undefined,
+        device_id: deviceId || getOrCreateSessionId(),
+        event_type: event,
+        time: Date.now(),
+        insert_id: insertId,
+        event_properties: cleaned,
+        session_id: amplitude.getSessionId() ?? undefined,
+      },
+    ],
+  });
+
+  try {
+    const res = await fetch("https://api2.amplitude.com/2/httpapi", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "*/*",
+      },
+      body,
+      keepalive: true,
+    });
+    if (import.meta.env.DEV) {
+      // eslint-disable-next-line no-console
+      console.info("[analytics] http", event, res.status);
+    }
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

@@ -1,4 +1,4 @@
-import { track, setUserProperties, flushAnalytics } from "./client";
+import { track, setUserProperties, flushAnalytics, trackViaHttp } from "./client";
 import {
   markDiagnosisCompleted,
   markStepCompleted,
@@ -46,12 +46,16 @@ export function trackDesignCtaClicked(
   });
 }
 
-/** 저장 성공 — flush로 전송 보장 */
+/** 저장 성공 — SDK + HTTP 직접 전송으로 유실 방지 */
 export async function trackResultSaved(householdType: string): Promise<void> {
-  track("result_saved", { household_type: householdType });
+  const props = { household_type: householdType };
+  // 1) HTTP 직접 전송 (navigate 유실에 강함)
+  await trackViaHttp("result_saved", props);
+  // 2) SDK 경로도 유지 (Identify·세션 정합)
+  track("result_saved", props);
+  await flushAnalytics();
   if (import.meta.env.DEV) {
     // eslint-disable-next-line no-console
-    console.info("[analytics] result_saved", householdType);
+    console.info("[analytics] result_saved done", householdType);
   }
-  await flushAnalytics();
 }
