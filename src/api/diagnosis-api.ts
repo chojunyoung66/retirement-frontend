@@ -6,8 +6,11 @@ const diagnosisRecordSchema = z.object({
   id: z.number(),
   userId: z.number(),
   householdType: z.string(),
+  householdSize: z.number().int().default(1),
   birthYear: z.number(),
   retirementYear: z.number(),
+  spouseBirthYear: z.number().nullable().optional().default(null),
+  spouseRetirementYear: z.number().nullable().optional().default(null),
   nationalPension: z.number(),
   retirementPension: z.number(),
   personalPension: z.number(),
@@ -20,8 +23,17 @@ const diagnosisRecordSchema = z.object({
 
 const diagnosisDataSchema = z.object({
   householdType: z.string().min(1),
+  householdSize: z.number().int().min(1).max(5).default(1),
   birthYear: z.number().int().min(1900),
   retirementYear: z.number().int().min(1900),
+  spouseBirthYear: z.number().int().min(1900).nullable().optional().default(null),
+  spouseRetirementYear: z
+    .number()
+    .int()
+    .min(1900)
+    .nullable()
+    .optional()
+    .default(null),
   nationalPension: z.number().nonnegative(),
   retirementPension: z.number().nonnegative(),
   personalPension: z.number().nonnegative(),

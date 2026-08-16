@@ -64,41 +64,122 @@ export function getLivingExpenseGuide(
   return { minimum: 1200000, recommended: 1800000 };
 }
 
+/** 본인 연령 기준 동일 연도의 배우자 연령 (출생연도 차이 보정) */
+export function getSpouseAgeAtSelfAge(
+  selfAge: number,
+  selfBirthYear: number | null,
+  spouseBirthYear: number | null,
+): number | null {
+  if (selfBirthYear == null || spouseBirthYear == null) return null;
+  // 배우자가 더 늦게 태어났으면(연도 큼) 나이가 작음
+  return selfAge + (selfBirthYear - spouseBirthYear);
+}
+
+function resolveNationalAtAge(
+  amount: number,
+  birthYear: number | null,
+  ageAtMoment: number,
+  currentAge: number | null,
+): { included: number; pending: { amount: number; startAge: number } | null } {
+  const startAge = getPensionStartAge(birthYear);
+  const alreadyStarted = currentAge !== null && currentAge >= startAge;
+  const delayed = !alreadyStarted && startAge > ageAtMoment;
+  if (delayed && amount > 0) {
+    return { included: 0, pending: { amount, startAge } };
+  }
+  return { included: amount, pending: null };
+}
+
 export function calculateProjection(state: DiagnosisState): ProjectionResult {
   // 정년(retirementAge) 미지정 시 기본값 60세 — 정년 연장 정책 반영 시 state로 주입
   const retirementAge = state.retirementAge ?? 60;
-  const pensionStartAge = getPensionStartAge(state.birthYear ?? null);
-  // 현재 나이가 수급 개시 연령 이상이면 이미 수급 중 → 수입에 포함
-  const currentAge = state.birthYear ? new Date().getFullYear() - state.birthYear : null;
-  const isPensionAlreadyStarted = currentAge !== null && currentAge >= pensionStartAge;
-  const isPensionDelayed = !isPensionAlreadyStarted && pensionStartAge > retirementAge;
-  const nationalPensionAmount =
-    isPensionDelayed ? 0 : state.pension.national;
+  const nowYear = new Date().getFullYear();
+  const selfCurrentAge = state.birthYear ? nowYear - state.birthYear : null;
+
+  // 본인 국민연금 — 퇴직 시점 나이 기준
+  const selfNational = resolveNationalAtAge(
+    state.pension.national,
+    state.birthYear,
+    retirementAge,
+    selfCurrentAge,
+  );
 
   const housingPensionAmount = state.pension.housing;
+  const isCouple = state.diagnosisType === 'couple' && state.spouse != null;
+  const spouse = state.spouse;
+
+  // 배우자: 본인 퇴직 연도와 같은 시점의 배우자 나이로 수급개시 판단
+  let spouseNationalIncluded = 0;
+  let spouseRetirement = 0;
+  let spousePersonal = 0;
+  const pendingNationalPensions: import('../domain/plan').PendingNationalPension[] = [];
+
+  if (selfNational.pending) {
+    pendingNationalPensions.push({
+      ...selfNational.pending,
+      label: isCouple ? '본인 국민연금' : '국민연금',
+    });
+  }
+
+  if (isCouple && spouse) {
+    spouseRetirement = spouse.pension.retirement;
+    spousePersonal = spouse.pension.personal;
+    const spouseAgeAtSelfRet = getSpouseAgeAtSelfAge(
+      retirementAge,
+      state.birthYear,
+      spouse.birthYear,
+    );
+    const spouseCurrentAge = spouse.birthYear ? nowYear - spouse.birthYear : null;
+    if (spouseAgeAtSelfRet != null) {
+      const spouseNational = resolveNationalAtAge(
+        spouse.pension.national,
+        spouse.birthYear,
+        spouseAgeAtSelfRet,
+        spouseCurrentAge,
+      );
+      spouseNationalIncluded = spouseNational.included;
+      if (spouseNational.pending) {
+        pendingNationalPensions.push({
+          ...spouseNational.pending,
+          label: '배우자 국민연금',
+        });
+      }
+    } else {
+      // 출생연도 없으면 지연 없이 전액 포함
+      spouseNationalIncluded = spouse.pension.national;
+    }
+  }
+
   const totalIncome =
-    nationalPensionAmount +
+    selfNational.included +
     state.pension.retirement +
     state.pension.personal +
-    housingPensionAmount;
+    housingPensionAmount +
+    spouseNationalIncluded +
+    spouseRetirement +
+    spousePersonal;
   const totalExpense =
     state.livingExpense.desiredMonthly +
     state.medicalExpense.healthInsurance +
     state.medicalExpense.privateInsurance;
   const gap = totalIncome - totalExpense;
 
-  // 퇴직 시점 이후 수급 개시 국민연금 — 결과화면 별도 안내용
-  const pendingNationalPension =
-    isPensionDelayed && state.pension.national > 0
-      ? { amount: state.pension.national, startAge: pensionStartAge }
-      : undefined;
-
-  const incomeItems = [
-    { label: '국민연금', amount: nationalPensionAmount },
-    { label: '퇴직연금', amount: state.pension.retirement },
-    { label: '개인연금', amount: state.pension.personal },
-    { label: '주택연금', amount: housingPensionAmount },
-  ].filter((i) => i.amount > 0);
+  const incomeItems = isCouple
+    ? [
+        { label: '본인 국민연금', amount: selfNational.included },
+        { label: '배우자 국민연금', amount: spouseNationalIncluded },
+        { label: '본인 퇴직연금', amount: state.pension.retirement },
+        { label: '배우자 퇴직연금', amount: spouseRetirement },
+        { label: '본인 개인연금', amount: state.pension.personal },
+        { label: '배우자 개인연금', amount: spousePersonal },
+        { label: '주택연금', amount: housingPensionAmount },
+      ].filter((i) => i.amount > 0)
+    : [
+        { label: '국민연금', amount: selfNational.included },
+        { label: '퇴직연금', amount: state.pension.retirement },
+        { label: '개인연금', amount: state.pension.personal },
+        { label: '주택연금', amount: housingPensionAmount },
+      ].filter((i) => i.amount > 0);
 
   const expenseItems = [
     { label: '생활비', amount: state.livingExpense.desiredMonthly },
@@ -107,9 +188,9 @@ export function calculateProjection(state: DiagnosisState): ProjectionResult {
   ].filter((i) => i.amount > 0);
 
   // 생활비 초과분(권장 생활비 대비)이 부족액에서 차지하는 비율을 실제 데이터로 산정
-  // (권장 생활비 이내면 부족 원인을 전부 연금 수입 부족으로 귀속)
   const causeAnalysis = gap < 0 ? buildCauseAnalysis(state, -gap) : [];
 
+  const firstPending = pendingNationalPensions[0];
   return {
     totalIncome,
     totalExpense,
@@ -118,7 +199,10 @@ export function calculateProjection(state: DiagnosisState): ProjectionResult {
     expenseItems,
     causeAnalysis,
     simulations: [],
-    ...(pendingNationalPension ? { pendingNationalPension } : {}),
+    ...(firstPending ? { pendingNationalPension: firstPending } : {}),
+    ...(pendingNationalPensions.length > 0
+      ? { pendingNationalPensions }
+      : {}),
   };
 }
 
@@ -153,6 +237,8 @@ export interface YearlyProjection {
   unemploymentBenefitIncome?: number;
   secondaryIncome?: number;
   nationalPensionStarted: boolean;
+  /** 부부 진단 시 해당 연도 배우자 국민연금 개시 여부 */
+  spouseNationalPensionStarted?: boolean;
 }
 
 export type HealthEscalationMode = 'none' | 'moderate' | 'steep';
@@ -196,21 +282,34 @@ export function calculateLongTermProjection(
   secondaryIncomes: SecondaryIncome[] = [],
   healthEscalation: HealthEscalationMode = 'none',
 ): YearlyProjection[] {
-  // 정년(retirementAge) 미지정 시 기본값 60세 — 정년 연장 정책 반영 시 state로 주입
+  // 정년(retirementAge) 미지정 시 기본값 60세 — 차트 x축은 본인 나이 유지
   const retirementAge = state.retirementAge ?? 60;
   const pensionStartAge = getPensionStartAge(state.birthYear ?? null);
-  // 현재 이미 수급 중이면 시뮬레이션 시작(retirementAge)부터 포함
-  const currentAge = state.birthYear ? new Date().getFullYear() - state.birthYear : null;
+  const nowYear = new Date().getFullYear();
+  const currentAge = state.birthYear ? nowYear - state.birthYear : null;
   const isPensionAlreadyStarted = currentAge !== null && currentAge >= pensionStartAge;
   const effectivePensionStartAge = isPensionAlreadyStarted ? retirementAge : pensionStartAge;
   const baseNational = state.pension.national;
   const baseOther = state.pension.retirement + state.pension.personal;
   // 주택연금은 가입 후 종신 정액 가정 — 물가·연금 상승률과 분리해 고정 월액 반영
   const baseHousing = state.pension.housing;
-  // 생활비와 의료비를 분리해 연령별 의료비 배율을 별도 적용
   const baseLivingExpense = state.livingExpense.desiredMonthly;
   const baseMedicalExpense =
     state.medicalExpense.healthInsurance + state.medicalExpense.privateInsurance;
+
+  const isCouple = state.diagnosisType === 'couple' && state.spouse != null;
+  const spouse = state.spouse;
+  const spousePensionStartAge = spouse
+    ? getPensionStartAge(spouse.birthYear)
+    : null;
+  const spouseCurrentAge = spouse?.birthYear ? nowYear - spouse.birthYear : null;
+  const spouseAlreadyStarted =
+    spousePensionStartAge != null &&
+    spouseCurrentAge !== null &&
+    spouseCurrentAge >= spousePensionStartAge;
+  const baseSpouseNational = spouse?.pension.national ?? 0;
+  const baseSpouseOther =
+    (spouse?.pension.retirement ?? 0) + (spouse?.pension.personal ?? 0);
 
   const result: YearlyProjection[] = [];
   let cumulative = 0;
@@ -220,17 +319,41 @@ export function calculateLongTermProjection(
     const inflationFactor = Math.pow(1 + inflationRate, i);
     const pensionFactor = Math.pow(1 + pensionGrowthRate, i);
 
-    // 국민연금은 실효 수급 개시 연령부터 포함 (이미 수급 중이면 시작부터)
+    // 본인 국민연금 — 실효 수급 개시 연령부터
     const nationalPensionStarted = age >= effectivePensionStartAge;
     const pensionStartIndex = effectivePensionStartAge - retirementAge;
     const nationalIncome = nationalPensionStarted
       ? Math.round(baseNational * Math.pow(1 + pensionGrowthRate, i - pensionStartIndex))
       : 0;
-    // 퇴직·개인연금은 최장 20년 수령 기본값 — 퇴직 후 20년 초과 시 0
+    // 퇴직·개인연금은 최장 20년 수령 기본값
     const otherIncome = i < 20 ? Math.round(baseOther * pensionFactor) : 0;
     const housingIncome = baseHousing;
 
-    // 투영 첫 해(i=0)에 실업급여를 연간 총액의 월평균으로 반영
+    // 배우자 국민·기타 — 동일 연도의 배우자 나이로 개시 여부 판단
+    let spouseNationalIncome = 0;
+    let spouseOtherIncome = 0;
+    let spouseNationalPensionStarted: boolean | undefined;
+    if (isCouple && spouse && spousePensionStartAge != null) {
+      const spouseAge = getSpouseAgeAtSelfAge(age, state.birthYear, spouse.birthYear);
+      const effectiveSpouseStart = spouseAlreadyStarted
+        ? (spouseAge ?? spousePensionStartAge)
+        : spousePensionStartAge;
+      spouseNationalPensionStarted =
+        spouseAge != null ? spouseAge >= effectiveSpouseStart : false;
+      if (spouseNationalPensionStarted && spouseAge != null) {
+        // 배우자가 이 타임라인에서 처음 수급하는 연도 인덱스
+        const spouseStartSelfAge = spouseAlreadyStarted
+          ? retirementAge
+          : age - (spouseAge - spousePensionStartAge);
+        const spouseStartIndex = Math.max(0, spouseStartSelfAge - retirementAge);
+        spouseNationalIncome = Math.round(
+          baseSpouseNational *
+            Math.pow(1 + pensionGrowthRate, i - spouseStartIndex),
+        );
+      }
+      spouseOtherIncome = i < 20 ? Math.round(baseSpouseOther * pensionFactor) : 0;
+    }
+
     const ubIncome =
       unemploymentBenefit && i === 0
         ? Math.round(
@@ -238,16 +361,21 @@ export function calculateLongTermProjection(
           )
         : 0;
 
-    // 제2 수입 (파트타임·프리랜서 등) — 물가 상승률 반영
     const secIncome = secondaryIncomes
       .filter((s) => age >= s.startAge && age <= s.endAge)
       .reduce((sum, s) => sum + Math.round(s.monthlyAmount * inflationFactor), 0);
 
-    // 의료비: 물가 상승 + 연령대별 배율 (healthEscalation)
     const medicalMultiplier = getMedicalEscalationFactor(age, healthEscalation);
     const monthlyMedicalExpense = Math.round(baseMedicalExpense * inflationFactor * medicalMultiplier);
     const monthlyExpense = Math.round(baseLivingExpense * inflationFactor) + monthlyMedicalExpense;
-    const monthlyIncome = nationalIncome + otherIncome + housingIncome + ubIncome + secIncome;
+    const monthlyIncome =
+      nationalIncome +
+      otherIncome +
+      housingIncome +
+      spouseNationalIncome +
+      spouseOtherIncome +
+      ubIncome +
+      secIncome;
     const monthlyGap = monthlyIncome - monthlyExpense;
     cumulative += monthlyGap * 12;
 
@@ -260,6 +388,9 @@ export function calculateLongTermProjection(
       monthlyGap,
       cumulativeGap: cumulative,
       nationalPensionStarted,
+      ...(spouseNationalPensionStarted !== undefined
+        ? { spouseNationalPensionStarted }
+        : {}),
       ...(ubIncome > 0 ? { unemploymentBenefitIncome: ubIncome } : {}),
       ...(secIncome > 0 ? { secondaryIncome: secIncome } : {}),
     });
@@ -272,18 +403,9 @@ export function generateRecommendations(
   twentyYearGap: number,
 ): import('../domain/plan').SimulationItem[] {
   const MONTHS = 240;
-  // calculateProjection과 동일 규칙: 현재 수급 중이거나 퇴직 시점에 개시된 경우만 포함
-  const retirementAge = state.retirementAge ?? 60;
-  const pensionStartAge = getPensionStartAge(state.birthYear ?? null);
-  const currentAge = state.birthYear ? new Date().getFullYear() - state.birthYear : null;
-  const isPensionAlreadyStarted = currentAge !== null && currentAge >= pensionStartAge;
-  const isPensionDelayed = !isPensionAlreadyStarted && pensionStartAge > retirementAge;
-  const nationalPensionAmount = isPensionDelayed ? 0 : state.pension.national;
-  const totalIncome =
-    nationalPensionAmount +
-    state.pension.retirement +
-    state.pension.personal +
-    state.pension.housing;
+  // 추천 기준 수입은 요약 투영과 동일(배우자 합산 포함)
+  const snapProjection = calculateProjection(state);
+  const totalIncome = snapProjection.totalIncome;
   const totalInsurance =
     state.medicalExpense.healthInsurance + state.medicalExpense.privateInsurance;
   const { desiredMonthly } = state.livingExpense;

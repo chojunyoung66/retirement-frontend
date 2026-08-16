@@ -135,11 +135,19 @@ export default function ProjectionScreen() {
     try {
       const retirementYear =
         birthYear + (snap.retirementAge ?? DEFAULT_RETIREMENT_AGE);
+      const spouseBirthYear = snap.spouse?.birthYear ?? null;
+      const spouseRetirementYear =
+        snap.spouse?.birthYear != null && snap.spouse.retirementAge != null
+          ? snap.spouse.birthYear + snap.spouse.retirementAge
+          : null;
       // MVP: 예상은퇴 소득(연금)은 서버에 실값 저장 안 함 — 0만 전송
       await saveLatestDiagnosis({
         householdType: snap.diagnosisType,
+        householdSize: snap.householdSize,
         birthYear,
         retirementYear,
+        spouseBirthYear,
+        spouseRetirementYear,
         nationalPension: 0,
         retirementPension: 0,
         personalPension: 0,
@@ -323,8 +331,13 @@ export default function ProjectionScreen() {
               </div>
             ))
           )}
-          {projection.pendingNationalPension && (
+          {(projection.pendingNationalPensions ??
+            (projection.pendingNationalPension
+              ? [projection.pendingNationalPension]
+              : [])
+          ).map((pending) => (
             <div
+              key={`${pending.label}-${pending.startAge}`}
               className="item-row"
               style={{
                 borderTop: "1px dashed var(--border)",
@@ -334,17 +347,26 @@ export default function ProjectionScreen() {
               }}
             >
               <span className="item-row-label" style={{ color: "#e67e22" }}>
-                국민연금 ({projection.pendingNationalPension.startAge}세~)
+                {pending.label} ({pending.startAge}세~)
               </span>
               <span className="item-row-value" style={{ color: "#e67e22" }}>
-                {formatWan(projection.pendingNationalPension.amount)}
+                {formatWan(pending.amount)}
               </span>
             </div>
-          )}
-          {projection.pendingNationalPension && (
+          ))}
+          {(projection.pendingNationalPensions?.length ??
+            (projection.pendingNationalPension ? 1 : 0)) > 0 && (
             <div style={{ fontSize: 11, color: "#e67e22", marginTop: 4 }}>
-              ※ 국민연금은 {projection.pendingNationalPension.startAge}세부터
-              수급 — 위 수입 합계에 미포함
+              ※{" "}
+              {(
+                projection.pendingNationalPensions ??
+                (projection.pendingNationalPension
+                  ? [projection.pendingNationalPension]
+                  : [])
+              )
+                .map((p) => `${p.label} ${p.startAge}세`)
+                .join(" · ")}
+              부터 수급 — 위 수입 합계에 미포함
             </div>
           )}
         </div>

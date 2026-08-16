@@ -16,6 +16,7 @@ function makeState(overrides: Partial<DiagnosisState> = {}): DiagnosisState {
     retirementAge: null,
     incomeStatus: 'retired',
     pension: { national: 1000000, retirement: 500000, personal: 200000, housing: 0 },
+    spouse: null,
     livingExpense: { desiredMonthly: 2000000, guideMinimum: 1200000, guideRecommended: 1800000 },
     medicalExpense: { healthInsurance: 150000, privateInsurance: 50000 },
     projection: null,
@@ -342,5 +343,72 @@ describe('getCashflowTrendSample', () => {
   it('모든 금액이 양수', () => {
     const trend = getCashflowTrendSample(2026);
     expect(trend.points.every((p) => p.amount > 0)).toBe(true);
+  });
+});
+
+// ─── 부부: 이중 국민연금 수급개시 ────────────────────────────────────────────
+
+describe('부부 진단 — 배우자 합산·이중 수급개시', () => {
+  const coupleBase = (): DiagnosisState =>
+    makeState({
+      diagnosisType: 'couple',
+      householdSize: 2,
+      birthYear: 1969, // 본인 65세 개시
+      retirementAge: 60,
+      pension: { national: 800000, retirement: 400000, personal: 100000, housing: 0 },
+      spouse: {
+        birthYear: 1972, // 배우자 3세 연하 → 65세 개시, 본인 60세 때 배우자 57세
+        retirementAge: 60,
+        incomeStatus: 'employed',
+        pension: { national: 600000, retirement: 200000, personal: 50000, housing: 0 },
+      },
+    });
+
+  it('individual 회귀: spouse 있어도 diagnosisType individual이면 본인만', () => {
+    const state = makeState({
+      diagnosisType: 'individual',
+      birthYear: 1969,
+      spouse: {
+        birthYear: 1972,
+        retirementAge: 60,
+        incomeStatus: 'employed',
+        pension: { national: 600000, retirement: 200000, personal: 50000, housing: 0 },
+      },
+    });
+    const result = calculateProjection(state);
+    expect(result.totalIncome).toBe(state.pension.retirement + state.pension.personal);
+    expect(result.incomeItems.some((i) => i.label.includes('배우자'))).toBe(false);
+  });
+
+  it('퇴직 시점: 배우자 국민연금은 아직 미개시, 퇴직·개인은 합산', () => {
+    const result = calculateProjection(coupleBase());
+    // 본인·배우자 국민 모두 delayed
+    expect(result.totalIncome).toBe(400000 + 100000 + 200000 + 50000);
+    expect(result.pendingNationalPensions).toHaveLength(2);
+    expect(result.pendingNationalPensions?.map((p) => p.label)).toEqual([
+      '본인 국민연금',
+      '배우자 국민연금',
+    ]);
+  });
+
+  it('장기전망: 배우자만 늦게 수급 개시 (본인 65 / 배우자 68세 시점)', () => {
+    // 본인 age 65 = rows[5], 배우자 age = 65-3 = 62 (아직 미개시)
+    // 본인 age 68 = rows[8], 배우자 age = 65 → 개시
+    const rows = calculateLongTermProjection(coupleBase(), 20, 0, 0);
+    expect(rows[5].nationalPensionStarted).toBe(true);
+    expect(rows[5].spouseNationalPensionStarted).toBe(false);
+    expect(rows[8].spouseNationalPensionStarted).toBe(true);
+
+    const beforeSpouse = rows[7].monthlyIncome;
+    const atSpouseStart = rows[8].monthlyIncome;
+    // 배우자 국민 60만 + (이미 있던 배우자 기타는 양년 모두 포함)
+    expect(atSpouseStart - beforeSpouse).toBe(600000);
+  });
+
+  it('요약 1년차와 장기전망 1년차 수입이 부부에서도 일치', () => {
+    const state = coupleBase();
+    const summary = calculateProjection(state);
+    const table = calculateLongTermProjection(state, 20, 0, 0);
+    expect(summary.totalIncome).toBe(table[0].monthlyIncome);
   });
 });

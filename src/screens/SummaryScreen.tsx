@@ -180,6 +180,12 @@ function SavedDiagnosisCard({ record }: SavedDiagnosisCardProps) {
         <span className="item-row-label">{retirementLabel}</span>
         <span className="item-row-value">{record.retirementYear}년</span>
       </div>
+      {record.householdType === 'couple' && record.spouseBirthYear != null && (
+        <div className="item-row">
+          <span className="item-row-label">배우자 출생 연도</span>
+          <span className="item-row-value">{record.spouseBirthYear}년</span>
+        </div>
+      )}
       <p className="form-hint" style={{ margin: '8px 0' }}>
         예상 은퇴 소득(국민·퇴직·개인·주택연금) 금액은 서버에 저장하지 않아요.
       </p>

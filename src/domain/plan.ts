@@ -9,6 +9,14 @@ export interface PensionState {
   housing: number;
 }
 
+/** 배우자 프로필 — couple일 때만 DiagnosisState.spouse에 설정 */
+export interface PersonProfile {
+  birthYear: number | null;
+  retirementAge: number | null;
+  incomeStatus: IncomeStatus;
+  pension: PensionState;
+}
+
 export interface LivingExpenseState {
   desiredMonthly: number;
   guideMinimum: number;
@@ -37,6 +45,13 @@ export interface SimulationItem {
   detail?: string;
 }
 
+export interface PendingNationalPension {
+  amount: number;
+  startAge: number;
+  /** 본인 / 배우자 구분 라벨 */
+  label: string;
+}
+
 export interface ProjectionResult {
   totalIncome: number;
   totalExpense: number;
@@ -45,8 +60,10 @@ export interface ProjectionResult {
   expenseItems: ProjectionItem[];
   causeAnalysis: CauseItem[];
   simulations: SimulationItem[];
-  // 퇴직 시점 이후에 수급 개시되는 국민연금 (결과화면 별도 안내용)
-  pendingNationalPension?: { amount: number; startAge: number };
+  /** @deprecated pendingNationalPensions 사용 — 첫 항목 호환용 */
+  pendingNationalPension?: PendingNationalPension;
+  // 퇴직 이후 수급 개시되는 국민연금(본인·배우자)
+  pendingNationalPensions?: PendingNationalPension[];
 }
 
 export interface DiagnosisState {
@@ -57,7 +74,22 @@ export interface DiagnosisState {
   retirementAge: number | null;
   incomeStatus: IncomeStatus;
   pension: PensionState;
+  /** couple일 때만 채움. individual이면 null */
+  spouse: PersonProfile | null;
   livingExpense: LivingExpenseState;
   medicalExpense: MedicalExpenseState;
   projection: ProjectionResult | null;
+}
+
+export function emptyPension(): PensionState {
+  return { national: 0, retirement: 0, personal: 0, housing: 0 };
+}
+
+export function emptyPersonProfile(): PersonProfile {
+  return {
+    birthYear: null,
+    retirementAge: null,
+    incomeStatus: '',
+    pension: emptyPension(),
+  };
 }

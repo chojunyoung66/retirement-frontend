@@ -35,8 +35,11 @@ const SAMPLE_RECORD = {
   id: 1,
   userId: 10,
   householdType: "individual",
+  householdSize: 1,
   birthYear: 1970,
   retirementYear: 2030,
+  spouseBirthYear: null,
+  spouseRetirementYear: null,
   nationalPension: 1000000,
   retirementPension: 200000,
   personalPension: 0,
@@ -76,8 +79,11 @@ describe("saveLatestDiagnosis — PUT /diagnoses/me/latest", () => {
     mockPut.mockResolvedValue({ data: { data: SAMPLE_RECORD } });
     const payload = {
       householdType: "individual",
+      householdSize: 1,
       birthYear: 1970,
       retirementYear: 2030,
+      spouseBirthYear: null,
+      spouseRetirementYear: null,
       nationalPension: 1000000,
       retirementPension: 200000,
       personalPension: 0,

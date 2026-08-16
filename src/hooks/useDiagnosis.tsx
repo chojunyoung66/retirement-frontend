@@ -5,7 +5,12 @@ import {
   type Dispatch,
   type ReactNode,
 } from "react";
-import type { DiagnosisState, PensionState } from "../domain/plan";
+import {
+  emptyPension,
+  emptyPersonProfile,
+  type DiagnosisState,
+  type PensionState,
+} from "../domain/plan";
 import type { DiagnosisRecord } from "../api/diagnosis-api";
 import { calculateProjection } from "../service/retirement-service";
 import {
@@ -19,13 +24,6 @@ import {
   readPensionDraft,
   writePensionDraft,
 } from "../utils/pension-draft";
-
-const emptyPension = (): PensionState => ({
-  national: 0,
-  retirement: 0,
-  personal: 0,
-  housing: 0,
-});
 
 function createInitialState(): DiagnosisState {
   // 리로드·로그인 리다이렉트 후에도 진단 요약(출생연도 등) 복원
@@ -50,6 +48,7 @@ function createInitialState(): DiagnosisState {
     retirementAge: null,
     incomeStatus: "",
     pension: pensionDraft ?? emptyPension(),
+    spouse: null,
     livingExpense: { desiredMonthly: 0, guideMinimum: 0, guideRecommended: 0 },
     medicalExpense: { healthInsurance: 0, privateInsurance: 0 },
     projection: null,
@@ -68,10 +67,27 @@ function persistPensionIfPresent(pension: PensionState | undefined) {
   if (pension) writePensionDraft(pension);
 }
 
+/** 유형 전환 시 spouse 객체 동기화 */
+function syncSpouseForType(
+  next: DiagnosisState,
+  prev: DiagnosisState,
+): DiagnosisState {
+  if (next.diagnosisType === "couple" && !next.spouse) {
+    return { ...next, spouse: prev.spouse ?? emptyPersonProfile() };
+  }
+  if (next.diagnosisType === "individual") {
+    return { ...next, spouse: null };
+  }
+  return next;
+}
+
 function reducer(state: DiagnosisState, action: Action): DiagnosisState {
   switch (action.type) {
     case "UPDATE": {
-      const next = { ...state, ...action.payload };
+      let next = syncSpouseForType(
+        { ...state, ...action.payload },
+        state,
+      );
       persistPensionIfPresent(action.payload.pension);
       persistDiagnosisState(next);
       return next;
@@ -83,7 +99,10 @@ function reducer(state: DiagnosisState, action: Action): DiagnosisState {
       return next;
     }
     case "UPDATE_AND_CALCULATE": {
-      const updated = { ...state, ...action.payload };
+      let updated = syncSpouseForType(
+        { ...state, ...action.payload },
+        state,
+      );
       persistPensionIfPresent(action.payload.pension);
       const projection = calculateProjection(updated);
       const next = { ...updated, projection };
@@ -102,6 +121,7 @@ function reducer(state: DiagnosisState, action: Action): DiagnosisState {
         ...state,
         ...draft,
         pension: mergePensionPreferPositive(draft.pension, state.pension),
+        spouse: draft.spouse,
       };
       const next = {
         ...updated,
@@ -123,12 +143,31 @@ function reducer(state: DiagnosisState, action: Action): DiagnosisState {
         mergePensionPreferPositive(state.pension, readPensionDraft()),
       );
       writePensionDraft(pension);
+      const householdType =
+        rec.householdType === "couple" ? "couple" : "individual";
+      // 서버 배우자 연도 → 세션 spouse 복원 (연금은 세션 유지)
+      let spouse = state.spouse;
+      if (householdType === "couple") {
+        const base = spouse ?? emptyPersonProfile();
+        spouse = {
+          ...base,
+          birthYear: rec.spouseBirthYear ?? base.birthYear,
+          retirementAge:
+            rec.spouseBirthYear != null && rec.spouseRetirementYear != null
+              ? rec.spouseRetirementYear - rec.spouseBirthYear
+              : base.retirementAge,
+        };
+      } else {
+        spouse = null;
+      }
       const updated: DiagnosisState = {
         ...state,
-        diagnosisType: rec.householdType as DiagnosisState["diagnosisType"],
+        diagnosisType: householdType,
+        householdSize: rec.householdSize ?? state.householdSize,
         birthYear: rec.birthYear,
         retirementAge: rec.retirementYear - rec.birthYear,
         pension,
+        spouse,
         livingExpense: {
           ...state.livingExpense,
           desiredMonthly: rec.monthlyExpense,

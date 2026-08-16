@@ -11,13 +11,13 @@ import {
   formatAge,
   formatYearsToRetirement,
 } from '../utils/format';
-import type { IncomeStatus } from '../domain/plan';
+import { emptyPersonProfile, type IncomeStatus } from '../domain/plan';
 import { trackStepCompleted, trackStepViewed } from '../analytics';
 
 const MIN_RETIREMENT_AGE = 55;
 const MAX_RETIREMENT_AGE = 70;
 
-const profileSchema = z.object({
+const personFieldsSchema = z.object({
   birthYear: z
     .number({ message: '출생연도를 입력하세요' })
     .int()
@@ -43,25 +43,63 @@ const INCOME_OPTIONS: { key: IncomeStatus; title: string; desc: string }[] = [
   { key: 'retired', title: '은퇴/무직', desc: '현재 소득 활동이 없어요' },
 ];
 
+type FieldErrors = {
+  birthYear?: string;
+  retirementAge?: string;
+  incomeStatus?: string;
+};
+
+function buildAgeHint(
+  birthYear: number | null,
+  retirementAge: number,
+  incomeStatus: IncomeStatus,
+): string {
+  if (!birthYear || birthYear < 1900 || birthYear > 2020) {
+    return '1940년 ~ 2010년 사이';
+  }
+  const age = formatAge(birthYear);
+  const years = formatYearsToRetirement(birthYear, retirementAge);
+  if (incomeStatus === 'retired') return `만 ${age}세 · 은퇴/무직 상태`;
+  if (incomeStatus === 'employed' || incomeStatus === 'self-employed') {
+    if (age >= retirementAge) {
+      return `만 ${age}세 · 희망 퇴직(${retirementAge}세) 도달`;
+    }
+    return `만 ${age}세 · 희망 퇴직(${retirementAge}세)까지 ${years}년`;
+  }
+  return `만 ${age}세`;
+}
+
 export default function ProfileScreen() {
   const navigate = useNavigate();
   const { state, dispatch } = useDiagnosis();
+  const isCouple = state.diagnosisType === 'couple';
+  const spouse = state.spouse ?? emptyPersonProfile();
+
   const [birthYearInput, setBirthYearInput] = useState<string>(
     state.birthYear ? String(state.birthYear) : '',
   );
-  // 미입력이면 현행 가정(60세)을 기본값으로 보여 줌
   const [retirementAgeInput, setRetirementAgeInput] = useState<string>(
     String(state.retirementAge ?? DEFAULT_RETIREMENT_AGE),
   );
-  const [errors, setErrors] = useState<{
-    birthYear?: string;
-    retirementAge?: string;
-    incomeStatus?: string;
-  }>({});
+  const [spouseBirthYearInput, setSpouseBirthYearInput] = useState<string>(
+    spouse.birthYear ? String(spouse.birthYear) : '',
+  );
+  const [spouseRetirementAgeInput, setSpouseRetirementAgeInput] = useState<string>(
+    String(spouse.retirementAge ?? DEFAULT_RETIREMENT_AGE),
+  );
+  const [errors, setErrors] = useState<FieldErrors>({});
+  const [spouseErrors, setSpouseErrors] = useState<FieldErrors>({});
 
   useEffect(() => {
     trackStepViewed('profile');
   }, []);
+
+  // couple 전환 직후 spouse 객체가 없으면 생성
+  useEffect(() => {
+    if (isCouple && !state.spouse) {
+      dispatch({ type: 'UPDATE', payload: { spouse: emptyPersonProfile() } });
+    }
+  }, [isCouple, state.spouse, dispatch]);
 
   const parsedBirthYear = birthYearInput ? Number(birthYearInput) : null;
   const parsedRetirementAge = retirementAgeInput
@@ -72,89 +110,139 @@ export default function ProfileScreen() {
       ? parsedRetirementAge
       : DEFAULT_RETIREMENT_AGE;
 
-  const ageInfo = useMemo(() => {
-    if (!parsedBirthYear || parsedBirthYear < 1900 || parsedBirthYear > 2020)
-      return null;
-    const age = formatAge(parsedBirthYear);
-    const years = formatYearsToRetirement(parsedBirthYear, retirementAge);
-    return { age, years };
-  }, [parsedBirthYear, retirementAge]);
+  const parsedSpouseBirthYear = spouseBirthYearInput
+    ? Number(spouseBirthYearInput)
+    : null;
+  const parsedSpouseRetirementAge = spouseRetirementAgeInput
+    ? Number(spouseRetirementAgeInput)
+    : null;
+  const spouseRetirementAge =
+    parsedSpouseRetirementAge && Number.isFinite(parsedSpouseRetirementAge)
+      ? parsedSpouseRetirementAge
+      : DEFAULT_RETIREMENT_AGE;
 
-  const ageHint = useMemo(() => {
-    if (!ageInfo) return '1940년 ~ 2010년 사이';
-    const { age, years } = ageInfo;
-    // 은퇴/무직: 이미 정년과 무관
-    if (state.incomeStatus === 'retired') {
-      return `만 ${age}세 · 은퇴/무직 상태`;
-    }
-    // 재직 중 / 자영업: 희망 퇴직 나이 기준 안내
-    if (
-      state.incomeStatus === 'employed' ||
-      state.incomeStatus === 'self-employed'
-    ) {
-      if (age >= retirementAge)
-        return `만 ${age}세 · 희망 퇴직(${retirementAge}세) 도달`;
-      return `만 ${age}세 · 희망 퇴직(${retirementAge}세)까지 ${years}년`;
-    }
-    // 소득 상태 미선택: 나이만 표시
-    return `만 ${age}세`;
-  }, [ageInfo, state.incomeStatus, retirementAge]);
+  const ageHint = useMemo(
+    () => buildAgeHint(parsedBirthYear, retirementAge, state.incomeStatus),
+    [parsedBirthYear, retirementAge, state.incomeStatus],
+  );
+
+  const spouseAgeHint = useMemo(
+    () =>
+      buildAgeHint(parsedSpouseBirthYear, spouseRetirementAge, spouse.incomeStatus),
+    [parsedSpouseBirthYear, spouseRetirementAge, spouse.incomeStatus],
+  );
 
   const retirementHint = useMemo(() => {
-    if (!ageInfo) return `${MIN_RETIREMENT_AGE}~${MAX_RETIREMENT_AGE}세 · 기본 ${DEFAULT_RETIREMENT_AGE}세`;
+    if (!parsedBirthYear || parsedBirthYear < 1900) {
+      return `${MIN_RETIREMENT_AGE}~${MAX_RETIREMENT_AGE}세 · 기본 ${DEFAULT_RETIREMENT_AGE}세`;
+    }
+    const age = formatAge(parsedBirthYear);
     if (state.incomeStatus === 'retired') {
       return '이미 은퇴하셨다면 진단 시작 나이로 쓰여요';
     }
-    if (ageInfo.age >= retirementAge) {
-      return `현재 나이가 희망 퇴직 이상이에요`;
-    }
-    return `퇴직까지 약 ${ageInfo.years}년 · 회사·법 개정에 따라 달라질 수 있어요`;
-  }, [ageInfo, retirementAge, state.incomeStatus]);
-
-  const handleBirthYear = (value: string) => {
-    setBirthYearInput(value.replace(/[^0-9]/g, '').slice(0, 4));
-  };
-
-  const handleRetirementAge = (value: string) => {
-    setRetirementAgeInput(value.replace(/[^0-9]/g, '').slice(0, 2));
-  };
+    if (age >= retirementAge) return `현재 나이가 희망 퇴직 이상이에요`;
+    const years = formatYearsToRetirement(parsedBirthYear, retirementAge);
+    return `퇴직까지 약 ${years}년 · 회사·법 개정에 따라 달라질 수 있어요`;
+  }, [parsedBirthYear, retirementAge, state.incomeStatus]);
 
   const handleIncome = (status: IncomeStatus) => {
     dispatch({ type: 'UPDATE', payload: { incomeStatus: status } });
   };
 
+  const handleSpouseIncome = (status: IncomeStatus) => {
+    dispatch({
+      type: 'UPDATE',
+      payload: {
+        spouse: {
+          ...(state.spouse ?? emptyPersonProfile()),
+          incomeStatus: status,
+        },
+      },
+    });
+  };
+
   const handleNext = () => {
-    const result = profileSchema.safeParse({
+    const selfResult = personFieldsSchema.safeParse({
       birthYear: parsedBirthYear,
       retirementAge: parsedRetirementAge,
       incomeStatus: state.incomeStatus || undefined,
     });
-    if (!result.success) {
-      const fieldErrors: {
-        birthYear?: string;
-        retirementAge?: string;
-        incomeStatus?: string;
-      } = {};
-      for (const issue of result.error.issues) {
-        const path = issue.path[0];
-        if (path === 'birthYear') fieldErrors.birthYear = issue.message;
-        if (path === 'retirementAge') fieldErrors.retirementAge = issue.message;
-        if (path === 'incomeStatus') fieldErrors.incomeStatus = issue.message;
-      }
-      setErrors(fieldErrors);
+
+    let spouseResult: z.SafeParseReturnType<
+      z.infer<typeof personFieldsSchema>,
+      z.infer<typeof personFieldsSchema>
+    > | null = null;
+
+    if (isCouple) {
+      spouseResult = personFieldsSchema.safeParse({
+        birthYear: parsedSpouseBirthYear,
+        retirementAge: parsedSpouseRetirementAge,
+        incomeStatus: spouse.incomeStatus || undefined,
+      });
+    }
+
+    if (!selfResult.success || (spouseResult && !spouseResult.success)) {
+      const toErrors = (issues: z.ZodIssue[]): FieldErrors => {
+        const fieldErrors: FieldErrors = {};
+        for (const issue of issues) {
+          const path = issue.path[0];
+          if (path === 'birthYear') fieldErrors.birthYear = issue.message;
+          if (path === 'retirementAge') fieldErrors.retirementAge = issue.message;
+          if (path === 'incomeStatus') fieldErrors.incomeStatus = issue.message;
+        }
+        return fieldErrors;
+      };
+      setErrors(selfResult.success ? {} : toErrors(selfResult.error.issues));
+      setSpouseErrors(
+        spouseResult && !spouseResult.success
+          ? toErrors(spouseResult.error.issues)
+          : {},
+      );
       return;
     }
-    // 출생연도·희망 퇴직 나이를 진단 세션에 반영
+
+    // 본인·배우자 프로필을 진단 세션에 반영
     dispatch({
       type: 'UPDATE',
       payload: {
-        birthYear: result.data.birthYear,
-        retirementAge: result.data.retirementAge,
+        birthYear: selfResult.data.birthYear,
+        retirementAge: selfResult.data.retirementAge,
+        ...(isCouple && spouseResult?.success
+          ? {
+              spouse: {
+                ...(state.spouse ?? emptyPersonProfile()),
+                birthYear: spouseResult.data.birthYear,
+                retirementAge: spouseResult.data.retirementAge,
+                incomeStatus: spouseResult.data.incomeStatus,
+              },
+            }
+          : {}),
       },
     });
     trackStepCompleted('profile');
     navigate('/cashflow');
   };
+
+  const renderIncomeOptions = (
+    selected: IncomeStatus,
+    onSelect: (s: IncomeStatus) => void,
+    error?: string,
+  ) => (
+    <div className="form-group">
+      <label className="form-label">소득 상태</label>
+      {INCOME_OPTIONS.map((opt) => (
+        <div
+          key={opt.key}
+          className={`option-card${selected === opt.key ? ' selected' : ''}`}
+          onClick={() => onSelect(opt.key)}
+        >
+          <div className="option-card-title">{opt.title}</div>
+          <div className="option-card-desc">{opt.desc}</div>
+        </div>
+      ))}
+      {error && <div className="form-error">{error}</div>}
+    </div>
+  );
 
   return (
     <>
@@ -163,11 +251,13 @@ export default function ProfileScreen() {
         <h2 className="card-title mb-8">나의 기본 정보</h2>
         <p className="card-subtitle mb-16">진단에 필요한 최소 정보만 입력해요.</p>
 
+        {isCouple && <h3 className="form-label mb-8">본인</h3>}
+
         <Input
           label="출생연도"
           type="number"
           value={birthYearInput}
-          onChange={handleBirthYear}
+          onChange={(v) => setBirthYearInput(v.replace(/[^0-9]/g, '').slice(0, 4))}
           placeholder="예: 1970"
           suffix="년"
           error={errors.birthYear}
@@ -178,40 +268,60 @@ export default function ProfileScreen() {
           label="희망 퇴직 나이"
           type="number"
           value={retirementAgeInput}
-          onChange={handleRetirementAge}
+          onChange={(v) =>
+            setRetirementAgeInput(v.replace(/[^0-9]/g, '').slice(0, 2))
+          }
           placeholder={`예: ${DEFAULT_RETIREMENT_AGE}`}
           suffix="세"
           error={errors.retirementAge}
           hint={retirementHint}
         />
 
-        <div className="form-group">
-          <label className="form-label">소득 상태</label>
-          {INCOME_OPTIONS.map((opt) => (
-            <div
-              key={opt.key}
-              className={`option-card${state.incomeStatus === opt.key ? ' selected' : ''}`}
-              onClick={() => handleIncome(opt.key)}
-            >
-              <div className="option-card-title">{opt.title}</div>
-              <div className="option-card-desc">{opt.desc}</div>
-            </div>
-          ))}
-          {errors.incomeStatus && (
-            <div className="form-error">{errors.incomeStatus}</div>
-          )}
-        </div>
+        {renderIncomeOptions(state.incomeStatus, handleIncome, errors.incomeStatus)}
 
-        {state.diagnosisType === 'couple' && (
-          <div className="form-group">
-            <label className="form-label">가구원 수</label>
-            <HouseholdChips
-              value={state.householdSize}
-              onChange={(size) =>
-                dispatch({ type: 'UPDATE', payload: { householdSize: size } })
+        {isCouple && (
+          <>
+            <h3 className="form-label mb-8 mt-16">배우자</h3>
+            <Input
+              label="출생연도"
+              type="number"
+              value={spouseBirthYearInput}
+              onChange={(v) =>
+                setSpouseBirthYearInput(v.replace(/[^0-9]/g, '').slice(0, 4))
               }
+              placeholder="예: 1972"
+              suffix="년"
+              error={spouseErrors.birthYear}
+              hint={spouseAgeHint}
             />
-          </div>
+            <Input
+              label="희망 퇴직 나이"
+              type="number"
+              value={spouseRetirementAgeInput}
+              onChange={(v) =>
+                setSpouseRetirementAgeInput(v.replace(/[^0-9]/g, '').slice(0, 2))
+              }
+              placeholder={`예: ${DEFAULT_RETIREMENT_AGE}`}
+              suffix="세"
+              error={spouseErrors.retirementAge}
+              hint={`${MIN_RETIREMENT_AGE}~${MAX_RETIREMENT_AGE}세`}
+            />
+            {renderIncomeOptions(
+              spouse.incomeStatus,
+              handleSpouseIncome,
+              spouseErrors.incomeStatus,
+            )}
+
+            <div className="form-group">
+              <label className="form-label">가구원 수</label>
+              <HouseholdChips
+                value={state.householdSize}
+                onChange={(size) =>
+                  dispatch({ type: 'UPDATE', payload: { householdSize: size } })
+                }
+              />
+            </div>
+          </>
         )}
 
         <div className="button-row">

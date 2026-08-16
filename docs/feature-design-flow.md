@@ -40,7 +40,7 @@ flowchart LR
 |--------|---------|--------------|------|
 | Auth | `/api/auth/*` | `/signin`, `/signup` | signup=`REGISTRATION_UNAVAILABLE` 단일화 |
 | User | `/api/users/me` | `/account` | 탈퇴 hard delete + cascade |
-| Diagnosis | `/api/diagnoses/me/latest` | 진단 플로우 → `/result` → `/summary` | 유저 1건 · 연금 금액 서버 0 sanitize |
+| Diagnosis | `/api/diagnoses/me/latest` | 진단 플로우 → `/result` → `/summary` | 유저 1건 · 연금 금액 서버 0 sanitize · 부부 시 배우자 출생/퇴직연도·householdSize 저장 |
 | Simulation | `/api/simulations/*` | `/simulation/*`, dashboard | 7타입 · 소유권 검사 |
 | Portfolio | `/api/pension-portfolios` | `/portfolio` | CRUD + IDOR 방지 |
 | Health | `GET /health` | `warmBackend` | 콜드스타트 완화 |
@@ -75,6 +75,7 @@ sequenceDiagram
 
 - 결과 **열람**은 비로그인 가능 · **영속 저장**만 인증.
 - 로그인 후 draft hydrate로 리로드·리다이렉트 복구 (`diagnosis-draft` / `pension-draft`).
+- 부부(`couple`): 본인·배우자 프로필·연금 분리 입력 → 월 소득 합산 · 국민연금은 각자 수급개시 연령 적용(장기전망 연도별 on/off). 금액 SoT는 클라이언트 세션.
 
 ### 4.2 Google 계정 연동
 

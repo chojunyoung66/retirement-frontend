@@ -83,8 +83,21 @@ export default function CashFlowPlanScreen() {
   );
 
   const pensionStartAge = useMemo(() => getPensionStartAge(state.birthYear ?? null), [state.birthYear]);
+  const spousePensionStartAge = useMemo(
+    () =>
+      state.diagnosisType === 'couple' && state.spouse
+        ? getPensionStartAge(state.spouse.birthYear)
+        : null,
+    [state.diagnosisType, state.spouse],
+  );
+  const isCouple = state.diagnosisType === 'couple' && state.spouse != null;
   const privatePensionEndAge = retirementAge + 20;
-  const hasPrivatePension = (state.pension.retirement + state.pension.personal) > 0;
+  const hasPrivatePension =
+    state.pension.retirement +
+      state.pension.personal +
+      (state.spouse?.pension.retirement ?? 0) +
+      (state.spouse?.pension.personal ?? 0) >
+    0;
 
   const lastYear = data[data.length - 1];
   const totalCumulative = lastYear?.cumulativeGap ?? 0;
@@ -127,6 +140,12 @@ export default function CashFlowPlanScreen() {
         <div className="cfp-hero-title">{years}년 현금 흐름 설계</div>
         <div className="cfp-hero-sub">
           {retirementAge}세~{lifeExpectancy - 1}세 · 기대수명 {lifeExpectancy}세 기준
+          {isCouple && spousePensionStartAge != null ? (
+            <>
+              <br />
+              본인 국민연금 {pensionStartAge}세 · 배우자 국민연금 {spousePensionStartAge}세 개시
+            </>
+          ) : null}
         </div>
       </div>
 
@@ -459,7 +478,14 @@ export default function CashFlowPlanScreen() {
                     ) : null}
                     {!d.nationalPensionStarted ? (
                       <span style={{ display: 'block', fontSize: 10, color: '#e67e22' }}>
-                        국민연금 {pensionStartAge}세 수급 예정
+                        {isCouple ? '본인 ' : ''}국민연금 {pensionStartAge}세 수급 예정
+                      </span>
+                    ) : null}
+                    {isCouple &&
+                    spousePensionStartAge != null &&
+                    d.spouseNationalPensionStarted === false ? (
+                      <span style={{ display: 'block', fontSize: 10, color: '#e67e22' }}>
+                        배우자 국민연금 {spousePensionStartAge}세 수급 예정
                       </span>
                     ) : null}
                     {hasPrivatePension && d.age === privatePensionEndAge ? (

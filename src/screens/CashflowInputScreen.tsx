@@ -10,7 +10,7 @@ import {
   readPensionDraft,
   writePensionDraft,
 } from '../utils/pension-draft';
-import type { PensionState } from '../domain/plan';
+import { emptyPersonProfile, emptyPension, type PensionState } from '../domain/plan';
 import { trackStepCompleted, trackStepViewed } from '../analytics';
 
 const cashflowSchema = z.object({
@@ -36,16 +36,30 @@ function resolveInitialPension(session: PensionState): PensionState {
   return mergePensionPreferPositive(session, readPensionDraft());
 }
 
+type WanFields = {
+  national: string;
+  retirement: string;
+  personal: string;
+};
+
 export default function CashflowInputScreen() {
   const navigate = useNavigate();
   const { state, dispatch } = useDiagnosis();
+  const isCouple = state.diagnosisType === 'couple';
   const initial = resolveInitialPension(state.pension);
+  const spousePension = state.spouse?.pension ?? emptyPension();
 
   const [national, setNational] = useState(toWanString(initial.national));
   const [retirement, setRetirement] = useState(toWanString(initial.retirement));
   const [personal, setPersonal] = useState(toWanString(initial.personal));
   const [housing, setHousing] = useState(toWanString(initial.housing));
+  const [spouseFields, setSpouseFields] = useState<WanFields>({
+    national: toWanString(spousePension.national),
+    retirement: toWanString(spousePension.retirement),
+    personal: toWanString(spousePension.personal),
+  });
   const [error, setError] = useState<string | undefined>();
+  const [spouseError, setSpouseError] = useState<string | undefined>();
 
   useEffect(() => {
     trackStepViewed('cashflow');
@@ -58,43 +72,140 @@ export default function CashflowInputScreen() {
     housing: toWonFromWan(housing),
   });
 
-  // 입력 즉시 초안 저장 — 시뮬 이동·뒤로가기·리로드에도 유지
+  const formSpousePension = (): PensionState => ({
+    national: toWonFromWan(spouseFields.national),
+    retirement: toWonFromWan(spouseFields.retirement),
+    personal: toWonFromWan(spouseFields.personal),
+    housing: 0,
+  });
+
+  // 입력 즉시 초안 저장 — 본인 연금만 pension-draft 키에 유지
   useEffect(() => {
     writePensionDraft(formPension());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [national, retirement, personal, housing]);
 
-  // 로컬 폼 → 진단 세션에 반영 (화면 이탈 시 입력 유실 방지)
   const flushPensionToDiagnosis = () => {
     const pension = formPension();
     writePensionDraft(pension);
-    dispatch({
-      type: 'UPDATE',
-      payload: { pension },
-    });
+    const payload: { pension: PensionState; spouse?: typeof state.spouse } = {
+      pension,
+    };
+    if (isCouple) {
+      payload.spouse = {
+        ...(state.spouse ?? emptyPersonProfile()),
+        pension: formSpousePension(),
+      };
+    }
+    dispatch({ type: 'UPDATE', payload });
   };
 
   const handleNext = () => {
     const payload = formPension();
-    const result = cashflowSchema.safeParse(payload);
-    if (!result.success) {
-      setError(result.error.issues[0]?.message ?? '입력값을 확인하세요');
+    const selfResult = cashflowSchema.safeParse(payload);
+    if (!selfResult.success) {
+      setError(selfResult.error.issues[0]?.message ?? '입력값을 확인하세요');
+      setSpouseError(undefined);
       return;
     }
+
+    if (isCouple) {
+      const spousePayload = formSpousePension();
+      const spouseResult = cashflowSchema
+        .omit({ housing: true })
+        .safeParse(spousePayload);
+      if (!spouseResult.success) {
+        setError(undefined);
+        setSpouseError(
+          spouseResult.error.issues[0]?.message ??
+            '배우자 국민연금 예상 수령액을 입력하세요',
+        );
+        return;
+      }
+    }
+
     writePensionDraft(payload);
     dispatch({
       type: 'UPDATE',
-      payload: { pension: payload },
+      payload: {
+        pension: payload,
+        ...(isCouple
+          ? {
+              spouse: {
+                ...(state.spouse ?? emptyPersonProfile()),
+                pension: formSpousePension(),
+              },
+            }
+          : {}),
+      },
     });
     trackStepCompleted('cashflow');
     navigate('/scenario');
   };
 
-  // 시뮬레이션 이동 전 입력을 세션에 남겨 복귀 시 초기화되지 않게 함
   const handleOpenHousingSimulation = () => {
     flushPensionToDiagnosis();
     navigate('/simulation/housing-pension');
   };
+
+  const renderPensionBlock = (
+    title: string,
+    fields: WanFields & { housing?: string },
+    setters: {
+      national: (v: string) => void;
+      retirement: (v: string) => void;
+      personal: (v: string) => void;
+      housing?: (v: string) => void;
+    },
+    opts: { showHousing?: boolean; fieldError?: string },
+  ) => (
+    <>
+      {isCouple && <h3 className="form-label mb-8">{title}</h3>}
+      <Input
+        label="국민연금 (필수)"
+        type="number"
+        value={fields.national}
+        onChange={setters.national}
+        placeholder="예: 120"
+        suffix="만원"
+        max={1000}
+        hint="숫자만 입력 · 최대 1,000만원"
+        error={opts.fieldError}
+      />
+      <Input
+        label="퇴직연금 (선택)"
+        type="number"
+        value={fields.retirement}
+        onChange={setters.retirement}
+        placeholder="예: 50"
+        suffix="만원"
+        max={1000}
+        hint="숫자만 입력 · 최대 1,000만원"
+      />
+      <Input
+        label="개인연금 (선택)"
+        type="number"
+        value={fields.personal}
+        onChange={setters.personal}
+        placeholder="예: 30"
+        suffix="만원"
+        max={1000}
+        hint="숫자만 입력 · 최대 1,000만원"
+      />
+      {opts.showHousing && setters.housing && (
+        <Input
+          label="주택연금 (선택)"
+          type="number"
+          value={fields.housing ?? ''}
+          onChange={setters.housing}
+          placeholder="예: 84"
+          suffix="만원"
+          max={1000}
+          hint="직접 입력하거나, 시뮬레이션 › 주택연금에서 「진단에 반영하기」로 채울 수 있어요"
+        />
+      )}
+    </>
+  );
 
   return (
     <>
@@ -105,55 +216,28 @@ export default function CashflowInputScreen() {
           현재 예상 월 수령액을 만원 단위로 입력하세요.
           <br />
           <span className="form-hint">
+            {isCouple
+              ? '부부는 각자 예상 수령액을 넣으면 합산됩니다. '
+              : ''}
             예상 은퇴 소득 금액은 민감 정보로 서버에 저장하지 않아요. 이 기기
             진단 세션에서만 계산에 사용됩니다.
           </span>
         </p>
 
-        <Input
-          label="국민연금 (필수)"
-          type="number"
-          value={national}
-          onChange={setNational}
-          placeholder="예: 120"
-          suffix="만원"
-          max={1000}
-          hint="숫자만 입력 · 최대 1,000만원"
-          error={error}
-        />
-        <Input
-          label="퇴직연금 (선택)"
-          type="number"
-          value={retirement}
-          onChange={setRetirement}
-          placeholder="예: 50"
-          suffix="만원"
-          max={1000}
-          hint="숫자만 입력 · 최대 1,000만원"
-        />
-        <Input
-          label="개인연금 (선택)"
-          type="number"
-          value={personal}
-          onChange={setPersonal}
-          placeholder="예: 30"
-          suffix="만원"
-          max={1000}
-          hint="숫자만 입력 · 최대 1,000만원"
-        />
-        <Input
-          label="주택연금 (선택)"
-          type="number"
-          value={housing}
-          onChange={setHousing}
-          placeholder="예: 84"
-          suffix="만원"
-          max={1000}
-          hint="직접 입력하거나, 시뮬레이션 › 주택연금에서 「진단에 반영하기」로 채울 수 있어요"
-        />
+        {renderPensionBlock(
+          '본인 연금',
+          { national, retirement, personal, housing },
+          {
+            national: setNational,
+            retirement: setRetirement,
+            personal: setPersonal,
+            housing: setHousing,
+          },
+          { showHousing: true, fieldError: error },
+        )}
 
         {toWonFromWan(housing) <= 0 && (
-          <div className="mt-8">
+          <div className="mt-8 mb-16">
             <Button
               variant="secondary"
               onClick={handleOpenHousingSimulation}
@@ -162,6 +246,19 @@ export default function CashflowInputScreen() {
             </Button>
           </div>
         )}
+
+        {isCouple &&
+          renderPensionBlock(
+            '배우자 연금',
+            spouseFields,
+            {
+              national: (v) => setSpouseFields((s) => ({ ...s, national: v })),
+              retirement: (v) =>
+                setSpouseFields((s) => ({ ...s, retirement: v })),
+              personal: (v) => setSpouseFields((s) => ({ ...s, personal: v })),
+            },
+            { showHousing: false, fieldError: spouseError },
+          )}
 
         <div className="button-row">
           <Button onClick={handleNext}>다음</Button>

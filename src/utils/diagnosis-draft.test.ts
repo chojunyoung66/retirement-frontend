@@ -22,6 +22,7 @@ const sampleDraft = {
     personal: 0,
     housing: 0,
   },
+  spouse: null,
   livingExpense: {
     desiredMonthly: 2_500_000,
     guideMinimum: 0,
