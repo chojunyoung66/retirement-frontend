@@ -14,7 +14,8 @@ import {
   wasResultSaved,
   wasStepCompleted,
 } from "./session";
-import type { CtaName, StepName } from "./types";
+import { toAssetBucket } from "./buckets";
+import type { CtaName, EventProps, ReportDownloadMethod, StepName } from "./types";
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
   return new Promise((resolve) => {
@@ -67,6 +68,56 @@ export function trackDesignCtaClicked(
     cta_name: ctaName,
     cta_placement: ctaPlacement,
   });
+}
+
+/** 시나리오 비교 화면 속성 — 자산은 구간으로만 보낸다 (AC-13) */
+export function buildScenarioCompareProps(input: {
+  diagnosisType: string;
+  hasSpouse: boolean;
+  totalBalanceWon: number;
+}): EventProps {
+  return {
+    diagnosis_type: input.diagnosisType,
+    has_spouse: input.hasSpouse,
+    asset_bucket: toAssetBucket(input.totalBalanceWon),
+  };
+}
+
+export function trackScenarioCompareView(input: {
+  diagnosisType: string;
+  hasSpouse: boolean;
+  totalBalanceWon: number;
+}): void {
+  track("scenario_compare_view", buildScenarioCompareProps(input));
+}
+
+export function trackScenarioSelected(scenarioType: string): void {
+  track("scenario_selected", { scenario_type: scenarioType });
+}
+
+export function trackWithdrawalPlanView(scenarioType: string): void {
+  track("withdrawal_plan_view", { scenario_type: scenarioType });
+}
+
+export function trackReportCreated(scenarioType: string): void {
+  track("report_created", { scenario_type: scenarioType });
+}
+
+export function buildReportPreviewProps(deviceMode: "pc" | "mobile"): EventProps {
+  return { report_type: "withdrawal_plan", device_mode: deviceMode };
+}
+
+export function trackReportPreviewView(deviceMode: "pc" | "mobile"): void {
+  track("report_preview_view", buildReportPreviewProps(deviceMode));
+}
+
+/** print는 인쇄 창을 연 횟수 — 브라우저는 실제 PDF 저장 여부를 알려주지 않는다 */
+export function buildReportDownloadedProps(method: ReportDownloadMethod): EventProps {
+  return { report_format: "pdf", method };
+}
+
+export function trackReportDownloaded(method: ReportDownloadMethod): void {
+  track("report_downloaded", buildReportDownloadedProps(method));
 }
 
 /** 저장 성공 — diagnosis_id당 1회만 전송 */

@@ -1246,6 +1246,260 @@ a:focus-visible {
   transform: none;
 }
 
+/* ── 실행계획 리포트 ── */
+.report-hero {
+  padding-top: 20px;
+}
+
+.report-page-mobile {
+  /* 하단 고정 바(버튼 + 안내 문구)에 마지막 내용이 가리지 않도록 */
+  padding-bottom: calc(150px + env(safe-area-inset-bottom));
+}
+
+.report-section > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 0;
+  min-height: 24px;
+}
+
+.report-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.report-section > summary::after {
+  content: "펼치기";
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.report-section[open] > summary {
+  margin-bottom: 12px;
+}
+
+.report-section[open] > summary::after {
+  content: "접기";
+}
+
+details.report-section:not(.card) {
+  margin-bottom: 16px;
+}
+
+.report-summary-plain {
+  padding: 4px 4px 0;
+}
+
+.report-action-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.report-action-list li + li {
+  margin-top: 10px;
+}
+
+.report-yearly .report-full-table {
+  display: none;
+}
+
+.report-yearly-full .report-compact-table {
+  display: none;
+}
+
+.report-yearly-full .report-full-table {
+  display: block;
+}
+
+.report-toolbar-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.report-toolbar-actions .btn-cta {
+  width: auto;
+  padding: 12px 24px;
+}
+
+.report-bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(432px, 100%);
+  padding: 16px 16px calc(14px + env(safe-area-inset-bottom));
+  background: linear-gradient(180deg, rgba(250, 248, 243, 0) 0%, var(--ivory) 30%);
+  z-index: 20;
+}
+
+.report-bottom-hint {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.report-bottom-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.report-bottom-actions > button {
+  flex: 1;
+  min-height: 48px;
+}
+
+.report-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 50;
+}
+
+.report-sheet {
+  width: min(432px, 100%);
+  background: var(--card-bg);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+  box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.12);
+}
+
+.report-sheet .form-hint {
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0 0 16px;
+}
+
+.report-sheet-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.report-sheet-actions > button {
+  flex: 1;
+  min-height: 48px;
+}
+
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .screen-wide {
+    max-width: 960px;
+  }
+
+  .report-grid,
+  .report-plan-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 16px;
+    align-items: start;
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 15mm;
+  }
+
+  html,
+  body {
+    background: #fff;
+  }
+
+  .screen,
+  .screen-wide {
+    max-width: none;
+    min-height: 0;
+    background: #fff;
+  }
+
+  .app-header,
+  .app-footer,
+  .toast-container,
+  .no-print {
+    display: none !important;
+  }
+
+  .screen-content,
+  .report-page-mobile {
+    padding: 0;
+    overflow: visible;
+  }
+
+  .report-page {
+    font-size: 12px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .report-hero {
+    padding: 0 0 12px;
+  }
+
+  .card {
+    box-shadow: none;
+    break-inside: avoid;
+    margin-bottom: 10px;
+    padding: 12px 14px;
+  }
+
+  .report-section-long,
+  .report-section-long.card {
+    break-inside: auto;
+  }
+
+  .report-section > summary::after,
+  .report-section[open] > summary::after {
+    content: none;
+  }
+
+  .report-section > summary {
+    break-after: avoid;
+  }
+
+  .report-grid,
+  .report-plan-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 10px;
+  }
+
+  .report-yearly .report-compact-table {
+    display: none;
+  }
+
+  .report-yearly .report-full-table {
+    display: block;
+  }
+
+  .cfp-table-wrap {
+    overflow: visible;
+  }
+
+  .cfp-table {
+    min-width: 0;
+    font-size: 10px;
+  }
+
+  .cfp-table thead {
+    display: table-header-group;
+  }
+
+  .cfp-table tr {
+    break-inside: avoid;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .lp-chart-bar {
     animation: none;

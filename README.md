@@ -62,6 +62,10 @@ src/
 | `/account` | 계정·탈퇴 |
 | `/cashflow-plan` | 20년 현금 흐름 설계 |
 | `/portfolio` | 연금 포트폴리오 |
+| `/account-assets` | 계좌별 자산 입력 (DC·연금저축·IRP·ISA·주식·현금) |
+| `/withdrawal-scenarios` | 4개 인출 시나리오(A~D) 비교·선택 |
+| `/withdrawal-plan/:setId/:type` | 선택 시나리오의 계좌별 실행안 |
+| `/report/:id` | 실행계획 리포트 (휴대폰: PDF 공유·저장 / PC: 인쇄·PDF 저장) |
 | `/simulation` | 시뮬레이션 메뉴 |
 | `/simulation/dashboard` | 대시보드 |
 | `/simulation/{health-insurance,national-pension,isa,irp,severance-pay,unemployment-benefit}` | 개별 시뮬 |
@@ -120,6 +124,23 @@ CI(`.github/workflows/ci.yml`)는 `npm ci` → lint → test → build 순서로
 - **Google 로그인·계정 연동** — ID 토큰 검증 · 기존 이메일 계정은 비밀번호 재인증 후 link
 - **분석 (미션 9-1)** — Amplitude P0 퍼널 + GA4 유입·이벤트 미러 + UTM 세션 보존
 - **시뮬레이션 7종** — 국민연금·건강보험·퇴직금·실업급여·ISA·IRP·주택연금
+- **4개 인출 시나리오** — 진단 결과 화면 CTA 또는 포트폴리오 화면에서 `/account-assets`로 진입해
+  계좌를 입력하면 BE가 A~D 시나리오(세후 인출·세금·자산 소진·피부양자 기간)를 계산하고,
+  선택한 안의 계좌별 인출 순서·연도별 흐름을 보여줌. 분석 이벤트 `scenario_compare_view`,
+  `scenario_selected`, `withdrawal_plan_view`는 금액 대신 `asset_bucket` 구간만 보냄
+- **실행계획 리포트** — 실행안 화면의 "이 실행안으로 리포트 만들기"로 결과를 스냅샷으로 고정하고
+  `/report/:id`로 이동. 생성 직후 "입력한 계좌 금액은 삭제할까요?" 시트를 띄움(리포트는 유지).
+  - 휴대폰: "지금 할 일"을 먼저 보여주고 비교·연도별 표는 접어 둠. 연도별 표는 4열 요약 후
+    "자세히 보기"로 7열. 하단 고정 바에서 서버 PDF를 받아 저장하거나, 파일 공유를 지원하는 기기에서는
+    금융정보 안내 후 Web Share로 공유(공개 링크 없음)
+  - PC: `(hover: hover) and (pointer: fine)` + 폭 1024px 이상이면 960px 폭·2열 요약·전체 표로 보여주고
+    "인쇄 / PDF로 저장"(`window.print`)을 기본으로, 서버 PDF 받기를 보조로 둠. User-Agent는 보지 않음
+  - 인쇄(`@media print`): 머리글·바닥글·버튼을 숨기고 A4·표 머리행 반복. 인쇄 직전 접힌 구역을 모두
+    펼치고 문서 제목을 `retirement-plan-<id>`로 바꿨다가 복구
+  - 내 리포트 목록(최근 10건)은 `/account-assets` 하단에서 열기·삭제
+  - 분석 이벤트 `report_created`(scenario_type), `report_preview_view`(report_type·device_mode),
+    `report_downloaded`(report_format·method: share/download/print) — 금액 없음
+  - 실제 공유 시트(iOS·Android)와 Safari·Firefox 인쇄 결과는 자동 점검 범위 밖이라 배포 전 기기에서 확인
 - **진단 draft** — `sessionStorage`로 리로드·로그인 복귀 복구
 - **연금 재입력 안내** — 서버는 연금 금액을 저장하지 않으므로, 저장 진단 복원 시 연금이 비어 있으면
   `needsPensionReinput` 플래그로 결과 대신 "연금 재입력" 카드를 보여주고 `/cashflow`로 안내

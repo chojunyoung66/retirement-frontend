@@ -63,9 +63,11 @@ export default function App() {
 
   const handleTitleClick = () => navigate("/");
   const isHome = location.pathname === "/";
+  const isReport = location.pathname.startsWith("/report/");
+  const screenClass = isHome ? "screen screen-home" : isReport ? "screen screen-wide" : "screen";
 
   return (
-    <div className={isHome ? "screen screen-home" : "screen"}>
+    <div className={screenClass}>
       <header className="app-header">
         <div className="header-left">
           {!isHome && (

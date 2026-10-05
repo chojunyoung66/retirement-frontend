@@ -23,6 +23,10 @@ import SimulationDashboardScreen from "./screens/SimulationDashboardScreen";
 import UnemploymentBenefitSimulationScreen from "./screens/UnemploymentBenefitSimulationScreen";
 import HousingPensionSimulationScreen from "./screens/HousingPensionSimulationScreen";
 import PrivacyScreen from "./screens/PrivacyScreen";
+import AccountAssetsScreen from "./screens/AccountAssetsScreen";
+import WithdrawalScenariosScreen from "./screens/WithdrawalScenariosScreen";
+import WithdrawalPlanScreen from "./screens/WithdrawalPlanScreen";
+import ReportScreen from "./screens/ReportScreen";
 import TermsScreen from "./screens/TermsScreen";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -122,6 +126,38 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <PortfolioScreen />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "account-assets",
+        element: (
+          <ProtectedRoute>
+            <AccountAssetsScreen />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "withdrawal-scenarios",
+        element: (
+          <ProtectedRoute>
+            <WithdrawalScenariosScreen />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "withdrawal-plan/:setId/:type",
+        element: (
+          <ProtectedRoute>
+            <WithdrawalPlanScreen />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "report/:id",
+        element: (
+          <ProtectedRoute>
+            <ReportScreen />
           </ProtectedRoute>
         ),
       },

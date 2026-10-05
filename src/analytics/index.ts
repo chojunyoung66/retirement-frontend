@@ -12,8 +12,8 @@ export {
   markStepCompleted,
   wasStepCompleted,
 } from "./session";
-export { toExpenseBucket, toWanBucket } from "./buckets";
-export type { AnalyticsEventName, StepName, CtaName } from "./types";
+export { toAssetBucket, toExpenseBucket, toWanBucket } from "./buckets";
+export type { AnalyticsEventName, StepName, CtaName, ReportDownloadMethod } from "./types";
 export { trackPageView } from "./trackers";
 export {
   trackDiagnosisStarted,
@@ -22,4 +22,13 @@ export {
   trackDiagnosisCompleted,
   trackDesignCtaClicked,
   trackResultSaved,
+  buildScenarioCompareProps,
+  trackScenarioCompareView,
+  trackScenarioSelected,
+  trackWithdrawalPlanView,
+  trackReportCreated,
+  buildReportPreviewProps,
+  trackReportPreviewView,
+  buildReportDownloadedProps,
+  trackReportDownloaded,
 } from "./trackers";

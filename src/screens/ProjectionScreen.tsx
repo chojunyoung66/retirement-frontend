@@ -486,6 +486,17 @@ export default function ProjectionScreen() {
           📊 장기 현금 흐름 설계 보기 (최대 100세)
         </button>
 
+        <button
+          className="btn-cta"
+          style={{ marginBottom: 12, background: "var(--primary-dark)" }}
+          onClick={() => {
+            trackDesignCtaClicked("withdrawal_scenarios", "secondary");
+            navigate("/account-assets");
+          }}
+        >
+          🧾 4개 인출 시나리오 비교하기
+        </button>
+
         <div className="button-row">
           <Button
             onClick={() => {

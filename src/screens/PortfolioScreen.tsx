@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { usePortfolio } from "../hooks/usePortfolio";
 import { normalizeDecimal } from "../components/Input";
 import { formatAllocationTotal, limitAllocationDraft } from "../utils/allocation";
@@ -286,6 +286,13 @@ export default function PortfolioScreen() {
         <h1 className="hero-title">연금 포트폴리오</h1>
         <p className="hero-subtitle">은퇴를 위한 자산 포트폴리오를 관리하세요.</p>
       </section>
+
+      <div className="card" style={{ background: "var(--primary-light)" }}>
+        <p className="form-hint" style={{ margin: 0 }}>
+          계좌별 잔액과 과세구분을 입력하면 연금 인출 순서 4가지를 비교할 수 있어요.{" "}
+          <Link to="/account-assets">계좌별 자산 입력하기 →</Link>
+        </p>
+      </div>
 
       {error && <div className="form-error mb-8">{error}</div>}
 
