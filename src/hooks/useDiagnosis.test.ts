@@ -1,12 +1,10 @@
-import { describe, it, expect } from "vitest";
+/** @vitest-environment jsdom */
+import { beforeEach, describe, expect, it } from "vitest";
 import type { DiagnosisRecord } from "../api/diagnosis-api";
-
-// reducer만 분리 테스트 — React 의존성 없이 순수 함수로 검증
-// useDiagnosis.tsx 내 reducer를 직접 import하기 어려우므로
-// 동일 로직을 여기서 인라인으로 검증한다
-
-import { calculateProjection } from "../service/retirement-service";
 import type { DiagnosisState } from "../domain/plan";
+import { diagnosisReducer, isSessionEnded } from "./useDiagnosis";
+import { readDiagnosisDraft } from "../utils/diagnosis-draft";
+import { writePensionDraft } from "../utils/pension-draft";
 
 const initialState: DiagnosisState = {
   diagnosisType: "individual",
@@ -21,103 +19,135 @@ const initialState: DiagnosisState = {
   projection: null,
 };
 
-function applyLoadFromServer(
-  state: DiagnosisState,
-  rec: DiagnosisRecord,
-): DiagnosisState {
-  const retirementAge = rec.retirementYear - rec.birthYear;
-  // MVP: 서버 연금 0이면 세션의 양수 입력을 유지
-  const pension = {
-    national: rec.nationalPension > 0 ? rec.nationalPension : state.pension.national,
-    retirement:
-      rec.retirementPension > 0 ? rec.retirementPension : state.pension.retirement,
-    personal:
-      rec.personalPension > 0 ? rec.personalPension : state.pension.personal,
-    housing: rec.housingPension > 0 ? rec.housingPension : state.pension.housing,
-  };
-  const updated: DiagnosisState = {
-    ...state,
-    diagnosisType: rec.householdType as DiagnosisState["diagnosisType"],
-    birthYear: rec.birthYear,
-    retirementAge,
-    pension,
-    livingExpense: {
-      ...state.livingExpense,
-      desiredMonthly: rec.monthlyExpense,
-    },
-  };
-  return { ...updated, projection: calculateProjection(updated) };
-}
+// 서버는 연금 금액을 0으로만 저장한다
+const savedRecord: DiagnosisRecord = {
+  id: 1,
+  userId: 10,
+  householdType: "couple",
+  householdSize: 2,
+  birthYear: 1970,
+  retirementYear: 2032,
+  spouseBirthYear: 1972,
+  spouseRetirementYear: 2035,
+  nationalPension: 0,
+  retirementPension: 0,
+  personalPension: 0,
+  housingPension: 0,
+  monthlyExpense: 2_500_000,
+  healthInsurance: 150_000,
+  privateInsurance: 200_000,
+  updatedAt: "2026-07-29T00:00:00.000Z",
+};
 
-describe("LOAD_FROM_SERVER 리듀서 로직", () => {
-  const sampleRecord: DiagnosisRecord = {
-    id: 1,
-    userId: 10,
-    householdType: "couple",
-    householdSize: 2,
-    birthYear: 1970,
-    retirementYear: 2032,
-    spouseBirthYear: 1972,
-    spouseRetirementYear: 2035,
-    nationalPension: 1500000,
-    retirementPension: 300000,
-    personalPension: 200000,
-    housingPension: 400000,
-    monthlyExpense: 2500000,
-    healthInsurance: 150000,
-    privateInsurance: 200000,
-    updatedAt: "2026-07-29T00:00:00.000Z",
-  };
+const load = (state: DiagnosisState, rec = savedRecord) =>
+  diagnosisReducer(state, { type: "LOAD_FROM_SERVER", payload: rec });
 
-  it("householdType과 birthYear를 state에 반영한다", () => {
-    const result = applyLoadFromServer(initialState, sampleRecord);
+describe("diagnosisReducer LOAD_FROM_SERVER", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
+  it("가구·연령·지출 정보를 state에 반영한다", () => {
+    const result = load(initialState);
     expect(result.diagnosisType).toBe("couple");
     expect(result.birthYear).toBe(1970);
+    expect(result.retirementAge).toBe(62);
+    expect(result.spouse?.birthYear).toBe(1972);
+    expect(result.spouse?.retirementAge).toBe(63);
+    expect(result.livingExpense.desiredMonthly).toBe(2_500_000);
+    expect(result.medicalExpense).toEqual({
+      healthInsurance: 150_000,
+      privateInsurance: 200_000,
+    });
+    expect(result.projection).not.toBeNull();
   });
 
-  it("retirementAge를 retirementYear - birthYear로 계산한다", () => {
-    const result = applyLoadFromServer(initialState, sampleRecord);
-    expect(result.retirementAge).toBe(62); // 2032 - 1970
+  it("세션 초안이 없으면 연금 재입력 플래그를 켜고 초안에도 남긴다", () => {
+    const result = load(initialState);
+    expect(result.needsPensionReinput).toBe(true);
+    expect(readDiagnosisDraft()?.needsPensionReinput).toBe(true);
   });
 
-  it("각 연금 항목을 개별 필드에 매핑한다", () => {
-    const result = applyLoadFromServer(initialState, sampleRecord);
-    expect(result.pension.national).toBe(1500000);
-    expect(result.pension.retirement).toBe(300000);
-    expect(result.pension.personal).toBe(200000);
-    expect(result.pension.housing).toBe(400000);
+  it("가이드 생활비를 가구 정보로 다시 채운다", () => {
+    const result = load(initialState);
+    expect(result.livingExpense.guideRecommended).toBe(2_800_000);
+    expect(result.livingExpense.guideMinimum).toBe(2_000_000);
   });
 
-  it("서버 연금이 0이면 세션의 양수 입력을 유지한다", () => {
-    const withSession: DiagnosisState = {
-      ...initialState,
-      pension: {
-        national: 1_200_000,
-        retirement: 500_000,
-        personal: 300_000,
-        housing: 0,
-      },
-    };
-    const zeroIncomeRecord: DiagnosisRecord = {
-      ...sampleRecord,
-      nationalPension: 0,
-      retirementPension: 0,
-      personalPension: 0,
-      housingPension: 0,
-    };
-    const result = applyLoadFromServer(withSession, zeroIncomeRecord);
+  it("세션 연금 초안이 있으면 유지하고 플래그를 켜지 않는다", () => {
+    writePensionDraft({
+      national: 1_200_000,
+      retirement: 500_000,
+      personal: 0,
+      housing: 0,
+    });
+    const result = load(initialState);
     expect(result.pension.national).toBe(1_200_000);
     expect(result.pension.retirement).toBe(500_000);
-    expect(result.pension.personal).toBe(300_000);
+    expect(result.needsPensionReinput).toBe(false);
   });
 
-  it("monthlyExpense를 livingExpense.desiredMonthly에 반영한다", () => {
-    const result = applyLoadFromServer(initialState, sampleRecord);
-    expect(result.livingExpense.desiredMonthly).toBe(2500000);
+  it("배우자 연금만 메모리에 있어도 플래그를 켜지 않는다", () => {
+    const withSpouse: DiagnosisState = {
+      ...initialState,
+      diagnosisType: "couple",
+      spouse: {
+        birthYear: 1972,
+        retirementAge: 63,
+        incomeStatus: "",
+        pension: { national: 900_000, retirement: 0, personal: 0, housing: 0 },
+      },
+    };
+    expect(load(withSpouse).needsPensionReinput).toBe(false);
   });
 
-  it("projection이 자동으로 계산된다", () => {
-    const result = applyLoadFromServer(initialState, sampleRecord);
-    expect(result.projection).not.toBeNull();
+  it("개인 가구로 불러오면 배우자 정보를 비운다", () => {
+    const result = load(initialState, {
+      ...savedRecord,
+      householdType: "individual",
+    });
+    expect(result.spouse).toBeNull();
+  });
+});
+
+describe("diagnosisReducer 연금 재입력 해제", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+  });
+
+  it("연금을 다시 입력하면 플래그가 꺼진다", () => {
+    const flagged = load(initialState);
+    const next = diagnosisReducer(flagged, {
+      type: "UPDATE",
+      payload: {
+        pension: { national: 1_000_000, retirement: 0, personal: 0, housing: 0 },
+      },
+    });
+    expect(next.needsPensionReinput).toBe(false);
+  });
+
+  it("연금 외 항목만 바꾸면 플래그가 유지된다", () => {
+    const flagged = load(initialState);
+    const next = diagnosisReducer(flagged, {
+      type: "UPDATE",
+      payload: { householdSize: 3 },
+    });
+    expect(next.needsPensionReinput).toBe(true);
+  });
+
+  it("RESET은 플래그와 초안을 모두 지운다", () => {
+    const flagged = load(initialState);
+    const next = diagnosisReducer(flagged, { type: "RESET" });
+    expect(next.needsPensionReinput).toBeUndefined();
+    expect(readDiagnosisDraft()).toBeNull();
+  });
+});
+
+describe("isSessionEnded", () => {
+  it("로그인 상태에서 비로그인으로 바뀔 때만 true", () => {
+    expect(isSessionEnded("authenticated", "unauthenticated")).toBe(true);
+    expect(isSessionEnded("checking", "unauthenticated")).toBe(false);
+    expect(isSessionEnded("unauthenticated", "authenticated")).toBe(false);
+    expect(isSessionEnded("authenticated", "authenticated")).toBe(false);
   });
 });

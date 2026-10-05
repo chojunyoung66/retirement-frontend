@@ -23,7 +23,7 @@ import {
   type UnemploymentBenefitInput,
   type HousingPensionInput,
 } from "../api/simulation-api";
-import { ApiError } from "../api/client";
+import { getApiErrorMessage } from "../utils/api-error-message";
 
 export function useSimulation() {
   const [healthInsuranceSimulation, setHealthInsuranceSimulation] =
@@ -51,10 +51,7 @@ export function useSimulation() {
         setHealthInsuranceSimulation(result);
         return result;
       } catch (err) {
-        const message =
-          err instanceof ApiError
-            ? `생성 실패: ${err.errorCode}`
-            : "건강보험 시뮬레이션 생성 중 오류가 발생했습니다";
+        const message = getApiErrorMessage(err, "건강보험 시뮬레이션 생성 중 오류가 발생했습니다");
         setError(message);
         throw err;
       } finally {
@@ -73,10 +70,7 @@ export function useSimulation() {
       setHealthInsuranceSimulation(result);
       return result;
     } catch (err) {
-      const message =
-        err instanceof ApiError
-          ? `조회 실패: ${err.errorCode}`
-          : "건강보험 시뮬레이션 조회 중 오류가 발생했습니다";
+      const message = getApiErrorMessage(err, "건강보험 시뮬레이션 조회 중 오류가 발생했습니다");
       setError(message);
       throw err;
     } finally {
@@ -93,10 +87,7 @@ export function useSimulation() {
       setIsaSimulation(result);
       return result;
     } catch (err) {
-      const message =
-        err instanceof ApiError
-          ? `생성 실패: ${err.errorCode}`
-          : "ISA 시뮬레이션 생성 중 오류가 발생했습니다";
+      const message = getApiErrorMessage(err, "ISA 시뮬레이션 생성 중 오류가 발생했습니다");
       setError(message);
       throw err;
     } finally {
@@ -113,10 +104,7 @@ export function useSimulation() {
       setIsaSimulation(result);
       return result;
     } catch (err) {
-      const message =
-        err instanceof ApiError
-          ? `조회 실패: ${err.errorCode}`
-          : "ISA 시뮬레이션 조회 중 오류가 발생했습니다";
+      const message = getApiErrorMessage(err, "ISA 시뮬레이션 조회 중 오류가 발생했습니다");
       setError(message);
       throw err;
     } finally {
@@ -134,10 +122,7 @@ export function useSimulation() {
         setNationalPensionSimulation(result);
         return result;
       } catch (err) {
-        const message =
-          err instanceof ApiError
-            ? `생성 실패: ${err.errorCode}`
-            : "국민연금 시뮬레이션 생성 중 오류가 발생했습니다";
+        const message = getApiErrorMessage(err, "국민연금 시뮬레이션 생성 중 오류가 발생했습니다");
         setError(message);
         throw err;
       } finally {
@@ -156,10 +141,7 @@ export function useSimulation() {
       setNationalPensionSimulation(result);
       return result;
     } catch (err) {
-      const message =
-        err instanceof ApiError
-          ? `조회 실패: ${err.errorCode}`
-          : "국민연금 시뮬레이션 조회 중 오류가 발생했습니다";
+      const message = getApiErrorMessage(err, "국민연금 시뮬레이션 조회 중 오류가 발생했습니다");
       setError(message);
       throw err;
     } finally {
@@ -176,10 +158,7 @@ export function useSimulation() {
       setIrpSimulation(result);
       return result;
     } catch (err) {
-      const message =
-        err instanceof ApiError
-          ? `생성 실패: ${err.errorCode}`
-          : "IRP 시뮬레이션 생성 중 오류가 발생했습니다";
+      const message = getApiErrorMessage(err, "IRP 시뮬레이션 생성 중 오류가 발생했습니다");
       setError(message);
       throw err;
     } finally {
@@ -196,10 +175,7 @@ export function useSimulation() {
       setIrpSimulation(result);
       return result;
     } catch (err) {
-      const message =
-        err instanceof ApiError
-          ? `조회 실패: ${err.errorCode}`
-          : "IRP 시뮬레이션 조회 중 오류가 발생했습니다";
+      const message = getApiErrorMessage(err, "IRP 시뮬레이션 조회 중 오류가 발생했습니다");
       setError(message);
       throw err;
     } finally {
@@ -217,10 +193,7 @@ export function useSimulation() {
         setSeverancePaySimulation(result);
         return result;
       } catch (err) {
-        const message =
-          err instanceof ApiError
-            ? `생성 실패: ${err.errorCode}`
-            : "퇴직금 시뮬레이션 생성 중 오류가 발생했습니다";
+        const message = getApiErrorMessage(err, "퇴직금 시뮬레이션 생성 중 오류가 발생했습니다");
         setError(message);
         throw err;
       } finally {
@@ -239,10 +212,7 @@ export function useSimulation() {
       setSeverancePaySimulation(result);
       return result;
     } catch (err) {
-      const message =
-        err instanceof ApiError
-          ? `조회 실패: ${err.errorCode}`
-          : "퇴직금 시뮬레이션 조회 중 오류가 발생했습니다";
+      const message = getApiErrorMessage(err, "퇴직금 시뮬레이션 조회 중 오류가 발생했습니다");
       setError(message);
       throw err;
     } finally {
@@ -260,10 +230,7 @@ export function useSimulation() {
         setUnemploymentBenefitSimulation(result);
         return result;
       } catch (err) {
-        const message =
-          err instanceof ApiError
-            ? `생성 실패: ${err.errorCode}`
-            : "실업급여 시뮬레이션 생성 중 오류가 발생했습니다";
+        const message = getApiErrorMessage(err, "실업급여 시뮬레이션 생성 중 오류가 발생했습니다");
         setError(message);
         throw err;
       } finally {
@@ -282,10 +249,7 @@ export function useSimulation() {
       setUnemploymentBenefitSimulation(result);
       return result;
     } catch (err) {
-      const message =
-        err instanceof ApiError
-          ? `조회 실패: ${err.errorCode}`
-          : "실업급여 시뮬레이션 조회 중 오류가 발생했습니다";
+      const message = getApiErrorMessage(err, "실업급여 시뮬레이션 조회 중 오류가 발생했습니다");
       setError(message);
       throw err;
     } finally {
@@ -303,14 +267,7 @@ export function useSimulation() {
         setHousingPensionSimulation(result);
         return result;
       } catch (err) {
-        const message =
-          err instanceof ApiError
-            ? err.errorCode === "UNAUTHORIZED" || err.errorCode === "INVALID_TOKEN"
-              ? "로그인이 필요해요"
-              : err.errorCode === "VALIDATION_ERROR"
-                ? "입력값을 다시 확인해 주세요"
-                : `생성 실패: ${err.errorCode}`
-            : "주택연금 시뮬레이션 생성 중 오류가 발생했습니다";
+        const message = getApiErrorMessage(err, "주택연금 시뮬레이션 생성 중 오류가 발생했습니다");
         setError(message);
         throw err;
       } finally {
@@ -329,10 +286,7 @@ export function useSimulation() {
       setHousingPensionSimulation(result);
       return result;
     } catch (err) {
-      const message =
-        err instanceof ApiError
-          ? `조회 실패: ${err.errorCode}`
-          : "주택연금 시뮬레이션 조회 중 오류가 발생했습니다";
+      const message = getApiErrorMessage(err, "주택연금 시뮬레이션 조회 중 오류가 발생했습니다");
       setError(message);
       throw err;
     } finally {

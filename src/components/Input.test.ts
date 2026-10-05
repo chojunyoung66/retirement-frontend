@@ -1,24 +1,5 @@
 import { describe, it, expect } from 'vitest';
-
-// normalizeInteger / normalizeDecimal은 컴포넌트 내부 함수이므로
-// 동일 로직을 여기서 직접 테스트합니다 (UI 레이어와 분리)
-
-function normalizeInteger(raw: string): string {
-  const digits = raw.split('.')[0].replace(/[^0-9]/g, '');
-  if (digits === '') return '';
-  return String(Number(digits));
-}
-
-function normalizeDecimal(raw: string): string {
-  let val = raw.replace(/[^0-9.]/g, '');
-  const dotIdx = val.indexOf('.');
-  if (dotIdx !== -1) {
-    val = val.slice(0, dotIdx + 1) + val.slice(dotIdx + 1).replace(/\./g, '');
-  }
-  const [intPart, decPart] = val.split('.');
-  const cleanInt = intPart.replace(/^0+/, '') || (decPart !== undefined ? '0' : '');
-  return decPart !== undefined ? `${cleanInt}.${decPart}` : cleanInt;
-}
+import { normalizeDecimal, normalizeInteger } from './Input';
 
 describe('normalizeInteger', () => {
   it('숫자만 통과', () => expect(normalizeInteger('123')).toBe('123'));
@@ -44,4 +25,5 @@ describe('normalizeDecimal', () => {
   it('음수 기호 제거', () => expect(normalizeDecimal('-1.5')).toBe('1.5'));
   it('문자 제거', () => expect(normalizeDecimal('abc1.5')).toBe('1.5'));
   it('소수점 입력 중 유지 — 5. 유지', () => expect(normalizeDecimal('5.')).toBe('5.'));
+  it('포트폴리오 비중 33.5 유지', () => expect(normalizeDecimal('33.5')).toBe('33.5'));
 });

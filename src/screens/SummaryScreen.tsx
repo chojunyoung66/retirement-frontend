@@ -12,9 +12,6 @@ import {
   getLatestDiagnosis,
   deleteLatestDiagnosis,
 } from '../api/diagnosis-api';
-import { trackResultSaved } from '../analytics';
-
-const PENDING_RESULT_SAVED_EVENT_KEY = 'rc_emit_result_saved';
 
 export default function SummaryScreen() {
   const navigate = useNavigate();
@@ -25,35 +22,6 @@ export default function SummaryScreen() {
   const [savedDiagnosis, setSavedDiagnosis] = useState<DiagnosisRecord | null>(null);
   const [fetchLoading, setFetchLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState(false);
-
-  // 저장 직후 진입 시 result_saved 보완 전송 (1차 전송 실패 시에만)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      let householdType: string | null = null;
-      try {
-        householdType = sessionStorage.getItem(PENDING_RESULT_SAVED_EVENT_KEY);
-        // Strict Mode 이중 실행 방지 — 즉시 claim
-        if (householdType) {
-          sessionStorage.removeItem(PENDING_RESULT_SAVED_EVENT_KEY);
-        }
-      } catch {
-        // ignore
-      }
-      if (!householdType || cancelled) return;
-      // eslint-disable-next-line no-console
-      console.warn('[analytics] result_saved backup from Summary', householdType);
-      try {
-        await trackResultSaved(householdType);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.warn('[analytics] result_saved backup failed', err);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   // 저장 직후 진입·재방문 시 서버 진단 불러오기
   useEffect(() => {
@@ -122,18 +90,31 @@ export default function SummaryScreen() {
   }
 
   const isNegative = projection.gap < 0;
+  const needsPensionReinput = state.needsPensionReinput === true;
 
   return (
     <div className="screen-content">
       <h2 className="card-title mb-16">진단 결과 요약</h2>
 
-      <SummaryCard
-        label={isNegative ? '월 부족액' : '월 여유금액'}
-        value={`${isNegative ? '-' : '+'}${formatWan(Math.abs(projection.gap))}`}
-        variant={isNegative ? 'negative' : 'positive'}
-      />
-      <SummaryCard label="총 예상 수입" value={formatWan(projection.totalIncome)} />
-      <SummaryCard label="총 예상 지출" value={formatWan(projection.totalExpense)} />
+      {needsPensionReinput ? (
+        <div className="card">
+          <div className="card-title">연금 금액을 다시 입력해 주세요</div>
+          <div className="card-subtitle mb-16">
+            연금 금액은 서버에 저장하지 않아 이 기기에서 다시 입력해야 부족액을 정확히 보여드릴 수 있어요.
+          </div>
+          <Button onClick={() => navigate('/cashflow')}>연금 입력하러 가기</Button>
+        </div>
+      ) : (
+        <>
+          <SummaryCard
+            label={isNegative ? '월 부족액' : '월 여유금액'}
+            value={`${isNegative ? '-' : '+'}${formatWan(Math.abs(projection.gap))}`}
+            variant={isNegative ? 'negative' : 'positive'}
+          />
+          <SummaryCard label="총 예상 수입" value={formatWan(projection.totalIncome)} />
+          <SummaryCard label="총 예상 지출" value={formatWan(projection.totalExpense)} />
+        </>
+      )}
       <SummaryCard
         label="가구 유형"
         value={state.diagnosisType === 'couple' ? `부부 (${state.householdSize}인)` : '개인'}

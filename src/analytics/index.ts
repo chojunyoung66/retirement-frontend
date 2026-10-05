@@ -4,6 +4,7 @@
 export { initAnalytics, track, identifyUser, toAmplitudeUserId, setUserProperties, flushAnalytics, trackViaHttp } from "./client";
 export {
   captureUtmFromLocation,
+  readUtmFromSearch,
   getOrCreateDiagnosisId,
   resetDiagnosisId,
   markDiagnosisCompleted,

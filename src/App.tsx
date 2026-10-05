@@ -10,6 +10,7 @@ import { warmBackend } from "./utils/warm-backend";
 import {
   captureUtmFromLocation,
   identifyUser,
+  readUtmFromSearch,
   setUserProperties,
   trackPageView,
 } from "./analytics";
@@ -30,8 +31,10 @@ export default function App() {
   // SPA page_view는 Router 한 지점에서만 전송
   useEffect(() => {
     window.scrollTo(0, 0);
-    const utm = captureUtmFromLocation(location.search);
-    if (utm.utm_source || utm.utm_campaign) {
+    captureUtmFromLocation(location.search);
+    // 세션 보존값으로 라우트마다 $identify가 반복되지 않도록 URL에 UTM이 실린 경우에만
+    const utm = readUtmFromSearch(location.search);
+    if (utm && (utm.utm_source || utm.utm_campaign)) {
       setUserProperties({
         utm_source: utm.utm_source,
         utm_medium: utm.utm_medium,
@@ -79,7 +82,7 @@ export default function App() {
           className="header-link header-center"
           onClick={handleTitleClick}
         >
-          <img src={logo} alt="로고" className="header-logo" />
+          <img src={logo} alt="" className="header-logo" />
           은퇴현금 설계센터
         </button>
         <div className="app-header-actions header-right">

@@ -1,20 +1,19 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDiagnosis } from '../hooks/useDiagnosis';
-import { calculateLongTermProjection, getPensionStartAge, type SecondaryIncome, type HealthEscalationMode } from '../service/retirement-service';
+import { calculateLongTermProjection, getPensionStartAge, UNEMPLOYMENT_DAILY_MAX, type SecondaryIncome, type HealthEscalationMode } from '../service/retirement-service';
 import { DEFAULT_RETIREMENT_AGE, formatWan } from '../utils/format';
-
-interface SecondaryIncomeInput {
-  startAge: string;
-  endAge: string;
-  monthlyAmount: string;
-}
+import PensionReinputNotice from '../components/PensionReinputNotice';
+import { validateSecondaryIncome, type SecondaryIncomeInput } from '../utils/secondary-income';
 
 const INFLATION_OPTIONS = [
   { label: '0%', value: 0 },
   { label: '2%', value: 0.02 },
   { label: '3%', value: 0.03 },
 ];
+
+// 구직급여 월 상한(만원) = 1일 상한 × 30일
+const UB_MONTHLY_MAX_WAN = Math.floor((UNEMPLOYMENT_DAILY_MAX * 30) / 10000);
 
 const PENSION_GROWTH_OPTIONS = [
   { label: '0%', value: 0 },
@@ -65,17 +64,15 @@ export default function CashFlowPlanScreen() {
     return { monthlyAmount: monthly, durationMonths: Math.min(9, months) };
   }, [includeUnemployment, ubMonthly, ubMonths]);
 
-  const secondaryIncomes = useMemo<SecondaryIncome[]>(() => {
-    return secondaryInputs
-      .filter(
-        (s) => Number(s.startAge) > 0 && Number(s.endAge) >= Number(s.startAge) && Number(s.monthlyAmount) > 0,
-      )
-      .map((s) => ({
-        startAge: Number(s.startAge),
-        endAge: Number(s.endAge),
-        monthlyAmount: Number(s.monthlyAmount) * 10000,
-      }));
-  }, [secondaryInputs]);
+  const projectionEndAge = retirementAge + years - 1;
+  const secondaryChecks = useMemo(
+    () => secondaryInputs.map((s) => validateSecondaryIncome(s, retirementAge, projectionEndAge)),
+    [secondaryInputs, retirementAge, projectionEndAge],
+  );
+  const secondaryIncomes = useMemo<SecondaryIncome[]>(
+    () => secondaryChecks.flatMap((c) => (c.income ? [c.income] : [])),
+    [secondaryChecks],
+  );
 
   const data = useMemo(
     () => calculateLongTermProjection(state, years, inflationRate, pensionGrowthRate, unemploymentBenefit, secondaryIncomes, healthEscalation),
@@ -134,6 +131,10 @@ export default function CashFlowPlanScreen() {
     );
   }
 
+  if (state.needsPensionReinput) {
+    return <PensionReinputNotice />;
+  }
+
   return (
     <div className="screen-content">
       <div className="cfp-hero">
@@ -160,6 +161,8 @@ export default function CashFlowPlanScreen() {
             {LIFE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
+                type="button"
+                aria-pressed={lifeExpectancy === opt.value}
                 className={`cfp-chip ${lifeExpectancy === opt.value ? 'cfp-chip-active' : ''}`}
                 onClick={() => setLifeExpectancy(opt.value)}
               >
@@ -176,6 +179,8 @@ export default function CashFlowPlanScreen() {
             {INFLATION_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
+                type="button"
+                aria-pressed={inflationRate === opt.value}
                 className={`cfp-chip ${inflationRate === opt.value ? 'cfp-chip-active' : ''}`}
                 onClick={() => setInflationRate(opt.value)}
               >
@@ -192,6 +197,8 @@ export default function CashFlowPlanScreen() {
             {PENSION_GROWTH_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
+                type="button"
+                aria-pressed={pensionGrowthRate === opt.value}
                 className={`cfp-chip ${pensionGrowthRate === opt.value ? 'cfp-chip-active' : ''}`}
                 onClick={() => setPensionGrowthRate(opt.value)}
               >
@@ -208,6 +215,8 @@ export default function CashFlowPlanScreen() {
             {HEALTH_ESCALATION_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
+                type="button"
+                aria-pressed={healthEscalation === opt.value}
                 className={`cfp-chip ${healthEscalation === opt.value ? 'cfp-chip-active' : ''}`}
                 onClick={() => setHealthEscalation(opt.value)}
               >
@@ -228,45 +237,71 @@ export default function CashFlowPlanScreen() {
         <div className="cfp-assumption-row" style={{ alignItems: 'flex-start' }}>
           <span className="cfp-assumption-label" style={{ paddingTop: 6 }}>제2 수입</span>
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-            {secondaryInputs.map((s, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                <input
-                  type="number"
-                  value={s.startAge}
-                  onChange={(e) => updateSecondary(i, 'startAge', e.target.value)}
-                  className="cfp-ub-input cfp-ub-input-sm"
-                  placeholder="시작"
-                  style={{ width: 52 }}
-                />
-                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>~</span>
-                <input
-                  type="number"
-                  value={s.endAge}
-                  onChange={(e) => updateSecondary(i, 'endAge', e.target.value)}
-                  className="cfp-ub-input cfp-ub-input-sm"
-                  placeholder="종료"
-                  style={{ width: 52 }}
-                />
-                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>세,</span>
-                <input
-                  type="number"
-                  value={s.monthlyAmount}
-                  onChange={(e) => updateSecondary(i, 'monthlyAmount', e.target.value)}
-                  className="cfp-ub-input"
-                  placeholder="월 수입"
-                  style={{ width: 80 }}
-                />
-                <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>만원/월</span>
-                <button
-                  onClick={() => setSecondaryInputs((prev) => prev.filter((_, j) => j !== i))}
-                  style={{ background: 'none', border: 'none', color: '#e74c3c', cursor: 'pointer', fontSize: 16, padding: '0 2px' }}
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
+            {secondaryInputs.map((s, i) => {
+              const message = secondaryChecks[i]?.message;
+              const messageId = `cfp-secondary-${i}-message`;
+              return (
+                <div key={i} style={{ marginBottom: 8, width: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      aria-label={`제2 수입 ${i + 1} 시작 나이`}
+                      aria-invalid={message ? true : undefined}
+                      aria-describedby={message ? messageId : undefined}
+                      value={s.startAge}
+                      onChange={(e) => updateSecondary(i, 'startAge', e.target.value)}
+                      className="cfp-ub-input cfp-ub-input-sm"
+                      placeholder="시작"
+                      style={{ width: 52 }}
+                    />
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>~</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      aria-label={`제2 수입 ${i + 1} 종료 나이`}
+                      aria-invalid={message ? true : undefined}
+                      aria-describedby={message ? messageId : undefined}
+                      value={s.endAge}
+                      onChange={(e) => updateSecondary(i, 'endAge', e.target.value)}
+                      className="cfp-ub-input cfp-ub-input-sm"
+                      placeholder="종료"
+                      style={{ width: 52 }}
+                    />
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>세,</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      aria-label={`제2 수입 ${i + 1} 월 수입(만원)`}
+                      aria-invalid={message ? true : undefined}
+                      aria-describedby={message ? messageId : undefined}
+                      value={s.monthlyAmount}
+                      onChange={(e) => updateSecondary(i, 'monthlyAmount', e.target.value)}
+                      className="cfp-ub-input"
+                      placeholder="월 수입"
+                      style={{ width: 80 }}
+                    />
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>만원/월</span>
+                    <button
+                      type="button"
+                      aria-label={`제2 수입 ${i + 1} 삭제`}
+                      onClick={() => setSecondaryInputs((prev) => prev.filter((_, j) => j !== i))}
+                      style={{ background: 'none', border: 'none', color: '#e74c3c', cursor: 'pointer', fontSize: 16, padding: '0 2px' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  {message && (
+                    <p id={messageId} className="form-error" role="alert" style={{ textAlign: 'right', margin: '4px 0 0' }}>
+                      {message}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
             {secondaryInputs.length < 3 && (
               <button
+                type="button"
                 onClick={() => setSecondaryInputs((prev) => [...prev, { startAge: '', endAge: '', monthlyAmount: '' }])}
                 style={{
                   fontSize: 13, color: 'var(--primary)', background: 'none', border: '1px dashed var(--primary)',
@@ -291,6 +326,7 @@ export default function CashFlowPlanScreen() {
             <div className="cfp-ub-field">
               <input
                 type="number"
+                aria-label="보유 금융자산(만원)"
                 value={initialSavings}
                 onChange={(e) => setInitialSavings(e.target.value.replace(/[^0-9]/g, ''))}
                 onKeyDown={(e) => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault(); }}
@@ -308,12 +344,16 @@ export default function CashFlowPlanScreen() {
           <span className="cfp-assumption-label">실업급여</span>
           <div className="cfp-chip-group">
             <button
+              type="button"
+              aria-pressed={!includeUnemployment}
               className={`cfp-chip ${!includeUnemployment ? 'cfp-chip-active' : ''}`}
               onClick={() => setIncludeUnemployment(false)}
             >
               미포함
             </button>
             <button
+              type="button"
+              aria-pressed={includeUnemployment}
               className={`cfp-chip ${includeUnemployment ? 'cfp-chip-active' : ''}`}
               onClick={() => setIncludeUnemployment(true)}
             >
@@ -327,21 +367,23 @@ export default function CashFlowPlanScreen() {
               <div className="cfp-ub-field">
                 <input
                   type="number"
+                  aria-label="실업급여 월 수령액(만원)"
                   value={ubMonthly}
                   onChange={(e) => {
                     const v = e.target.value.replace(/[^0-9]/g, '');
-                    setUbMonthly(Number(v) > 198 ? '198' : v);
+                    setUbMonthly(Number(v) > UB_MONTHLY_MAX_WAN ? String(UB_MONTHLY_MAX_WAN) : v);
                   }}
                   onKeyDown={(e) => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault(); }}
                   className="cfp-ub-input"
-                  placeholder="예: 198"
-                  max={198}
+                  placeholder={`예: ${UB_MONTHLY_MAX_WAN}`}
+                  max={UB_MONTHLY_MAX_WAN}
                 />
-                <span className="cfp-ub-unit">만원/월 (최대 198)</span>
+                <span className="cfp-ub-unit">만원/월 (최대 {UB_MONTHLY_MAX_WAN})</span>
               </div>
               <div className="cfp-ub-field">
                 <input
                   type="number"
+                  aria-label="실업급여 수령 개월 수"
                   value={ubMonths}
                   onChange={(e) => {
                     const v = e.target.value.replace(/[^0-9]/g, '');

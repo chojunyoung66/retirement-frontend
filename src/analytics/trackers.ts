@@ -2,6 +2,7 @@ import {
   track,
   setUserProperties,
   flushAnalytics,
+  trackGa4Only,
   trackViaHttp,
 } from "./client";
 import {
@@ -77,17 +78,13 @@ export async function trackResultSaved(
   markResultSaved();
 
   const props = { household_type: householdType };
-  // eslint-disable-next-line no-console
-  console.warn("[analytics] result_saved", householdType);
-
   const httpOk = await withTimeout(trackViaHttp("result_saved", props), 2500);
+  if (httpOk === true) {
+    // Amplitude는 HTTP로 이미 전송 — SDK로 또 보내면 중복 집계
+    trackGa4Only("result_saved", props);
+    return true;
+  }
   track("result_saved", props);
   await withTimeout(flushAnalytics(), 2000);
-
-  // eslint-disable-next-line no-console
-  console.warn("[analytics] result_saved done", {
-    householdType,
-    httpOk,
-  });
-  return httpOk === true;
+  return false;
 }

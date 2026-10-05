@@ -22,6 +22,7 @@ export type DiagnosisDraft = {
   spouse: PersonProfile | null;
   livingExpense: LivingExpenseState;
   medicalExpense: MedicalExpenseState;
+  needsPensionReinput?: boolean;
 };
 
 function isDiagnosisType(value: unknown): value is DiagnosisType {
@@ -93,7 +94,9 @@ function isDiagnosisDraft(value: unknown): value is DiagnosisDraft {
     isPension(v.pension) &&
     spouseOk &&
     isLiving(v.livingExpense) &&
-    isMedical(v.medicalExpense)
+    isMedical(v.medicalExpense) &&
+    (v.needsPensionReinput === undefined ||
+      typeof v.needsPensionReinput === "boolean")
   );
 }
 
@@ -155,6 +158,7 @@ export function persistDiagnosisState(state: DiagnosisState): void {
     spouse: state.spouse,
     livingExpense: state.livingExpense,
     medicalExpense: state.medicalExpense,
+    ...(state.needsPensionReinput ? { needsPensionReinput: true } : {}),
   });
 }
 

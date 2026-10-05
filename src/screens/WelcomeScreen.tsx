@@ -5,7 +5,7 @@ import {
   getWelcomeMetrics,
   getCashflowTrendSample,
 } from "../service/retirement-service";
-import { useDiagnosis } from "../hooks/useDiagnosis";
+import { diagnosisReducer, useDiagnosis } from "../hooks/useDiagnosis";
 import { useAuth } from "../hooks/useAuth";
 import { useCountUp } from "../hooks/useCountUp";
 import {
@@ -16,7 +16,6 @@ import { showToast } from "../store/toast-slice";
 import { formatWan } from "../utils/format";
 import Button from "../components/Button";
 import MiniBarChart from "../components/MiniBarChart";
-import AvatarStack from "../components/AvatarStack";
 import type { AppDispatch } from "../store/store";
 import { trackDiagnosisStarted } from "../analytics";
 
@@ -43,7 +42,7 @@ const PROCESS_STEPS = [
 export default function WelcomeScreen() {
   const navigate = useNavigate();
   const metrics = getWelcomeMetrics();
-  const { dispatch: diagnosisDispatch } = useDiagnosis();
+  const { state: diagnosisState, dispatch: diagnosisDispatch } = useDiagnosis();
   const { isLoggedIn, authStatus } = useAuth();
   const dispatch = useDispatch<AppDispatch>();
 
@@ -55,7 +54,8 @@ export default function WelcomeScreen() {
     () => getCashflowTrendSample(new Date().getFullYear()),
     [],
   );
-  const monthlyWan = Math.round(metrics.averageMonthlyPension / 10000);
+  const monthlyWan = Math.round(metrics.sampleMonthlyPension / 10000);
+  const isCheckingSaved = savedDiagnosis === "loading";
   const displayedWan = useCountUp(monthlyWan);
 
   const chartLabels = LABEL_POSITIONS.map((position, i) => {
@@ -82,8 +82,10 @@ export default function WelcomeScreen() {
   }, [isLoggedIn, authStatus]);
 
   const handleStart = () => {
+    // 저장 진단 조회 중 클릭하면 새 진단으로 잘못 초기화되므로 무시
+    if (isCheckingSaved) return;
     // 로그인 + 저장된 진단이 있으면 입력란에 미리 채우고, 없으면 처음부터
-    if (savedDiagnosis && savedDiagnosis !== "loading") {
+    if (savedDiagnosis) {
       diagnosisDispatch({ type: "LOAD_FROM_SERVER", payload: savedDiagnosis });
       trackDiagnosisStarted("resume_saved");
       dispatch(
@@ -98,8 +100,18 @@ export default function WelcomeScreen() {
 
   const handleRestoreDiagnosis = () => {
     if (!savedDiagnosis || savedDiagnosis === "loading") return;
-    diagnosisDispatch({ type: "LOAD_FROM_SERVER", payload: savedDiagnosis });
-    navigate("/result");
+    const action = { type: "LOAD_FROM_SERVER", payload: savedDiagnosis } as const;
+    // 복원 결과를 미리 계산해 연금 누락이면 결과 대신 입력 화면으로 보냄
+    const restored = diagnosisReducer(diagnosisState, action);
+    diagnosisDispatch(action);
+    if (restored.needsPensionReinput) {
+      dispatch(
+        showToast("연금 금액은 서버에 저장하지 않아요. 다시 입력하면 결과를 보여드려요"),
+      );
+      navigate("/cashflow");
+      return;
+    }
+    navigate("/result", { state: { restored: true } });
   };
 
   return (
@@ -123,12 +135,13 @@ export default function WelcomeScreen() {
         <span className="lp-figure-unit">만원</span>
         <span className="lp-figure-per">/ 월</span>
       </div>
+      <p className="form-hint">예시 값이며 개인 진단 결과가 아니에요.</p>
       <div className="lp-rule" />
 
       <section className="lp-card">
         <div className="lp-card-head">
           <span className="lp-card-head-title">예상 월 현금흐름 추이</span>
-          <span className="lp-badge">+{trend.yoyPercent}% YoY</span>
+          <span className="lp-badge">예시</span>
         </div>
         <MiniBarChart
           values={trend.points.map((point) => point.amount)}
@@ -137,14 +150,6 @@ export default function WelcomeScreen() {
           ariaLabel={`${trend.points[0].year}년부터 ${trend.points[trend.points.length - 1].year}년까지 예상 월 현금흐름 추이`}
         />
       </section>
-
-      <div className="lp-social">
-        <AvatarStack initials={["김", "이", "박"]} />
-        <span className="lp-social-text">
-          지금까지 <strong>{metrics.completedDiagnoses.toLocaleString()}명</strong>이
-          진단을 완료했어요
-        </span>
-      </div>
 
       <section className="lp-why">
         <svg
@@ -271,10 +276,17 @@ export default function WelcomeScreen() {
       )}
 
       <div className="lp-cta-bar">
-        <button className="lp-cta" onClick={handleStart}>
-          {savedDiagnosis && savedDiagnosis !== "loading"
-            ? "저장된 값으로 다시 진단하기"
-            : "1분 진단 시작하기"}{" "}
+        <button
+          className="lp-cta"
+          onClick={handleStart}
+          disabled={isCheckingSaved}
+          aria-busy={isCheckingSaved}
+        >
+          {isCheckingSaved
+            ? "저장된 진단 확인 중..."
+            : savedDiagnosis
+              ? "저장된 값으로 다시 진단하기"
+              : "1분 진단 시작하기"}{" "}
           <span aria-hidden="true">→</span>
         </button>
       </div>

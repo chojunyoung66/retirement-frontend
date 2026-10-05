@@ -3,6 +3,7 @@ import Input from '../components/Input';
 import Button from '../components/Button';
 import { useSimulation } from '../hooks/useSimulation';
 import { ApiError } from '../api/client';
+import { ISA_ANNUAL_CONTRIBUTION_LIMIT } from '../service/retirement-service';
 
 function formatWan(won: number): string {
   return `${Math.round(won / 10000).toLocaleString('ko-KR')}만원`;
@@ -38,6 +39,10 @@ export default function IsaSimulationScreen() {
 
     if (!contributionWon || contributionWon <= 0) {
       setFormError('연간 납입액을 입력하세요');
+      return;
+    }
+    if (contributionWon > ISA_ANNUAL_CONTRIBUTION_LIMIT) {
+      setFormError('ISA 연간 납입 한도는 2,000만원입니다');
       return;
     }
     if (!rate || rate <= 0 || rate > 30) {

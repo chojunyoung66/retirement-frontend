@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 interface InputProps {
   label: string;
   value: string | number;
@@ -12,14 +14,14 @@ interface InputProps {
 }
 
 // 정수: 소수점 이후 버리고 숫자만 허용, 선행 0 제거, 빈 값 유지
-function normalizeInteger(raw: string): string {
+export function normalizeInteger(raw: string): string {
   const digits = raw.split('.')[0].replace(/[^0-9]/g, '');
   if (digits === '') return '';
   return String(Number(digits));
 }
 
 // 소수: 소수점 하나만 허용, 선행 0 제거(0.x 형태는 유지), 음수 불가
-function normalizeDecimal(raw: string): string {
+export function normalizeDecimal(raw: string): string {
   let val = raw.replace(/[^0-9.]/g, '');
 
   // 소수점이 두 개 이상이면 첫 번째 이후 제거
@@ -48,12 +50,20 @@ export default function Input({
 }: InputProps) {
   const isInteger = type === 'number';
   const isDecimal = type === 'decimal';
+  const inputId = useId();
+  const messageId = `${inputId}-message`;
+  const message = error || hint;
 
   return (
     <div className="form-group">
-      <label className="form-label">{label}</label>
+      <label className="form-label" htmlFor={inputId}>
+        {label}
+      </label>
       <div className="form-input-wrap">
         <input
+          id={inputId}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={message ? messageId : undefined}
           className={`form-input${suffix ? ' has-suffix' : ''}`}
           type={type === 'password' ? 'password' : 'text'}
           inputMode={isDecimal ? 'decimal' : isInteger ? 'numeric' : undefined}
@@ -77,8 +87,16 @@ export default function Input({
         />
         {suffix && <span className="input-suffix">{suffix}</span>}
       </div>
-      {hint && !error && <div className="form-hint">{hint}</div>}
-      {error && <div className="form-error">{error}</div>}
+      {hint && !error && (
+        <div id={messageId} className="form-hint">
+          {hint}
+        </div>
+      )}
+      {error && (
+        <div id={messageId} className="form-error" role="alert">
+          {error}
+        </div>
+      )}
     </div>
   );
 }

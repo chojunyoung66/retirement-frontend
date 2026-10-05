@@ -8,6 +8,9 @@ function formatWan(won: number): string {
   return `${Math.round(won / 10000).toLocaleString("ko-KR")}만원`;
 }
 
+// 백엔드 severancePaySimulationSchema 상한과 동일
+const MAX_YEARS_OF_SERVICE = 60;
+
 export default function SeverancePaySimulationScreen() {
   const { severancePaySimulation, createSeverancePay, fetchLatestSeverancePay, isLoading, error } =
     useSimulation();
@@ -43,6 +46,10 @@ export default function SeverancePaySimulationScreen() {
       setFormError("근속연수를 입력하세요");
       return;
     }
+    if (years > MAX_YEARS_OF_SERVICE) {
+      setFormError(`근속연수는 ${MAX_YEARS_OF_SERVICE}년 이하여야 해요`);
+      return;
+    }
 
     try {
       await createSeverancePay({
@@ -58,6 +65,7 @@ export default function SeverancePaySimulationScreen() {
     | {
         severancePay: number;
         incomeTax: number;
+        totalTax?: number;
         afterTaxAmount: number;
         notice: string;
       }
@@ -81,9 +89,9 @@ export default function SeverancePaySimulationScreen() {
       />
       <Input
         label="근속연수"
-        type="number"
+        type="decimal"
         value={yearsOfService}
-        onChange={(v) => setYearsOfService(v.replace(/[^0-9.]/g, ""))}
+        onChange={setYearsOfService}
         placeholder="예: 15.5"
         suffix="년"
         error={formError}
@@ -115,9 +123,11 @@ export default function SeverancePaySimulationScreen() {
             </span>
           </div>
           <div className="simulation-card">
-            <span className="simulation-label">예상 세금</span>
+            <span className="simulation-label">
+              {output.totalTax !== undefined ? "예상 세금(지방소득세 포함)" : "예상 세금"}
+            </span>
             <span className="simulation-delta">
-              {formatWan(output.incomeTax)}
+              {formatWan(output.totalTax ?? output.incomeTax)}
             </span>
           </div>
           <div className="simulation-card">

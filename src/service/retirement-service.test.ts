@@ -411,4 +411,13 @@ describe('부부 진단 — 배우자 합산·이중 수급개시', () => {
     const table = calculateLongTermProjection(state, 20, 0, 0);
     expect(summary.totalIncome).toBe(table[0].monthlyIncome);
   });
+
+  it('배우자 출생연도 없음: 요약과 장기전망 모두 배우자 국민연금 포함', () => {
+    const state = coupleBase();
+    state.spouse = { ...state.spouse!, birthYear: null };
+    const summary = calculateProjection(state);
+    const table = calculateLongTermProjection(state, 20, 0, 0);
+    expect(table[0].spouseNationalPensionStarted).toBe(true);
+    expect(summary.totalIncome - table[0].monthlyIncome).toBe(0);
+  });
 });

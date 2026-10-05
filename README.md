@@ -107,8 +107,10 @@ npm run preview
 | `npm run dev` | 개발 서버 |
 | `npm run build` | TypeScript + Vite 빌드 |
 | `npm run preview` | 빌드 미리보기 |
-| `npm run lint` / `lint:fix` | ESLint |
-| `npm run test` / `test:ui` | Vitest |
+| `npm run lint` / `lint:fix` | ESLint (typescript-eslint recommended 적용) |
+| `npm run test` / `test:ui` | Vitest (`vitest run` 1회 실행 · watch는 `npx vitest`) |
+
+CI(`.github/workflows/ci.yml`)는 `npm ci` → lint → test → build 순서로 실행합니다.
 
 ## 주요 기능
 
@@ -119,7 +121,13 @@ npm run preview
 - **분석 (미션 9-1)** — Amplitude P0 퍼널 + GA4 유입·이벤트 미러 + UTM 세션 보존
 - **시뮬레이션 7종** — 국민연금·건강보험·퇴직금·실업급여·ISA·IRP·주택연금
 - **진단 draft** — `sessionStorage`로 리로드·로그인 복귀 복구
+- **연금 재입력 안내** — 서버는 연금 금액을 저장하지 않으므로, 저장 진단 복원 시 연금이 비어 있으면
+  `needsPensionReinput` 플래그로 결과 대신 "연금 재입력" 카드를 보여주고 `/cashflow`로 안내
+- **세션 종료 시 초기화** — 로그아웃·401 만료·탈퇴로 로그인 상태가 끝나면 진단 Context도 `RESET`
+- **로그인 후 자동 저장** — 비로그인 저장 시도 플래그(`retirement_pending_result_save`)는 30분 후 만료,
+  저장 실패 시 즉시 정리
 - **계정 탈퇴** — 재인증 후 hard delete · 클라이언트 세션/draft 정리
+- **홈 수치** — 랜딩의 월 금액·추이 차트는 "예시"로 표기된 일러스트 값(실측 통계 아님)
 
 ## 아키텍처
 
@@ -134,3 +142,7 @@ Screen → Hook / Service → API (Axios) · Redux · sessionStorage
 - 보호 라우트: `ProtectedRoute` · `/result`·주택연금은 공개 예외
 - 콜드스타트 완화: `warmBackend`로 `/health` 워밍
 - GA4 DebugView(운영): `/?debug_mode=1` · 평소는 GA4 실시간 보고서
+- `result_saved`: Amplitude HTTP 전송 성공 시 GA4에만 미러, 실패 시에만 SDK로 재전송(중복 집계 방지)
+- `diagnosis_completed`: 홈 "결과 보기" 복원이나 연금 재입력 필요 상태에서는 전송하지 않음
+- 제도 상수(IRP 공제율·ISA 한도·실업급여 상한)는 `service/retirement-service.ts`에 모아 두고
+  백엔드 `rule-set.ts`와 같은 값으로 유지

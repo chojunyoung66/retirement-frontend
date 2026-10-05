@@ -57,7 +57,7 @@ export function initAnalytics(): void {
   }
 }
 
-export function track(event: AnalyticsEventName, props: EventProps = {}): void {
+function buildPayload(props: EventProps): Record<string, string | number | boolean> {
   const payload = { ...commonProps(), ...props };
   // null 속성 제거
   const cleaned: Record<string, string | number | boolean> = {};
@@ -65,6 +65,16 @@ export function track(event: AnalyticsEventName, props: EventProps = {}): void {
     if (v === null || v === undefined) continue;
     cleaned[k] = v;
   }
+  return cleaned;
+}
+
+/** Amplitude HTTP로 이미 보낸 이벤트를 GA4에만 복제 */
+export function trackGa4Only(event: AnalyticsEventName, props: EventProps = {}): void {
+  mirrorToGa4(event, buildPayload(props));
+}
+
+export function track(event: AnalyticsEventName, props: EventProps = {}): void {
+  const cleaned = buildPayload(props);
 
   if (import.meta.env.VITE_AMPLITUDE_API_KEY) {
     amplitude.track(event, cleaned);
@@ -129,12 +139,7 @@ export async function trackViaHttp(
   const apiKey = import.meta.env.VITE_AMPLITUDE_API_KEY;
   if (!apiKey || typeof fetch === "undefined") return false;
 
-  const payload = { ...commonProps(), ...props };
-  const cleaned: Record<string, string | number | boolean> = {};
-  for (const [k, v] of Object.entries(payload)) {
-    if (v === null || v === undefined) continue;
-    cleaned[k] = v;
-  }
+  const cleaned = buildPayload(props);
 
   const rawUserId = amplitude.getUserId();
   const rawDeviceId = amplitude.getDeviceId();

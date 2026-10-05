@@ -1,9 +1,23 @@
 import type { DiagnosisState, ProjectionResult } from '../domain/plan';
+import { DEFAULT_RETIREMENT_AGE } from '../utils/format';
 
+/** IRP 세액공제 규칙 (2026, 백엔드 rule-set의 IRP_RULES와 동일하게 유지) */
+export const IRP_RULES = {
+  annualCreditLimit: 9_000_000,
+  lowIncomeThreshold: 55_000_000,
+  lowIncomeCreditRate: 0.165,
+  highIncomeCreditRate: 0.132,
+} as const;
+
+/** ISA 연 납입 한도 (백엔드 ISA_RULES와 동일하게 유지) */
+export const ISA_ANNUAL_CONTRIBUTION_LIMIT = 20_000_000;
+
+/** 구직급여 1일 상한액 (2026) */
+export const UNEMPLOYMENT_DAILY_MAX = 68_100;
+
+/** 랜딩 예시 값 — 실측 통계가 아니므로 화면에 반드시 "예시"로 표기 */
 export interface WelcomeMetrics {
-  averageMonthlyPension: number;
-  completedDiagnoses: number;
-  accuracyRate: number;
+  sampleMonthlyPension: number;
 }
 
 export interface LivingExpenseGuide {
@@ -19,14 +33,11 @@ export interface CashflowTrendPoint {
 export interface CashflowTrend {
   points: CashflowTrendPoint[];
   highlightYear: number;
-  yoyPercent: number;
 }
 
 export function getWelcomeMetrics(): WelcomeMetrics {
   return {
-    averageMonthlyPension: 1870000,
-    completedDiagnoses: 13000,
-    accuracyRate: 98,
+    sampleMonthlyPension: 1870000,
   };
 }
 
@@ -35,7 +46,7 @@ export function getCashflowTrendSample(baseYear = 2026): CashflowTrend {
   const ratios = [
     0.72, 0.79, 0.63, 0.81, 0.85, 0.77, 0.88, 0.95, 0.91, 0.99, 0.93, 1, 0.95,
   ];
-  const base = getWelcomeMetrics().averageMonthlyPension;
+  const base = getWelcomeMetrics().sampleMonthlyPension;
 
   return {
     points: ratios.map((ratio, i) => ({
@@ -43,7 +54,6 @@ export function getCashflowTrendSample(baseYear = 2026): CashflowTrend {
       amount: Math.round(base * ratio),
     })),
     highlightYear: baseYear + 9,
-    yoyPercent: 12,
   };
 }
 
@@ -91,8 +101,8 @@ function resolveNationalAtAge(
 }
 
 export function calculateProjection(state: DiagnosisState): ProjectionResult {
-  // 정년(retirementAge) 미지정 시 기본값 60세 — 정년 연장 정책 반영 시 state로 주입
-  const retirementAge = state.retirementAge ?? 60;
+  // 정년(retirementAge) 미지정 시 기본값 — 정년 연장 정책 반영 시 state로 주입
+  const retirementAge = state.retirementAge ?? DEFAULT_RETIREMENT_AGE;
   const nowYear = new Date().getFullYear();
   const selfCurrentAge = state.birthYear ? nowYear - state.birthYear : null;
 
@@ -282,8 +292,8 @@ export function calculateLongTermProjection(
   secondaryIncomes: SecondaryIncome[] = [],
   healthEscalation: HealthEscalationMode = 'none',
 ): YearlyProjection[] {
-  // 정년(retirementAge) 미지정 시 기본값 60세 — 차트 x축은 본인 나이 유지
-  const retirementAge = state.retirementAge ?? 60;
+  // 정년(retirementAge) 미지정 시 기본값 — 차트 x축은 본인 나이 유지
+  const retirementAge = state.retirementAge ?? DEFAULT_RETIREMENT_AGE;
   const pensionStartAge = getPensionStartAge(state.birthYear ?? null);
   const nowYear = new Date().getFullYear();
   const currentAge = state.birthYear ? nowYear - state.birthYear : null;
@@ -338,8 +348,13 @@ export function calculateLongTermProjection(
       const effectiveSpouseStart = spouseAlreadyStarted
         ? (spouseAge ?? spousePensionStartAge)
         : spousePensionStartAge;
-      spouseNationalPensionStarted =
-        spouseAge != null ? spouseAge >= effectiveSpouseStart : false;
+      if (spouseAge == null) {
+        // 출생연도 없으면 월 요약(calculateProjection)과 동일하게 첫해부터 전액 포함
+        spouseNationalPensionStarted = true;
+        spouseNationalIncome = Math.round(baseSpouseNational * pensionFactor);
+      } else {
+        spouseNationalPensionStarted = spouseAge >= effectiveSpouseStart;
+      }
       if (spouseNationalPensionStarted && spouseAge != null) {
         // 배우자가 이 타임라인에서 처음 수급하는 연도 인덱스
         const spouseStartSelfAge = spouseAlreadyStarted
@@ -433,8 +448,10 @@ export function generateRecommendations(
     const irpMonthly = Math.min(snap(monthlyGap * 0.5), 375000);
     if (irpMonthly >= 50000) {
       const irpAnnual = irpMonthly * 12;
-      // 소득 5,500만원 이하 세액공제율 16.5%, 납입 한도 연 900만원
-      const taxCredit = Math.round(Math.min(irpAnnual, 9000000) * 0.165);
+      // 소득 5,500만원 이하 세액공제율·연 납입 공제 한도
+      const taxCredit = Math.round(
+        Math.min(irpAnnual, IRP_RULES.annualCreditLimit) * IRP_RULES.lowIncomeCreditRate,
+      );
       // 연 4% 수익률 기준 20년 복리
       const irp20Year = Math.round(irpAnnual * ((Math.pow(1.04, 20) - 1) / 0.04));
       items.push({

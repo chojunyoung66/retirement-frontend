@@ -1,18 +1,26 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useReducer,
+  useRef,
   type Dispatch,
   type ReactNode,
 } from "react";
+import { useSelector } from "react-redux";
+import type { RootState } from "../store/store";
 import {
   emptyPension,
   emptyPersonProfile,
+  hasAnyPensionIncome,
   type DiagnosisState,
   type PensionState,
 } from "../domain/plan";
 import type { DiagnosisRecord } from "../api/diagnosis-api";
-import { calculateProjection } from "../service/retirement-service";
+import {
+  calculateProjection,
+  getLivingExpenseGuide,
+} from "../service/retirement-service";
 import {
   clearDiagnosisDraft,
   persistDiagnosisState,
@@ -25,7 +33,7 @@ import {
   writePensionDraft,
 } from "../utils/pension-draft";
 
-function createInitialState(): DiagnosisState {
+export function createInitialState(): DiagnosisState {
   // 리로드·로그인 리다이렉트 후에도 진단 요약(출생연도 등) 복원
   const draft = resolveDraftFields();
   if (draft) {
@@ -55,7 +63,7 @@ function createInitialState(): DiagnosisState {
   };
 }
 
-type Action =
+export type DiagnosisAction =
   | { type: "UPDATE"; payload: Partial<DiagnosisState> }
   | { type: "CALCULATE" }
   | { type: "UPDATE_AND_CALCULATE"; payload: Partial<DiagnosisState> }
@@ -81,12 +89,22 @@ function syncSpouseForType(
   return next;
 }
 
-function reducer(state: DiagnosisState, action: Action): DiagnosisState {
+/** 연금이 다시 입력되면 재입력 플래그 해제 */
+function settlePensionFlag(next: DiagnosisState): DiagnosisState {
+  if (next.needsPensionReinput && hasAnyPensionIncome(next)) {
+    return { ...next, needsPensionReinput: false };
+  }
+  return next;
+}
+
+export function diagnosisReducer(
+  state: DiagnosisState,
+  action: DiagnosisAction,
+): DiagnosisState {
   switch (action.type) {
     case "UPDATE": {
-      let next = syncSpouseForType(
-        { ...state, ...action.payload },
-        state,
+      const next = settlePensionFlag(
+        syncSpouseForType({ ...state, ...action.payload }, state),
       );
       persistPensionIfPresent(action.payload.pension);
       persistDiagnosisState(next);
@@ -99,9 +117,8 @@ function reducer(state: DiagnosisState, action: Action): DiagnosisState {
       return next;
     }
     case "UPDATE_AND_CALCULATE": {
-      let updated = syncSpouseForType(
-        { ...state, ...action.payload },
-        state,
+      const updated = settlePensionFlag(
+        syncSpouseForType({ ...state, ...action.payload }, state),
       );
       persistPensionIfPresent(action.payload.pension);
       const projection = calculateProjection(updated);
@@ -117,12 +134,12 @@ function reducer(state: DiagnosisState, action: Action): DiagnosisState {
       // 저장 직전 메모리 유실 시 세션 초안으로 복구
       const draft = resolveDraftFields();
       if (!draft?.birthYear) return state;
-      const updated: DiagnosisState = {
+      const updated = settlePensionFlag({
         ...state,
         ...draft,
         pension: mergePensionPreferPositive(draft.pension, state.pension),
         spouse: draft.spouse,
-      };
+      });
       const next = {
         ...updated,
         projection: calculateProjection(updated),
@@ -145,6 +162,7 @@ function reducer(state: DiagnosisState, action: Action): DiagnosisState {
       writePensionDraft(pension);
       const householdType =
         rec.householdType === "couple" ? "couple" : "individual";
+      const householdSize = rec.householdSize ?? state.householdSize;
       // 서버 배우자 연도 → 세션 spouse 복원 (연금은 세션 유지)
       let spouse = state.spouse;
       if (householdType === "couple") {
@@ -160,24 +178,39 @@ function reducer(state: DiagnosisState, action: Action): DiagnosisState {
       } else {
         spouse = null;
       }
+      // 가이드 생활비는 서버에 없으므로 가구 정보로 재산정
+      const guide =
+        state.livingExpense.guideRecommended > 0
+          ? {
+              minimum: state.livingExpense.guideMinimum,
+              recommended: state.livingExpense.guideRecommended,
+            }
+          : getLivingExpenseGuide(householdType, householdSize);
       const updated: DiagnosisState = {
         ...state,
         diagnosisType: householdType,
-        householdSize: rec.householdSize ?? state.householdSize,
+        householdSize,
         birthYear: rec.birthYear,
         retirementAge: rec.retirementYear - rec.birthYear,
         pension,
         spouse,
         livingExpense: {
-          ...state.livingExpense,
           desiredMonthly: rec.monthlyExpense,
+          guideMinimum: guide.minimum,
+          guideRecommended: guide.recommended,
         },
         medicalExpense: {
           healthInsurance: rec.healthInsurance,
           privateInsurance: rec.privateInsurance,
         },
       };
-      const next = { ...updated, projection: calculateProjection(updated) };
+      // 세션에도 연금이 없으면 결과 대신 재입력을 요구
+      const needsPensionReinput = !hasAnyPensionIncome(updated);
+      const next = {
+        ...updated,
+        needsPensionReinput,
+        projection: calculateProjection(updated),
+      };
       persistDiagnosisState(next);
       return next;
     }
@@ -188,13 +221,35 @@ function reducer(state: DiagnosisState, action: Action): DiagnosisState {
 
 interface DiagnosisContextValue {
   state: DiagnosisState;
-  dispatch: Dispatch<Action>;
+  dispatch: Dispatch<DiagnosisAction>;
 }
 
 const DiagnosisContext = createContext<DiagnosisContextValue | null>(null);
 
+type AuthStatus = RootState["auth"]["authStatus"];
+
+/** 로그인 세션이 끝났는지(로그아웃·401 만료·탈퇴) 판단 */
+export function isSessionEnded(prev: AuthStatus, next: AuthStatus): boolean {
+  return prev === "authenticated" && next === "unauthenticated";
+}
+
 export function DiagnosisProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, createInitialState);
+  const [state, dispatch] = useReducer(
+    diagnosisReducer,
+    undefined,
+    createInitialState,
+  );
+  const authStatus = useSelector((s: RootState) => s.auth.authStatus);
+  const prevAuthStatus = useRef(authStatus);
+
+  // 같은 탭에서 다음 사용자에게 이전 진단이 남지 않도록 메모리 상태도 초기화
+  useEffect(() => {
+    if (isSessionEnded(prevAuthStatus.current, authStatus)) {
+      dispatch({ type: "RESET" });
+    }
+    prevAuthStatus.current = authStatus;
+  }, [authStatus]);
+
   return (
     <DiagnosisContext.Provider value={{ state, dispatch }}>
       {children}

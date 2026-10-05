@@ -79,10 +79,26 @@ export interface DiagnosisState {
   livingExpense: LivingExpenseState;
   medicalExpense: MedicalExpenseState;
   projection: ProjectionResult | null;
+  /** 서버 복원 후 연금 금액이 비어 결과를 신뢰할 수 없는 상태 (연금은 서버에 저장하지 않음) */
+  needsPensionReinput?: boolean;
 }
 
 export function emptyPension(): PensionState {
   return { national: 0, retirement: 0, personal: 0, housing: 0 };
+}
+
+function pensionTotal(pension: PensionState): number {
+  return pension.national + pension.retirement + pension.personal + pension.housing;
+}
+
+/** 본인·배우자 중 하나라도 연금 월액이 입력되어 있는지 */
+export function hasAnyPensionIncome(
+  state: Pick<DiagnosisState, 'pension' | 'spouse'>,
+): boolean {
+  return (
+    pensionTotal(state.pension) > 0 ||
+    (state.spouse != null && pensionTotal(state.spouse.pension) > 0)
+  );
 }
 
 export function emptyPersonProfile(): PersonProfile {

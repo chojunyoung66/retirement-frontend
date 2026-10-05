@@ -9,7 +9,7 @@ import {
   type CreatePortfolioRequest,
   type UpdatePortfolioRequest,
 } from '../api/portfolio-api';
-import { ApiError } from '../api/client';
+import { getApiErrorMessage } from '../utils/api-error-message';
 
 export function usePortfolio() {
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
@@ -26,9 +26,7 @@ export function usePortfolio() {
       setPortfolios(result);
       return result;
     } catch (err) {
-      const message = err instanceof ApiError
-        ? `조회 실패: ${err.errorCode}`
-        : '포트폴리오 목록 조회 중 오류가 발생했습니다';
+      const message = getApiErrorMessage(err, '포트폴리오 목록 조회 중 오류가 발생했습니다');
       setError(message);
       throw err;
     } finally {
@@ -45,9 +43,7 @@ export function usePortfolio() {
       setSelectedPortfolio(result);
       return result;
     } catch (err) {
-      const message = err instanceof ApiError
-        ? `조회 실패: ${err.errorCode}`
-        : '포트폴리오 조회 중 오류가 발생했습니다';
+      const message = getApiErrorMessage(err, '포트폴리오 조회 중 오류가 발생했습니다');
       setError(message);
       throw err;
     } finally {
@@ -65,9 +61,7 @@ export function usePortfolio() {
         setPortfolios((prev) => [...prev, result]);
         return result;
       } catch (err) {
-        const message = err instanceof ApiError
-          ? `생성 실패: ${err.errorCode}`
-          : '포트폴리오 생성 중 오류가 발생했습니다';
+        const message = getApiErrorMessage(err, '포트폴리오 생성 중 오류가 발생했습니다');
         setError(message);
         throw err;
       } finally {
@@ -92,9 +86,7 @@ export function usePortfolio() {
         }
         return result;
       } catch (err) {
-        const message = err instanceof ApiError
-          ? `업데이트 실패: ${err.errorCode}`
-          : '포트폴리오 업데이트 중 오류가 발생했습니다';
+        const message = getApiErrorMessage(err, '포트폴리오 업데이트 중 오류가 발생했습니다');
         setError(message);
         throw err;
       } finally {
@@ -116,9 +108,7 @@ export function usePortfolio() {
           setSelectedPortfolio(null);
         }
       } catch (err) {
-        const message = err instanceof ApiError
-          ? `삭제 실패: ${err.errorCode}`
-          : '포트폴리오 삭제 중 오류가 발생했습니다';
+        const message = getApiErrorMessage(err, '포트폴리오 삭제 중 오류가 발생했습니다');
         setError(message);
         throw err;
       } finally {

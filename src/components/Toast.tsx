@@ -13,11 +13,10 @@ export default function Toast() {
     return () => window.clearTimeout(id);
   }, [message, persistent, dispatch]);
 
-  if (!message) return null;
-
+  // 라이브 영역은 항상 렌더링해야 메시지 삽입이 스크린 리더에 안내됨
   return (
-    <div className="toast-container">
-      <div className="toast">{message}</div>
+    <div className="toast-container" role="status" aria-live="polite" aria-atomic="true">
+      {message && <div className="toast">{message}</div>}
     </div>
   );
 }

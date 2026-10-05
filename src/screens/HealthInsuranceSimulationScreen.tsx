@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import Button from '../components/Button';
 import { useSimulation } from '../hooks/useSimulation';
 import { ApiError } from '../api/client';
@@ -18,12 +18,15 @@ function WonInput({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const inputId = useId();
   return (
     <div className="mb-8">
-      <label className="form-label">{label}</label>
-      {hint && <p className="form-hint" style={{ marginBottom: 4 }}>{hint}</p>}
+      <label className="form-label" htmlFor={inputId}>{label}</label>
+      {hint && <p id={`${inputId}-hint`} className="form-hint" style={{ marginBottom: 4 }}>{hint}</p>}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <input
+          id={inputId}
+          aria-describedby={hint ? `${inputId}-hint` : undefined}
           className="input"
           type="number"
           value={value}
@@ -150,7 +153,7 @@ export default function HealthInsuranceSimulationScreen() {
         <div className="card-title" style={{ fontSize: '1rem', marginBottom: 12 }}>재산·차량 정보</div>
         <WonInput
           label="재산 과표액 (공시지가 기준)"
-          hint="기본공제 5,000만원 차감 후 보험료 산정"
+          hint="기본공제 1억원 차감 후 보험료 산정"
           value={propertyValue}
           onChange={setPropertyValue}
         />
@@ -193,8 +196,8 @@ export default function HealthInsuranceSimulationScreen() {
             }}
           >
             {output.canBeDependent
-              ? '✓ 피부양자 조건 충족 — 가족 직장보험에 등록 시 보험료 없음'
-              : '✗ 피부양자 조건 미충족 — 지역가입자 보험료 납부 대상'}
+              ? '피부양자 가능성 있음(추정) — 공단 확인 필요'
+              : '피부양자 어려움(추정) — 지역가입자 보험료 납부 대상 가능성'}
           </div>
 
           <div className="card-title">계산 결과</div>

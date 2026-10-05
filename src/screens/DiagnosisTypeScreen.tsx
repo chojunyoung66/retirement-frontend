@@ -3,8 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useDiagnosis } from '../hooks/useDiagnosis';
 import ProgressBar from '../components/ProgressBar';
 import Button from '../components/Button';
+import OptionCardGroup, { type OptionCardItem } from '../components/OptionCard';
 import type { DiagnosisType } from '../domain/plan';
 import { setUserProperties, trackStepCompleted, trackStepViewed } from '../analytics';
+
+const TYPE_OPTIONS: OptionCardItem<DiagnosisType>[] = [
+  { value: 'individual', title: '개인', desc: '1인 가구 기준 진단' },
+  { value: 'couple', title: '부부', desc: '부부 및 가족 기준 진단' },
+];
 
 export default function DiagnosisTypeScreen() {
   const navigate = useNavigate();
@@ -28,24 +34,17 @@ export default function DiagnosisTypeScreen() {
     <>
       <ProgressBar progress={10} />
       <div className="screen-content">
-        <h2 className="card-title mb-8">진단 유형을 선택하세요</h2>
+        <h2 id="diagnosis-type-title" className="card-title mb-8">
+          진단 유형을 선택하세요
+        </h2>
         <p className="card-subtitle mb-16">가구 유형에 맞게 결과를 계산해 드려요.</p>
 
-        <div
-          className={`option-card${state.diagnosisType === 'individual' ? ' selected' : ''}`}
-          onClick={() => select('individual')}
-        >
-          <div className="option-card-title">개인</div>
-          <div className="option-card-desc">1인 가구 기준 진단</div>
-        </div>
-
-        <div
-          className={`option-card${state.diagnosisType === 'couple' ? ' selected' : ''}`}
-          onClick={() => select('couple')}
-        >
-          <div className="option-card-title">부부</div>
-          <div className="option-card-desc">부부 및 가족 기준 진단</div>
-        </div>
+        <OptionCardGroup
+          labelledBy="diagnosis-type-title"
+          options={TYPE_OPTIONS}
+          selected={state.diagnosisType}
+          onSelect={select}
+        />
 
         <div className="button-row">
           <Button onClick={handleNext}>다음</Button>

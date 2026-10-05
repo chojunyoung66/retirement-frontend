@@ -261,9 +261,9 @@ export default function HousingPensionSimulationScreen() {
       />
       <Input
         label="집 시세"
-        type="number"
+        type="decimal"
         value={houseEok}
-        onChange={(v) => setHouseEok(v.replace(/[^0-9.]/g, ""))}
+        onChange={setHouseEok}
         placeholder="예: 4"
         suffix="억원"
         hint="KB·부동산원 시세 기준 · 대략 값으로도 괜찮아요"
@@ -278,6 +278,7 @@ export default function HousingPensionSimulationScreen() {
               key={opt.value}
               type="button"
               className="card"
+              aria-pressed={selected}
               onClick={() => setGoal(opt.value)}
               style={{
                 textAlign: "left",
@@ -301,9 +302,9 @@ export default function HousingPensionSimulationScreen() {
       {goal === "loan_repay" && (
         <Input
           label="남은 주택담보대출"
-          type="number"
+          type="decimal"
           value={mortgageEok}
-          onChange={(v) => setMortgageEok(v.replace(/[^0-9.]/g, ""))}
+          onChange={setMortgageEok}
           placeholder="예: 1"
           suffix="억원"
         />

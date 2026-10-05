@@ -116,7 +116,8 @@ export type UtmBag = {
   utm_content: string | null;
 };
 
-export function captureUtmFromLocation(search: string = window.location.search): UtmBag {
+/** URL 쿼리에 실린 UTM만 읽음 (세션 보존값 미포함) — 없으면 null */
+export function readUtmFromSearch(search: string): UtmBag | null {
   const params = new URLSearchParams(search);
   const next: UtmBag = {
     utm_source: params.get("utm_source"),
@@ -124,10 +125,17 @@ export function captureUtmFromLocation(search: string = window.location.search):
     utm_campaign: params.get("utm_campaign"),
     utm_content: params.get("utm_content"),
   };
+  return next.utm_source || next.utm_medium || next.utm_campaign || next.utm_content
+    ? next
+    : null;
+}
+
+export function captureUtmFromLocation(search: string = window.location.search): UtmBag {
   // URL에 UTM이 있으면 세션에 보존
-  if (next.utm_source || next.utm_medium || next.utm_campaign || next.utm_content) {
-    write(KEYS.utm, JSON.stringify(next));
-    return next;
+  const fromUrl = readUtmFromSearch(search);
+  if (fromUrl) {
+    write(KEYS.utm, JSON.stringify(fromUrl));
+    return fromUrl;
   }
   return getStoredUtm();
 }

@@ -63,6 +63,7 @@ export default function NationalPensionSimulationScreen() {
 
   const output = nationalPensionSimulation?.outputData as
     | {
+        eligible?: boolean;
         estimatedMonthlyPension: number;
         pensionStartAge: number;
         notice: string;
@@ -125,9 +126,19 @@ export default function NationalPensionSimulationScreen() {
           <div className="simulation-card">
             <span className="simulation-label">예상 월 수령액</span>
             <span className="simulation-delta">
-              {formatWon(output.estimatedMonthlyPension)}원
+              {output.eligible === false
+                ? "수급 불가 (가입 10년 미만)"
+                : `${formatWon(output.estimatedMonthlyPension)}원`}
             </span>
           </div>
+          {output.eligible !== false && (
+            <div className="simulation-card">
+              <span className="simulation-label">예상 연 수령액</span>
+              <span className="simulation-delta">
+                {formatWon(output.estimatedMonthlyPension * 12)}원
+              </span>
+            </div>
+          )}
           <div className="simulation-card">
             <span className="simulation-label">연금 시작 나이</span>
             <span className="simulation-delta">{output.pensionStartAge}세</span>

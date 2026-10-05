@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { usePortfolio } from "../hooks/usePortfolio";
+import { normalizeDecimal } from "../components/Input";
+import { formatAllocationTotal, limitAllocationDraft } from "../utils/allocation";
 import type {
   Portfolio,
   PortfolioItem,
@@ -15,8 +17,15 @@ function ItemEditor({
   items: PortfolioItem[];
   onChange: (items: PortfolioItem[]) => void;
 }) {
-  const addItem = () =>
+  // "33." 같은 입력 중간 상태를 유지하기 위한 비중 문자열
+  const [allocationDrafts, setAllocationDrafts] = useState<string[]>(() =>
+    items.map((item) => (item.allocation ? String(item.allocation) : ""))
+  );
+
+  const addItem = () => {
     onChange([...items, { symbol: "", name: "", allocation: 0 }]);
+    setAllocationDrafts([...allocationDrafts, ""]);
+  };
 
   const updateItem = (index: number, field: keyof PortfolioItem, value: string | number) => {
     const next = items.map((item, i) =>
@@ -25,8 +34,16 @@ function ItemEditor({
     onChange(next);
   };
 
-  const removeItem = (index: number) =>
+  const updateAllocation = (index: number, raw: string) => {
+    const draft = limitAllocationDraft(normalizeDecimal(raw));
+    setAllocationDrafts(allocationDrafts.map((d, i) => (i === index ? draft : d)));
+    updateItem(index, "allocation", draft === "" ? 0 : Number(draft));
+  };
+
+  const removeItem = (index: number) => {
     onChange(items.filter((_, i) => i !== index));
+    setAllocationDrafts(allocationDrafts.filter((_, i) => i !== index));
+  };
 
   return (
     <div>
@@ -35,30 +52,35 @@ function ItemEditor({
           <div style={{ display: "flex", gap: 8, marginBottom: 6 }}>
             <input
               className="input"
+              aria-label={`${i + 1}번째 종목 코드`}
               placeholder="종목코드 (예: 005930)"
               value={item.symbol}
               onChange={(e) => updateItem(i, "symbol", e.target.value)}
-              style={{ flex: 1 }}
+              style={{ flex: 1, minWidth: 0 }}
             />
             <input
               className="input"
+              aria-label={`${i + 1}번째 종목명`}
               placeholder="종목명 (예: 삼성전자)"
               value={item.name}
               onChange={(e) => updateItem(i, "name", e.target.value)}
-              style={{ flex: 2 }}
+              style={{ flex: 2, minWidth: 0 }}
             />
             <input
               className="input"
-              type="number"
+              type="text"
+              inputMode="decimal"
+              aria-label={`${i + 1}번째 종목 비중(%)`}
               placeholder="비중(%)"
-              value={item.allocation || ""}
-              onChange={(e) => updateItem(i, "allocation", Number(e.target.value.replace(/[^0-9]/g, '')))}
-              onKeyDown={(e) => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault(); }}
-              style={{ flex: 1 }}
+              value={allocationDrafts[i] ?? ""}
+              onChange={(e) => updateAllocation(i, e.target.value)}
+              style={{ flex: 1, minWidth: 0 }}
             />
             <button
+              type="button"
               className="btn-back"
-              style={{ padding: "4px 10px" }}
+              aria-label={`${i + 1}번째 종목 삭제`}
+              style={{ padding: "4px 10px", flexShrink: 0 }}
               onClick={() => removeItem(i)}
             >
               삭제
@@ -66,7 +88,7 @@ function ItemEditor({
           </div>
         </div>
       ))}
-      <button className="btn-back" onClick={addItem} style={{ width: "100%" }}>
+      <button type="button" className="btn-back" onClick={addItem} style={{ width: "100%" }}>
         + 종목 추가
       </button>
     </div>
@@ -89,13 +111,19 @@ function PortfolioForm({
   const [name, setName] = useState(initial?.name ?? "");
   const [items, setItems] = useState<PortfolioItem[]>(initial?.items ?? []);
   const [formError, setFormError] = useState("");
+  const fieldId = useId();
 
   const handleSubmit = () => {
     if (!accountType.trim()) { setFormError("계좌 유형을 선택하세요"); return; }
     if (!name.trim()) { setFormError("포트폴리오 이름을 입력하세요"); return; }
+    if (items.length === 0) { setFormError("종목을 1개 이상 추가하세요"); return; }
+    if (items.some((item) => !item.symbol.trim() || !item.name.trim() || item.allocation <= 0)) {
+      setFormError("모든 종목의 코드·이름·비중을 입력하세요");
+      return;
+    }
     const totalAllocation = items.reduce((sum, item) => sum + item.allocation, 0);
-    if (items.length > 0 && Math.abs(totalAllocation - 100) > 0.01) {
-      setFormError(`비중 합계는 100%여야 합니다 (현재 ${totalAllocation}%)`);
+    if (Math.abs(totalAllocation - 100) > 0.01) {
+      setFormError(`비중 합계는 100%여야 합니다 (현재 ${formatAllocationTotal(totalAllocation)}%)`);
       return;
     }
     setFormError("");
@@ -107,8 +135,9 @@ function PortfolioForm({
       <div className="card-title">{initial ? "포트폴리오 수정" : "포트폴리오 추가"}</div>
 
       <div className="mb-8">
-        <label className="form-label">계좌 유형</label>
+        <label className="form-label" htmlFor={`${fieldId}-account`}>계좌 유형</label>
         <select
+          id={`${fieldId}-account`}
           className="input"
           value={accountType}
           onChange={(e) => setAccountType(e.target.value)}
@@ -122,8 +151,9 @@ function PortfolioForm({
       </div>
 
       <div className="mb-8">
-        <label className="form-label">포트폴리오 이름</label>
+        <label className="form-label" htmlFor={`${fieldId}-name`}>포트폴리오 이름</label>
         <input
+          id={`${fieldId}-name`}
           className="input"
           placeholder="예: 은퇴 안전형 포트폴리오"
           value={name}
@@ -131,12 +161,12 @@ function PortfolioForm({
         />
       </div>
 
-      <div className="mb-8">
-        <label className="form-label">구성 종목</label>
+      <div className="mb-8" role="group" aria-labelledby={`${fieldId}-items`}>
+        <div id={`${fieldId}-items`} className="form-label">구성 종목</div>
         <ItemEditor items={items} onChange={setItems} />
       </div>
 
-      {formError && <div className="form-error mb-8">{formError}</div>}
+      {formError && <div className="form-error mb-8" role="alert">{formError}</div>}
 
       <div style={{ display: "flex", gap: 8 }}>
         <button className="btn-cta" onClick={handleSubmit} disabled={isLoading} style={{ flex: 1 }}>
@@ -164,19 +194,37 @@ function PortfolioCard({
 
   return (
     <div className="card">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div>
-          <div className="card-title" style={{ marginBottom: 4 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div className="card-title" style={{ marginBottom: 4, overflowWrap: "anywhere" }}>
             {portfolio.name}
             <span className="badge badge-success" style={{ marginLeft: 8, verticalAlign: "middle" }}>
               {portfolio.accountType}
             </span>
           </div>
-          <div className="card-subtitle">종목 수: {portfolio.items.length}개 · 비중 합계: {totalAllocation}%</div>
+          <div className="card-subtitle">
+            종목 수: {portfolio.items.length}개 · 비중 합계: {formatAllocationTotal(totalAllocation)}%
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn-back" style={{ padding: "4px 12px" }} onClick={onEdit}>수정</button>
-          <button className="btn-back" style={{ padding: "4px 12px", color: "#e74c3c" }} onClick={onDelete}>삭제</button>
+        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          <button
+            type="button"
+            className="btn-back"
+            aria-label={`${portfolio.name} 수정`}
+            style={{ padding: "4px 12px", whiteSpace: "nowrap", width: "auto" }}
+            onClick={onEdit}
+          >
+            수정
+          </button>
+          <button
+            type="button"
+            className="btn-back"
+            aria-label={`${portfolio.name} 삭제`}
+            style={{ padding: "4px 12px", color: "#e74c3c", whiteSpace: "nowrap", width: "auto" }}
+            onClick={onDelete}
+          >
+            삭제
+          </button>
         </div>
       </div>
 

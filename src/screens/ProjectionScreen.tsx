@@ -8,6 +8,7 @@ import {
 } from "../service/retirement-service";
 import Button from "../components/Button";
 import SummaryCard from "../components/SummaryCard";
+import PensionReinputNotice from "../components/PensionReinputNotice";
 import { DEFAULT_RETIREMENT_AGE, formatWan } from "../utils/format";
 import { showToast } from "../store/toast-slice";
 import { ApiError } from "../api/client";
@@ -17,6 +18,11 @@ import {
   persistDiagnosisState,
   resolveDraftFields,
 } from "../utils/diagnosis-draft";
+import {
+  clearPendingSave,
+  hasPendingSave,
+  markPendingSave,
+} from "../utils/pending-save";
 import type { DiagnosisState } from "../domain/plan";
 import { calculateProjection } from "../service/retirement-service";
 import {
@@ -42,10 +48,9 @@ function getSaveErrorMessage(code: string): string {
 
 interface ResultLocationState {
   intent?: "save";
+  /** 홈 "결과 보기"로 저장 진단을 복원해 들어온 경우 */
+  restored?: boolean;
 }
-
-const PENDING_SAVE_KEY = "retirement_pending_result_save";
-const PENDING_RESULT_SAVED_EVENT_KEY = "rc_emit_result_saved";
 
 export default function ProjectionScreen() {
   const navigate = useNavigate();
@@ -59,14 +64,19 @@ export default function ProjectionScreen() {
   const [isSaving, setIsSaving] = useState(false);
   // 로그인 복귀 후 자동 저장은 한 번만
   const autoSaveStarted = useRef(false);
+  const enteredByRestore = useRef(
+    (location.state as ResultLocationState | null)?.restored === true,
+  );
 
   const projection = state.projection;
 
-  // 결과 최초 도달 = 아하 모먼트 (diagnosis_id당 1회)
+  // 결과 최초 도달 = 아하 모먼트 (diagnosis_id당 1회, 복원·연금 누락 결과는 제외)
   useEffect(() => {
-    if (!projection) return;
+    if (!projection || state.needsPensionReinput || enteredByRestore.current) {
+      return;
+    }
     trackDiagnosisCompleted(state.diagnosisType);
-  }, [projection, state.diagnosisType]);
+  }, [projection, state.diagnosisType, state.needsPensionReinput]);
 
   const longTermSummary = useMemo(() => {
     if (!projection) return null;
@@ -119,11 +129,7 @@ export default function ProjectionScreen() {
     }
 
     if (!isLoggedIn) {
-      try {
-        sessionStorage.setItem(PENDING_SAVE_KEY, "1");
-      } catch {
-        // ignore
-      }
+      markPendingSave();
       dispatch(showToast("로그인 후 결과를 저장할 수 있어요"));
       navigate("/signin", {
         state: { from: "/result", intent: "save" satisfies "save" },
@@ -152,34 +158,15 @@ export default function ProjectionScreen() {
         retirementPension: 0,
         personalPension: 0,
         housingPension: 0,
-        monthlyExpense: snap.livingExpense.desiredMonthly,
-        healthInsurance: snap.medicalExpense.healthInsurance,
-        privateInsurance: snap.medicalExpense.privateInsurance,
+        // 서버는 원 단위 정수만 허용
+        monthlyExpense: Math.round(snap.livingExpense.desiredMonthly),
+        healthInsurance: Math.round(snap.medicalExpense.healthInsurance),
+        privateInsurance: Math.round(snap.medicalExpense.privateInsurance),
       });
-      // 분석 실패해도 저장 UX는 진행
-      let tracked = false;
+      clearPendingSave();
+      // 분석 실패해도 저장 UX는 진행 — 이동 전 전송 완료를 기다려 유실 방지
       try {
-        tracked = await trackResultSaved(snap.diagnosisType);
-      } catch (analyticsErr) {
-        // eslint-disable-next-line no-console
-        console.warn("[analytics] result_saved failed", analyticsErr);
-      }
-      // 전송 실패 시에만 Summary 백업 플래그 유지
-      try {
-        if (tracked) {
-          sessionStorage.removeItem(PENDING_RESULT_SAVED_EVENT_KEY);
-        } else {
-          sessionStorage.setItem(
-            PENDING_RESULT_SAVED_EVENT_KEY,
-            snap.diagnosisType,
-          );
-        }
-      } catch {
-        // ignore
-      }
-
-      try {
-        sessionStorage.removeItem(PENDING_SAVE_KEY);
+        await trackResultSaved(snap.diagnosisType);
       } catch {
         // ignore
       }
@@ -188,18 +175,10 @@ export default function ProjectionScreen() {
           "진단 요약을 저장했어요. 예상 은퇴 소득 금액은 서버에 저장하지 않아요",
         ),
       );
-      // 요약 화면에서 전송 — 저장 직후 이동으로 인한 이벤트 유실 방지
-      try {
-        sessionStorage.setItem(
-          PENDING_RESULT_SAVED_EVENT_KEY,
-          snap.diagnosisType,
-        );
-      } catch {
-        // ignore
-      }
-      void trackResultSaved(snap.diagnosisType);
       navigate("/summary");
     } catch (err) {
+      // 실패한 저장 의도가 다음 진입 때 자동 재시도되지 않도록 정리
+      clearPendingSave();
       const message =
         err instanceof ApiError
           ? getSaveErrorMessage(err.errorCode)
@@ -213,12 +192,7 @@ export default function ProjectionScreen() {
   // 저장 의도(세션 플래그 또는 location state) + 로그인 확정 시 자동 저장
   useEffect(() => {
     const locState = location.state as ResultLocationState | null;
-    let pending = locState?.intent === "save";
-    try {
-      pending = pending || sessionStorage.getItem(PENDING_SAVE_KEY) === "1";
-    } catch {
-      // ignore
-    }
+    const pending = locState?.intent === "save" || hasPendingSave();
     if (!pending) return;
     if (authStatus === "checking" || authStatus === "error" || !isLoggedIn)
       return;
@@ -257,6 +231,10 @@ export default function ProjectionScreen() {
         </div>
       </>
     );
+  }
+
+  if (state.needsPensionReinput) {
+    return <PensionReinputNotice />;
   }
 
   const isNegative = projection.gap < 0;
@@ -417,9 +395,11 @@ export default function ProjectionScreen() {
               <div key={sim.label} className="simulation-card">
                 <span className="simulation-label">{sim.label}</span>
                 <div style={{ textAlign: "right" }}>
-                  <div className="simulation-delta">
-                    +{formatWan(sim.delta)}/월
-                  </div>
+                  {sim.delta > 0 && (
+                    <div className="simulation-delta">
+                      +{formatWan(sim.delta)}/월
+                    </div>
+                  )}
                   {sim.twentyYearImpact && (
                     <div
                       style={{

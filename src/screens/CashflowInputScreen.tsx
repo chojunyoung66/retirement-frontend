@@ -224,6 +224,15 @@ export default function CashflowInputScreen() {
           </span>
         </p>
 
+        {state.needsPensionReinput && (
+          <div className="card mb-16" role="status">
+            <div className="card-subtitle">
+              저장된 진단을 불러왔어요. 연금 금액은 서버에 저장하지 않으니 다시
+              입력해 주세요.
+            </div>
+          </div>
+        )}
+
         {renderPensionBlock(
           '본인 연금',
           { national, retirement, personal, housing },

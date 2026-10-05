@@ -6,6 +6,7 @@ import ProgressBar from '../components/ProgressBar';
 import Input from '../components/Input';
 import HouseholdChips from '../components/HouseholdChips';
 import Button from '../components/Button';
+import OptionCardGroup, { type OptionCardItem } from '../components/OptionCard';
 import {
   DEFAULT_RETIREMENT_AGE,
   formatAge,
@@ -37,10 +38,10 @@ const personFieldsSchema = z.object({
   }),
 });
 
-const INCOME_OPTIONS: { key: IncomeStatus; title: string; desc: string }[] = [
-  { key: 'employed', title: '재직 중', desc: '회사에서 근무 중이에요' },
-  { key: 'self-employed', title: '자영업', desc: '자영업 또는 프리랜서예요' },
-  { key: 'retired', title: '은퇴/무직', desc: '현재 소득 활동이 없어요' },
+const INCOME_OPTIONS: OptionCardItem<IncomeStatus>[] = [
+  { value: 'employed', title: '재직 중', desc: '회사에서 근무 중이에요' },
+  { value: 'self-employed', title: '자영업', desc: '자영업 또는 프리랜서예요' },
+  { value: 'retired', title: '은퇴/무직', desc: '현재 소득 활동이 없어요' },
 ];
 
 type FieldErrors = {
@@ -224,23 +225,28 @@ export default function ProfileScreen() {
   };
 
   const renderIncomeOptions = (
+    idPrefix: string,
+    labelText: string,
     selected: IncomeStatus,
     onSelect: (s: IncomeStatus) => void,
     error?: string,
   ) => (
     <div className="form-group">
-      <label className="form-label">소득 상태</label>
-      {INCOME_OPTIONS.map((opt) => (
-        <div
-          key={opt.key}
-          className={`option-card${selected === opt.key ? ' selected' : ''}`}
-          onClick={() => onSelect(opt.key)}
-        >
-          <div className="option-card-title">{opt.title}</div>
-          <div className="option-card-desc">{opt.desc}</div>
+      <div id={`${idPrefix}-income-label`} className="form-label">
+        {labelText}
+      </div>
+      <OptionCardGroup
+        labelledBy={`${idPrefix}-income-label`}
+        describedBy={error ? `${idPrefix}-income-error` : undefined}
+        options={INCOME_OPTIONS}
+        selected={selected}
+        onSelect={onSelect}
+      />
+      {error && (
+        <div id={`${idPrefix}-income-error`} className="form-error" role="alert">
+          {error}
         </div>
-      ))}
-      {error && <div className="form-error">{error}</div>}
+      )}
     </div>
   );
 
@@ -277,7 +283,13 @@ export default function ProfileScreen() {
           hint={retirementHint}
         />
 
-        {renderIncomeOptions(state.incomeStatus, handleIncome, errors.incomeStatus)}
+        {renderIncomeOptions(
+          'self',
+          isCouple ? '본인 소득 상태' : '소득 상태',
+          state.incomeStatus,
+          handleIncome,
+          errors.incomeStatus,
+        )}
 
         {isCouple && (
           <>
@@ -307,6 +319,8 @@ export default function ProfileScreen() {
               hint={`${MIN_RETIREMENT_AGE}~${MAX_RETIREMENT_AGE}세`}
             />
             {renderIncomeOptions(
+              'spouse',
+              '배우자 소득 상태',
               spouse.incomeStatus,
               handleSpouseIncome,
               spouseErrors.incomeStatus,

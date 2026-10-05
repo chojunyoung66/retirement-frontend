@@ -42,6 +42,10 @@ export default function UnemploymentBenefitSimulationScreen() {
       setFormError("고용보험 가입 기간을 입력하세요");
       return;
     }
+    if (years < 0.5 || years > 50) {
+      setFormError("고용보험 가입 기간은 0.5년(180일)~50년이어야 합니다");
+      return;
+    }
     if (!Number.isInteger(ageNum) || ageNum < 18 || ageNum > 100) {
       setFormError("만 나이를 올바르게 입력하세요 (18~100)");
       return;
@@ -85,7 +89,7 @@ export default function UnemploymentBenefitSimulationScreen() {
       <p className="card-subtitle mb-16">
         정년퇴직 후 수령 가능한 구직급여를 계산합니다.
         <br />
-        <span className="form-hint">2024년 기준 · 50세 이상/미만 수급일수 이원화 적용</span>
+        <span className="form-hint">2026년 기준 · 50세 이상/미만 수급일수 이원화 적용</span>
       </p>
 
       <Input
@@ -99,10 +103,11 @@ export default function UnemploymentBenefitSimulationScreen() {
       />
       <Input
         label="고용보험 가입 기간"
-        type="number"
+        type="decimal"
         value={insuranceYears}
-        onChange={(v) => setInsuranceYears(v.replace(/[^0-9.]/g, ""))}
+        onChange={setInsuranceYears}
         placeholder="예: 20"
+        hint="0.5년(180일)~50년, 소수 입력 가능"
         suffix="년"
       />
       <Input
