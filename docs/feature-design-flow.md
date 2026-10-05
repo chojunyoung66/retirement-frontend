@@ -1,6 +1,6 @@
 # 고도화 기능 설계 · 흐름 정의서
 
-> 갱신: 2026-10-05 · PRD v1.1 고도화 반영 (인출 시나리오·리포트·세금·건보 체크) · 갭 분석: `RCFD/docs/prd-v1.1-gap-analysis.md`  
+> 갱신: 2026-10-05 · PRD v1.1 고도화 반영 (인출 시나리오·리포트·세금·건보 체크) · 갭 분석: `docs/prd-v1.1-gap-analysis.md`  
 > 대상: `retirement-frontend` + `retirement-backend` (제품: 은퇴현금 설계센터)  
 > 정본: 이 문서 · BE 요약: `retirement-backend/docs/feature-design-flow.md`  
 > 보안 감사 상세 표는 레포 외부(Drive 등) 보관 · Deferred 요약만 §7  
