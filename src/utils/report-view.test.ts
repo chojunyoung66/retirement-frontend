@@ -50,7 +50,9 @@ describe('toCompactYearRows', () => {
       age: 59,
       expense: 3000,
       nationalPension: 0,
+      spouseNationalPension: 0,
       unemployment: 0,
+      healthPremium: 0,
       grossWithdrawal: 3200,
       tax: 200,
       netWithdrawal: 3000,
@@ -58,6 +60,7 @@ describe('toCompactYearRows', () => {
       endingBalance: 50000,
       financialIncome: 10,
       dependentStatus: 'CAUTION',
+      dependentReasons: [],
     };
     expect(toCompactYearRows([row])).toEqual([
       { year: 2027, age: 59, netWithdrawal: 3000, endingBalance: 50000, dependentStatus: 'CAUTION' },

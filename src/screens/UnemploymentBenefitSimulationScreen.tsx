@@ -3,6 +3,7 @@ import Input from "../components/Input";
 import Button from "../components/Button";
 import { useSimulation } from "../hooks/useSimulation";
 import { ApiError } from "../api/client";
+import RuleBasisNote from "../components/RuleBasisNote";
 
 function formatWon(won: number): string {
   return won.toLocaleString("ko-KR");
@@ -156,6 +157,7 @@ export default function UnemploymentBenefitSimulationScreen() {
             <span className="simulation-delta" style={{ fontWeight: 700, fontSize: "1.1rem" }}>{formatWan(output.totalBenefit)}</span>
           </div>
           <p className="form-hint mt-8">{output.notice}</p>
+          <RuleBasisNote output={output} />
         </div>
       )}
 

@@ -27,6 +27,7 @@ const savedRecord: DiagnosisRecord = {
   householdSize: 2,
   birthYear: 1970,
   retirementYear: 2032,
+  retirementMonth: null,
   spouseBirthYear: 1972,
   spouseRetirementYear: 2035,
   nationalPension: 0,

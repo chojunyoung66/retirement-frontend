@@ -15,7 +15,13 @@ import {
   wasStepCompleted,
 } from "./session";
 import { toAssetBucket } from "./buckets";
-import type { CtaName, EventProps, ReportDownloadMethod, StepName } from "./types";
+import type {
+  CtaName,
+  EventProps,
+  ExpertReviewPlacement,
+  ReportDownloadMethod,
+  StepName,
+} from "./types";
 import type { AuthGateReason } from "../utils/auth-gate";
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
@@ -119,6 +125,41 @@ export function buildReportDownloadedProps(method: ReportDownloadMethod): EventP
 
 export function trackReportDownloaded(method: ReportDownloadMethod): void {
   track("report_downloaded", buildReportDownloadedProps(method));
+}
+
+/** 입력 여부만 보낸다 — 소득·재산 금액은 보내지 않는다 (AC-13) */
+export function buildTaxHealthCheckProps(input: {
+  hasPropertyInput: boolean;
+  hasFinancialIncomeInput: boolean;
+  hasActualPremiumInput: boolean;
+}): EventProps {
+  return {
+    has_property_input: input.hasPropertyInput,
+    has_financial_income_input: input.hasFinancialIncomeInput,
+    has_actual_premium_input: input.hasActualPremiumInput,
+  };
+}
+
+export function trackTaxHealthCheckRun(input: {
+  hasPropertyInput: boolean;
+  hasFinancialIncomeInput: boolean;
+  hasActualPremiumInput: boolean;
+}): void {
+  track("tax_health_check_run", buildTaxHealthCheckProps(input));
+}
+
+export function buildExpertReviewProps(
+  scenarioType: string,
+  placement: ExpertReviewPlacement,
+): EventProps {
+  return { scenario_type: scenarioType, cta_placement: placement };
+}
+
+export function trackExpertReviewRequested(
+  scenarioType: string,
+  placement: ExpertReviewPlacement,
+): void {
+  track("expert_review_requested", buildExpertReviewProps(scenarioType, placement));
 }
 
 export function buildAuthGateProps(reason: AuthGateReason, googleAvailable: boolean): EventProps {

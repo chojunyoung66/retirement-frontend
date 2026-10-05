@@ -1,9 +1,13 @@
 import type {
+  DependentReason,
   DependentStatus,
   PlanItem,
   ScenarioCard,
+  ScenarioPlan,
   ValueSource,
 } from '../api/withdrawal-scenario-api';
+
+type ScenarioMonthly = ScenarioPlan['scenario']['monthly'];
 import { formatWan } from './format';
 
 export const ACTION_LABEL: Record<PlanItem['actionType'], string> = {
@@ -19,6 +23,59 @@ export const DEPENDENT_STATUS_LABEL: Record<DependentStatus, string> = {
   CAUTION: '주의',
   CHECK_NEEDED: '확인 필요',
 };
+
+/** 서버 dependent.ts의 DEPENDENT_REASON_LABEL과 같은 문구 */
+export const DEPENDENT_REASON_LABEL: Record<DependentReason, string> = {
+  PROPERTY_UNKNOWN: '재산 정보가 없어 판단할 수 없음',
+  INCOME_OVER: '연 소득이 2,000만원 기준을 넘음',
+  INCOME_NEAR: '연 소득이 2,000만원 기준에 가까움',
+  BUSINESS_INCOME_OVER: '사업소득이 500만원 기준을 넘음',
+  FINANCIAL_INCOME_OVER: '이자·배당이 1,000만원을 넘어 전액 소득에 반영됨',
+  FINANCIAL_INCOME_NEAR: '이자·배당이 1,000만원 기준에 가까움',
+  PROPERTY_MID: '재산 5.4억 초과 구간(연 소득 1,000만원 이하만 가능)',
+  PROPERTY_OVER: '재산이 9억 기준을 넘음',
+  SPOUSE_INCOME_OVER: '배우자 소득이 기준을 넘어 부부가 함께 탈락할 수 있음',
+  SPOUSE_INCOME_NEAR: '배우자 소득이 기준에 가까움',
+};
+
+/** 연도별 사유 코드를 문구로 — 모르는 코드는 건너뛴다 */
+export function dependentReasonText(reasons: readonly string[]): string {
+  return reasons
+    .filter((code): code is DependentReason => code in DEPENDENT_REASON_LABEL)
+    .map((code) => DEPENDENT_REASON_LABEL[code])
+    .join(', ');
+}
+
+export interface MonthlyRow {
+  ym: string;
+  gross: number;
+  tax: number;
+  net: number;
+  shortfall: number;
+  balance: number;
+}
+
+/** 월별 시계열을 연도별 행 묶음으로 — 이전 세트는 net이 없어 세전−세금으로 채운다 */
+export function groupMonthlyByYear(monthly: ScenarioMonthly): { year: number; rows: MonthlyRow[] }[] {
+  const groups = new Map<number, MonthlyRow[]>();
+  monthly.ym.forEach((ym, i) => {
+    const gross = monthly.gross[i] ?? 0;
+    const tax = monthly.tax[i] ?? 0;
+    const row: MonthlyRow = {
+      ym,
+      gross,
+      tax,
+      net: monthly.net?.[i] ?? gross - tax,
+      shortfall: monthly.shortfall[i] ?? 0,
+      balance: monthly.balance[i] ?? 0,
+    };
+    const year = Number(ym.slice(0, 4));
+    const rows = groups.get(year);
+    if (rows) rows.push(row);
+    else groups.set(year, [row]);
+  });
+  return [...groups.entries()].map(([year, rows]) => ({ year, rows }));
+}
 
 export const VALUE_SOURCE_LABEL: Record<ValueSource, string> = {
   request: '이번에 입력한 값',

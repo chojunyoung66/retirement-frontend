@@ -26,6 +26,7 @@ import {
   type PendingSaveNext,
 } from "../utils/pending-save";
 import type { AuthGateReason } from "../utils/auth-gate";
+import { RULE_SET_VERSION } from "../utils/rule-basis";
 import type { DiagnosisState } from "../domain/plan";
 import { calculateProjection } from "../service/retirement-service";
 import {
@@ -158,6 +159,7 @@ export default function ProjectionScreen() {
         householdSize: snap.householdSize,
         birthYear,
         retirementYear,
+        retirementMonth: snap.retirementMonth ?? null,
         spouseBirthYear,
         spouseRetirementYear,
         nationalPension: 0,
@@ -483,6 +485,10 @@ export default function ProjectionScreen() {
           label="가구 유형"
           value={state.diagnosisType === "couple" ? "부부" : "개인"}
         />
+        <p className="form-hint" style={{ textAlign: "center", marginTop: 0 }}>
+          계산일 {new Date().toLocaleDateString("sv-SE")} · 규칙 {RULE_SET_VERSION} · 연금 금액은 입력값 기준이며
+          세금·건강보험료는 시나리오 비교에서 제도 기준일과 함께 보여드려요
+        </p>
 
         <button
           className="btn-cta"

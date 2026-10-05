@@ -40,9 +40,9 @@ export function useAccountAssets() {
   );
 
   const addAsset = useCallback(
-    (data: AccountAssetRequest) =>
+    (data: AccountAssetRequest, options?: { detailDataConsent?: boolean }) =>
       run(async () => {
-        const created = await createAccountAsset(data);
+        const created = await createAccountAsset(data, options);
         setAssets((prev) => [...prev, created]);
         return created;
       }, '계좌를 저장하지 못했어요'),

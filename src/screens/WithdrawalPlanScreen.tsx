@@ -4,8 +4,14 @@ import { useWithdrawalScenarios } from '../hooks/useWithdrawalScenarios';
 import { useReports } from '../hooks/useReports';
 import { isScenarioType } from '../api/withdrawal-scenario-api';
 import PlanItemCard from '../components/PlanItemCard';
+import ExpertReviewButton from '../components/ExpertReviewButton';
 import { formatWan } from '../utils/format';
-import { DEPENDENT_STATUS_LABEL, formatYm } from '../utils/withdrawal-scenario-view';
+import {
+  DEPENDENT_STATUS_LABEL,
+  dependentReasonText,
+  formatYm,
+  groupMonthlyByYear,
+} from '../utils/withdrawal-scenario-view';
 import { DEPENDENT_COLOR } from '../utils/report-view';
 import { trackReportCreated, trackWithdrawalPlanView } from '../analytics';
 
@@ -53,6 +59,8 @@ export default function WithdrawalPlanScreen() {
 
   const scenario = plan?.scenario;
   const checkNeeded = plan?.accountChecks.filter((c) => c.nonDeductibleStatus === 'CHECK_NEEDED') ?? [];
+  const hasSpousePension = scenario?.yearly.some((row) => row.spouseNationalPension > 0) ?? false;
+  const monthlyGroups = scenario ? groupMonthlyByYear(scenario.monthly) : [];
 
   return (
     <div className="screen-content">
@@ -117,36 +125,91 @@ export default function WithdrawalPlanScreen() {
                   <tr>
                     <th>나이</th>
                     <th>지출</th>
-                    <th>세후 인출</th>
+                    <th>세전 인출</th>
                     <th>세금</th>
+                    <th>세후 인출</th>
+                    <th>국민연금</th>
+                    {hasSpousePension && <th>배우자 연금</th>}
+                    <th>실업급여</th>
+                    <th>건보료</th>
                     <th>부족</th>
                     <th>연말 잔액</th>
                     <th>피부양자</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {scenario.yearly.map((row) => (
-                    <tr key={row.year}>
-                      <td className="cfp-td-age">
-                        {row.age}세
-                        <span style={{ display: 'block', fontSize: 10 }}>{row.year}</span>
-                      </td>
-                      <td>{formatWan(row.expense)}</td>
-                      <td>{formatWan(row.netWithdrawal)}</td>
-                      <td>{formatWan(row.tax)}</td>
-                      <td style={row.shortfall > 0 ? { color: '#e74c3c' } : undefined}>{formatWan(row.shortfall)}</td>
-                      <td>{formatWan(row.endingBalance)}</td>
-                      <td style={{ color: DEPENDENT_COLOR[row.dependentStatus] }}>
-                        {DEPENDENT_STATUS_LABEL[row.dependentStatus]}
-                      </td>
-                    </tr>
-                  ))}
+                  {scenario.yearly.map((row) => {
+                    const reasonText = dependentReasonText(row.dependentReasons);
+                    return (
+                      <tr key={row.year}>
+                        <td className="cfp-td-age">
+                          {row.age}세
+                          <span style={{ display: 'block', fontSize: 10 }}>{row.year}</span>
+                        </td>
+                        <td>{formatWan(row.expense)}</td>
+                        <td>{formatWan(row.grossWithdrawal)}</td>
+                        <td>{formatWan(row.tax)}</td>
+                        <td>{formatWan(row.netWithdrawal)}</td>
+                        <td>{formatWan(row.nationalPension)}</td>
+                        {hasSpousePension && <td>{formatWan(row.spouseNationalPension)}</td>}
+                        <td>{formatWan(row.unemployment)}</td>
+                        <td>{formatWan(row.healthPremium)}</td>
+                        <td style={row.shortfall > 0 ? { color: '#e74c3c' } : undefined}>{formatWan(row.shortfall)}</td>
+                        <td>{formatWan(row.endingBalance)}</td>
+                        <td style={{ color: DEPENDENT_COLOR[row.dependentStatus] }} title={reasonText || undefined}>
+                          {DEPENDENT_STATUS_LABEL[row.dependentStatus]}
+                          {reasonText && (
+                            <span style={{ display: 'block', fontSize: 10, color: 'var(--text-secondary)' }}>
+                              {reasonText}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
             <p className="form-hint mt-8" style={{ marginBottom: 0 }}>
-              피부양자는 “추정 가능 / 주의 / 확인 필요” 세 단계로만 표시하며, 실제 자격은 건강보험공단에서 확인하세요.
+              지출에는 피부양자 탈락 연도의 지역 건강보험료(건보료 열)가 포함돼요. 피부양자는 “추정 가능 / 주의 / 확인
+              필요” 세 단계로만 표시하며, 실제 자격은 건강보험공단에서 확인하세요.
             </p>
+          </div>
+
+          <div className="card">
+            <div className="card-title">월별 상세</div>
+            <p className="form-hint" style={{ marginTop: 0 }}>연도를 누르면 그해 월별 세전·세금·세후·부족을 볼 수 있어요.</p>
+            {monthlyGroups.map((group) => (
+              <details key={group.year} className="mb-8">
+                <summary style={{ cursor: 'pointer', fontWeight: 600 }}>{group.year}년</summary>
+                <div className="cfp-table-wrap mt-4">
+                  <table className="cfp-table">
+                    <thead>
+                      <tr>
+                        <th>월</th>
+                        <th>세전 인출</th>
+                        <th>세금</th>
+                        <th>세후 인출</th>
+                        <th>부족</th>
+                        <th>잔액</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.rows.map((m) => (
+                        <tr key={m.ym}>
+                          <td className="cfp-td-age">{Number(m.ym.slice(5))}월</td>
+                          <td>{formatWan(m.gross)}</td>
+                          <td>{formatWan(m.tax)}</td>
+                          <td>{formatWan(m.net)}</td>
+                          <td style={m.shortfall > 0 ? { color: '#e74c3c' } : undefined}>{formatWan(m.shortfall)}</td>
+                          <td>{formatWan(m.balance)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
+            ))}
           </div>
 
           {scenario.notes.length > 0 && (
@@ -179,6 +242,7 @@ export default function WithdrawalPlanScreen() {
           <p className="form-hint mt-8">
             지금 결과를 리포트로 고정해 보관해요. 휴대폰에서는 PDF로 공유하고, PC에서는 인쇄해 PDF로 저장할 수 있어요.
           </p>
+          <ExpertReviewButton scenarioType={scenario.type} placement="withdrawal_plan" />
         </>
       )}
 

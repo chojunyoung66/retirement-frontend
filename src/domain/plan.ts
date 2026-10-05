@@ -72,6 +72,8 @@ export interface DiagnosisState {
   birthYear: number | null;
   // null이면 계산 로직에서 기본값(60세)을 적용. 정년 연장 정책 반영 시 UI에서 설정.
   retirementAge: number | null;
+  /** 퇴직 예정 월(1~12). 미입력이면 인출 시나리오 계산 시 1월로 본다 */
+  retirementMonth?: number | null;
   incomeStatus: IncomeStatus;
   pension: PensionState;
   /** couple일 때만 채움. individual이면 null */

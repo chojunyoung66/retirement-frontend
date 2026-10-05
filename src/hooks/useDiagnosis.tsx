@@ -192,6 +192,7 @@ export function diagnosisReducer(
         householdSize,
         birthYear: rec.birthYear,
         retirementAge: rec.retirementYear - rec.birthYear,
+        retirementMonth: rec.retirementMonth ?? state.retirementMonth ?? null,
         pension,
         spouse,
         livingExpense: {

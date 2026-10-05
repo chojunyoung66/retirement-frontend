@@ -13,7 +13,13 @@ export {
   wasStepCompleted,
 } from "./session";
 export { toAssetBucket, toExpenseBucket, toWanBucket } from "./buckets";
-export type { AnalyticsEventName, StepName, CtaName, ReportDownloadMethod } from "./types";
+export type {
+  AnalyticsEventName,
+  StepName,
+  CtaName,
+  ReportDownloadMethod,
+  ExpertReviewPlacement,
+} from "./types";
 export { trackPageView } from "./trackers";
 export {
   trackDiagnosisStarted,
@@ -33,4 +39,8 @@ export {
   trackReportDownloaded,
   buildAuthGateProps,
   trackAuthGateShown,
+  buildTaxHealthCheckProps,
+  trackTaxHealthCheckRun,
+  buildExpertReviewProps,
+  trackExpertReviewRequested,
 } from "./trackers";

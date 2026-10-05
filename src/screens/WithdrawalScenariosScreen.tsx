@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAccountAssets } from '../hooks/useAccountAssets';
 import { useWithdrawalScenarios } from '../hooks/useWithdrawalScenarios';
 import { useDiagnosis } from '../hooks/useDiagnosis';
@@ -23,13 +23,19 @@ type UnemploymentMode = 'simulation' | 'none';
 
 export default function WithdrawalScenariosScreen() {
   const navigate = useNavigate();
+  const location = useLocation();
   const fieldId = useId();
   const { state } = useDiagnosis();
   const { assets, fetchAssets } = useAccountAssets();
   const { scenarioSet, isLoading, error, fetchLatest, generate, select } = useWithdrawalScenarios();
   const [unemploymentMode, setUnemploymentMode] = useState<UnemploymentMode>('simulation');
+  const [unemploymentStartYm, setUnemploymentStartYm] = useState('');
   const [yearsOfService, setYearsOfService] = useState('');
-  const [propertyWan, setPropertyWan] = useState('');
+  // 세금·건보 체크에서 넘어오면 입력한 재산값을 미리 채운다
+  const [propertyWan, setPropertyWan] = useState(() => {
+    const value = (location.state as { propertyValue?: unknown } | null)?.propertyValue;
+    return typeof value === 'number' && value >= 0 ? String(Math.round(value / 10000)) : '';
+  });
   const [formError, setFormError] = useState('');
   const viewedSetId = useRef<number | null>(null);
 
@@ -54,11 +60,24 @@ export default function WithdrawalScenariosScreen() {
     state.pension.national > 0 && !state.needsPensionReinput
       ? { monthlyAmount: Math.round(state.pension.national), startAge: getPensionStartAge(state.birthYear) }
       : null;
+  const spouse = state.diagnosisType === 'couple' ? state.spouse : null;
+  const sessionSpousePension =
+    spouse && spouse.pension.national > 0 && spouse.birthYear != null && !state.needsPensionReinput
+      ? { monthlyAmount: Math.round(spouse.pension.national), startAge: getPensionStartAge(spouse.birthYear) }
+      : null;
 
   const handleGenerate = async () => {
     const body: GenerateScenarioRequest = {};
     if (sessionNationalPension) body.nationalPension = sessionNationalPension;
+    if (sessionSpousePension) body.spouseNationalPension = sessionSpousePension;
     if (unemploymentMode === 'none') body.unemployment = null;
+    else if (unemploymentStartYm) {
+      if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(unemploymentStartYm)) {
+        setFormError('실업급여 시작월을 YYYY-MM 형식으로 입력하세요');
+        return;
+      }
+      body.unemploymentStartYm = unemploymentStartYm;
+    }
     if (yearsOfService.trim()) {
       const years = Number(yearsOfService);
       if (!Number.isFinite(years) || years <= 0 || years > 50) {
@@ -118,6 +137,16 @@ export default function WithdrawalScenariosScreen() {
               : '최근 국민연금 시뮬레이션 결과 사용 (없으면 0원)'}
           </span>
         </div>
+        {spouse && (
+          <div className="item-row">
+            <span className="item-row-label">배우자 국민연금</span>
+            <span className="item-row-value">
+              {sessionSpousePension
+                ? `진단 입력값 ${formatWan(sessionSpousePension.monthlyAmount)} (${sessionSpousePension.startAge}세~)`
+                : '진단에 입력하지 않아 반영 안 함'}
+            </span>
+          </div>
+        )}
 
         <div className="mt-8" id={`${fieldId}-ub`} role="group" aria-label="실업급여 반영">
           <span className="form-label">실업급여</span>
@@ -139,6 +168,19 @@ export default function WithdrawalScenariosScreen() {
               반영 안 함
             </button>
           </div>
+          {unemploymentMode === 'simulation' && (
+            <div className="mt-8">
+              <label className="form-label" htmlFor={`${fieldId}-ub-start`}>실업급여 시작월 (선택)</label>
+              <input
+                id={`${fieldId}-ub-start`}
+                className="input"
+                type="month"
+                value={unemploymentStartYm}
+                onChange={(e) => setUnemploymentStartYm(e.target.value)}
+              />
+              <p className="form-hint">비워 두면 퇴직한 달부터 받는다고 보고 계산해요.</p>
+            </div>
+          )}
         </div>
 
         <div className="mt-8" style={{ display: 'flex', gap: 8 }}>
@@ -167,7 +209,8 @@ export default function WithdrawalScenariosScreen() {
         </div>
         <p className="form-hint mt-8">
           근속연수는 DC 퇴직소득세 계산에, 재산은 건강보험 피부양자 추정에만 씁니다. 비워 두면 최근 시뮬레이션 값이나
-          기본값을 쓰고 결과에 출처를 표시해요.
+          기본값을 쓰고 결과에 출처를 표시해요. 재산 기준이 헷갈리면{' '}
+          <Link to="/tax-health-check">세금·건보 체크</Link>에서 먼저 확인하세요.
         </p>
 
         {formError && <div className="form-error mb-8" role="alert">{formError}</div>}
@@ -255,6 +298,27 @@ export default function WithdrawalScenariosScreen() {
               </table>
             </div>
           </div>
+
+          {scenarioSet.result.isaStrategy.length > 0 && (
+            <div className="card">
+              <div className="card-title">ISA 만기·연금계좌 전환</div>
+              {scenarioSet.result.isaStrategy.map((isa) => (
+                <div key={isa.accountId} className="mb-8">
+                  <div className="item-row">
+                    <span className="item-row-label">{isa.label}</span>
+                    <span className="item-row-value">
+                      추가 공제대상 {formatWan(isa.extraCreditBase)} · 세액공제 최대 약 {formatWan(isa.maxTaxCreditEstimate)}
+                    </span>
+                  </div>
+                  <ul className="form-hint" style={{ paddingLeft: 18, margin: 0 }}>
+                    {isa.notes.map((note) => (
+                      <li key={note}>{note}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
 
           {selectedType && (
             <button

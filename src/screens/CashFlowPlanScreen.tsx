@@ -1,6 +1,8 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useMemo } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useDiagnosis } from '../hooks/useDiagnosis';
+import { useWithdrawalScenarios } from '../hooks/useWithdrawalScenarios';
+import { buildScenarioOverlay, type ScenarioOverlayRow } from '../utils/scenario-overlay';
 import { calculateLongTermProjection, getPensionStartAge, UNEMPLOYMENT_DAILY_MAX, type SecondaryIncome, type HealthEscalationMode } from '../service/retirement-service';
 import { DEFAULT_RETIREMENT_AGE, formatWan } from '../utils/format';
 import PensionReinputNotice from '../components/PensionReinputNotice';
@@ -34,6 +36,23 @@ const HEALTH_ESCALATION_OPTIONS: { label: string; value: HealthEscalationMode }[
   { label: '급격 증가', value: 'steep' },
 ];
 
+function OverlayCell({ row }: { row: ScenarioOverlayRow | undefined }) {
+  if (!row) return <td>-</td>;
+  return (
+    <td>
+      {formatWan(row.monthlyNet)}
+      {row.monthlyShortfall > 0 && (
+        <span style={{ display: 'block', fontSize: 10, color: '#e74c3c' }}>
+          (부족 {formatWan(row.monthlyShortfall)})
+        </span>
+      )}
+      <span style={{ display: 'block', fontSize: 10, color: 'var(--text-secondary)' }}>
+        잔액 {formatWan(row.endingBalance)}
+      </span>
+    </td>
+  );
+}
+
 export default function CashFlowPlanScreen() {
   const navigate = useNavigate();
   const { state } = useDiagnosis();
@@ -46,6 +65,13 @@ export default function CashFlowPlanScreen() {
   const [includeUnemployment, setIncludeUnemployment] = useState(false);
   const [ubMonthly, setUbMonthly] = useState('');
   const [ubMonths, setUbMonths] = useState('');
+  const { scenarioSet, fetchLatest } = useWithdrawalScenarios();
+
+  // 선택한 인출 시나리오는 서버 계산값을 그대로 겹쳐 보여준다 (화면에서 재계산하지 않음)
+  useEffect(() => {
+    fetchLatest().catch(() => undefined);
+  }, [fetchLatest]);
+  const overlay = useMemo(() => buildScenarioOverlay(scenarioSet), [scenarioSet]);
 
   const retirementAge = state.retirementAge ?? DEFAULT_RETIREMENT_AGE;
   const years = Math.max(lifeExpectancy - retirementAge, 5);
@@ -493,6 +519,18 @@ export default function CashFlowPlanScreen() {
       {/* 연도별 상세 테이블 */}
       <div className="card">
         <div className="card-title">연도별 현금 흐름 상세</div>
+        {overlay ? (
+          <p className="form-hint" style={{ marginTop: 0 }}>
+            “선택 시나리오” 열은 {overlay.title}의 계좌 인출 계산 결과(세후 월 평균, 규칙 {overlay.ruleVersion})예요.
+            이 화면의 가정값을 바꿔도 다시 계산되지 않으니,{' '}
+            <Link to="/withdrawal-scenarios">시나리오 비교</Link>에서 새로 계산하세요.
+          </p>
+        ) : (
+          <p className="form-hint" style={{ marginTop: 0 }}>
+            <Link to="/withdrawal-scenarios">4개 인출 시나리오</Link>에서 하나를 선택하면 계좌 인출액을 이 표에 함께
+            보여드려요.
+          </p>
+        )}
         <div className="cfp-table-wrap">
           <table className="cfp-table">
             <thead>
@@ -501,6 +539,7 @@ export default function CashFlowPlanScreen() {
                 <th>월 수입</th>
                 <th>월 지출</th>
                 <th>월 갭</th>
+                {overlay && <th>선택 시나리오 인출</th>}
               </tr>
             </thead>
             <tbody>
@@ -560,6 +599,7 @@ export default function CashFlowPlanScreen() {
                   <td className={d.monthlyGap >= 0 ? 'result-positive' : 'result-negative'}>
                     {d.monthlyGap >= 0 ? '+' : ''}{formatWan(d.monthlyGap)}
                   </td>
+                  {overlay && <OverlayCell row={overlay.byAge.get(d.age)} />}
                 </tr>
               ))}
             </tbody>

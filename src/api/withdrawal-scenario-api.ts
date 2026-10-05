@@ -25,12 +25,29 @@ export const planItemSchema = z.object({
   cautions: z.array(z.string()),
 });
 
-const yearRowSchema = z.object({
+export const DEPENDENT_REASONS = [
+  'PROPERTY_UNKNOWN',
+  'INCOME_OVER',
+  'INCOME_NEAR',
+  'BUSINESS_INCOME_OVER',
+  'FINANCIAL_INCOME_OVER',
+  'FINANCIAL_INCOME_NEAR',
+  'PROPERTY_MID',
+  'PROPERTY_OVER',
+  'SPOUSE_INCOME_OVER',
+  'SPOUSE_INCOME_NEAR',
+] as const;
+export const dependentReasonSchema = z.enum(DEPENDENT_REASONS);
+
+// 고도화 이전에 저장된 세트·리포트는 신규 필드가 없으므로 기본값을 둔다
+export const yearRowSchema = z.object({
   year: z.number(),
   age: z.number(),
   expense: z.number(),
   nationalPension: z.number(),
+  spouseNationalPension: z.number().default(0),
   unemployment: z.number(),
+  healthPremium: z.number().default(0),
   grossWithdrawal: z.number(),
   tax: z.number(),
   netWithdrawal: z.number(),
@@ -38,6 +55,7 @@ const yearRowSchema = z.object({
   endingBalance: z.number(),
   financialIncome: z.number(),
   dependentStatus: dependentStatusSchema,
+  dependentReasons: z.array(z.string()).default([]),
 });
 
 export const summarySchema = z.object({
@@ -67,8 +85,21 @@ const monthlySchema = z.object({
   ym: z.array(z.string()),
   gross: z.array(z.number()),
   tax: z.array(z.number()),
+  net: z.array(z.number()).optional(),
   shortfall: z.array(z.number()),
   balance: z.array(z.number()),
+});
+
+export const isaStrategySchema = z.object({
+  accountId: z.number(),
+  label: z.string(),
+  balance: z.number(),
+  maturityYm: z.string().nullable(),
+  extraCreditBase: z.number(),
+  excessOverCap: z.number(),
+  maxTaxCreditEstimate: z.number(),
+  effectLimitedAfterRetirement: z.boolean(),
+  notes: z.array(z.string()),
 });
 
 export const basisDateSchema = z.object({
@@ -99,6 +130,7 @@ export const inputSummarySchema = z.object({
   nationalPensionSource: valueSourceSchema,
   unemploymentSource: valueSourceSchema,
   yearsOfServiceSource: valueSourceSchema,
+  spouseNationalPensionSource: valueSourceSchema.default('none'),
   propertyProvided: z.boolean(),
 });
 
@@ -117,6 +149,7 @@ const scenarioSetSchema = z.object({
     recommendationNote: z.string(),
     inputSummary: inputSummarySchema,
     accountChecks: z.array(accountCheckSchema),
+    isaStrategy: z.array(isaStrategySchema).default([]),
     scenarios: z.array(scenarioBaseSchema),
     disclaimers: z.array(z.string()),
   }),
@@ -143,9 +176,20 @@ const generateReqSchema = z.object({
       startAge: z.number().int(),
     })
     .optional(),
+  spouseNationalPension: z
+    .object({
+      monthlyAmount: z.number().int().nonnegative(),
+      startAge: z.number().int(),
+    })
+    .nullable()
+    .optional(),
   unemployment: z
     .object({ monthlyAmount: z.number().int().nonnegative(), months: z.number().int() })
     .nullable()
+    .optional(),
+  unemploymentStartYm: z
+    .string()
+    .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
     .optional(),
   yearsOfService: z.number().positive().optional(),
   propertyValue: z.number().int().nonnegative().nullable().optional(),
@@ -165,6 +209,8 @@ export type ValueSource = z.infer<typeof valueSourceSchema>;
 export type DependentStatus = z.infer<typeof dependentStatusSchema>;
 export type PlanItem = z.infer<typeof planItemSchema>;
 export type YearRow = z.infer<typeof yearRowSchema>;
+export type DependentReason = z.infer<typeof dependentReasonSchema>;
+export type IsaStrategy = z.infer<typeof isaStrategySchema>;
 export type ScenarioSummary = z.infer<typeof summarySchema>;
 export type ScenarioCard = z.infer<typeof scenarioBaseSchema>;
 export type ScenarioSet = z.infer<typeof scenarioSetSchema>;
@@ -179,7 +225,7 @@ const toApiError = (err: unknown): unknown =>
     ? new ApiError(err.response?.data?.error?.code || 'UNKNOWN_ERROR', err.response?.status)
     : err;
 
-const parseOrThrow = <T>(schema: z.ZodType<T>, data: unknown): T => {
+const parseOrThrow = <T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, data: unknown): T => {
   const parsed = schema.safeParse(data);
   if (!parsed.success) throw new Error('유효하지 않은 응답 형식입니다');
   return parsed.data;
@@ -236,6 +282,16 @@ export const selectWithdrawalScenario = async (
 ): Promise<void> => {
   try {
     await client.patch(`/withdrawal-scenarios/${setId}/selection`, { selectedType });
+  } catch (err: unknown) {
+    throw toApiError(err);
+  }
+};
+
+// 시나리오 세트 전체 삭제 — 세트에 남은 계좌 잔액도 지운다 (리포트는 유지)
+export const deleteAllWithdrawalScenarios = async (): Promise<number> => {
+  try {
+    const res = await client.delete('/withdrawal-scenarios');
+    return parseOrThrow(z.object({ deletedCount: z.number() }), res.data.data).deletedCount;
   } catch (err: unknown) {
     throw toApiError(err);
   }

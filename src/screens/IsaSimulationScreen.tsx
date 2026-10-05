@@ -3,6 +3,7 @@ import Input from '../components/Input';
 import Button from '../components/Button';
 import { useSimulation } from '../hooks/useSimulation';
 import { ApiError } from '../api/client';
+import RuleBasisNote from '../components/RuleBasisNote';
 import { ISA_ANNUAL_CONTRIBUTION_LIMIT } from '../service/retirement-service';
 
 function formatWan(won: number): string {
@@ -129,6 +130,7 @@ export default function IsaSimulationScreen() {
             <span className="simulation-delta">{formatWan(output.estimatedTaxSaving)}</span>
           </div>
           <p className="form-hint mt-8">{output.notice}</p>
+          <RuleBasisNote output={output} />
         </div>
       )}
 

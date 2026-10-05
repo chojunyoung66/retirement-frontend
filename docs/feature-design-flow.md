@@ -1,6 +1,6 @@
 # 고도화 기능 설계 · 흐름 정의서
 
-> 갱신: 2026-08-04 · **현 미션(보안·품질 고도화) 마감 핸드오프**  
+> 갱신: 2026-10-05 · PRD v1.1 고도화 반영 (인출 시나리오·리포트·세금·건보 체크) · 갭 분석: `RCFD/docs/prd-v1.1-gap-analysis.md`  
 > 대상: `retirement-frontend` + `retirement-backend` (제품: 은퇴현금 설계센터)  
 > 정본: 이 문서 · BE 요약: `retirement-backend/docs/feature-design-flow.md`  
 > 보안 감사 상세 표는 레포 외부(Drive 등) 보관 · Deferred 요약만 §7  
@@ -43,7 +43,15 @@ flowchart LR
 | Diagnosis | `/api/diagnoses/me/latest` | 진단 플로우 → `/result` → `/summary` | 유저 1건 · 연금 금액 서버 0 sanitize · 부부 시 배우자 출생/퇴직연도·householdSize 저장 |
 | Simulation | `/api/simulations/*` | `/simulation/*`, dashboard | 7타입 · 소유권 검사 |
 | Portfolio | `/api/pension-portfolios` | `/portfolio` | CRUD + IDOR 방지 |
+| AccountAsset | `/api/account-assets` | `/account-assets` | 계좌별 잔액·과세구분 · 최대 20개 · 첫 저장 시 상세 저장 동의(`CONSENT_REQUIRED`) · 전체 삭제 |
+| WithdrawalScenario | `/api/withdrawal-scenarios` (`generate`, `latest`, `:id/plans/:type`, `:id/selection`, `DELETE /`) | `/withdrawal-scenarios`, `/withdrawal-plan/:setId/:type` | A~D 월 단위 엔진 · 규칙 기반 추천 · 연도별 건보료·피부양자 사유 · ISA 전환 · 최근 5세트 보관 |
+| Report | `/api/reports` (`POST`, `GET /:id`, `GET /:id/pdf`) | `/report/:id` | 생성 시점 스냅샷 · PDF만 · 세트 삭제 후에도 유지(SetNull) |
+| TaxHealthCheck | `POST /api/tax-health-check` | `/tax-health-check` | 무저장 · 피부양자 3단계+사유 · 지역보험료 추정·실제 고지액 비교 |
 | Health | `GET /health` | `warmBackend` | 콜드스타트 완화 |
+
+- 시뮬레이션 결과(`outputData`)에는 `basisDate`·`ruleVersion`이 붙는다(주택연금 제외). 제도 수치 정본은 BE `application/rules/rule-set.ts`.
+- 연금 금액은 서버에 저장하지 않는다. 시나리오 생성 시 FE 세션의 본인·배우자 국민연금 월액을 요청 본문으로 보낸다.
+- `CashFlowPlanScreen`은 선택한 시나리오의 서버 연간값을 겹쳐 보여줄 뿐 화면에서 재계산하지 않는다.
 
 별도 retirement-goals API **없음** — 진단(Diagnosis)이 목표·현금흐름 입력 역할을 수행.
 
@@ -91,7 +99,14 @@ sequenceDiagram
 - 경로 `/simulation/housing-pension` — **게스트 로컬 계산 가능**  
 - 로그인 시 API 생성·latest 조회 · 「현금흐름 반영」→ 진단 pension.housing
 
-### 4.4 탈퇴
+### 4.4 계좌 → 인출 시나리오 → 실행안 → 리포트
+
+1. `/account-assets` 계좌 입력 (첫 저장 시 동의 체크) · 필요하면 `/tax-health-check`에서 재산 기준 확인 후 재산값을 시나리오 화면으로 전달  
+2. `/withdrawal-scenarios` → `POST generate` (국민연금·배우자 연금·실업급여 시작월·재산은 요청 본문) → 4개 비교 · 규칙 기반 추천  
+3. 시나리오 선택 → `/withdrawal-plan/:setId/:type` 연간표(세전·세금·세후·연금·실업급여·건보료·피부양자 사유) + 월별 상세  
+4. 리포트 생성 → `/report/:id` · 생성 직후 시트에서 계좌·시나리오 세트 삭제 선택(리포트는 유지) · 전문가 검토 외부 폼(`VITE_EXPERT_REVIEW_URL`)
+
+### 4.5 탈퇴
 
 - `DELETE /users/me` — 비밀번호 또는 Google-only(이메일+`"탈퇴합니다"`)  
 - 재인증 실패=`INVALID_CREDENTIALS`(세션 유지) · 성공 시 draft clear + logout → `/`
@@ -106,7 +121,7 @@ sequenceDiagram
 | Diagnosis Context | 진단 런타임 · projection |
 | sessionStorage | draft · pending save · logout/401 시 `clearClientRetirementSession` |
 
-- Protected: `/summary`, `/account`, `/cashflow-plan`, 대부분 `/simulation/*`, `/portfolio`  
+- Protected: `/summary`, `/account`, `/cashflow-plan`, 대부분 `/simulation/*`, `/portfolio`, `/account-assets`, `/withdrawal-*`, `/report/:id`, `/tax-health-check`  
 - 공개 예외: `/result`, `/simulation/housing-pension`  
 - `returnTo`: 상대경로만 (`resolveSafeReturnTo`)  
 - `checkAuth`: 401≠네트워크 오류 (`error` + 재시도)
@@ -118,7 +133,7 @@ sequenceDiagram
 - Clean Architecture: Controllers → Services → Repos · DI=`bootstrap.ts`  
 - Zod write 경로 · `BusinessException`/`TechnicalException`  
 - Production: CORS=`FRONTEND_ORIGIN` fail-closed · Bearer 무시 · json 64kb  
-- Rate: auth 20 / api 300 / health 120 (15분)  
+- Rate (15분, IP당): auth 40 / api 300 / health 120 · 무거운 API 20 (`POST /withdrawal-scenarios/generate`, `GET /reports/:id/pdf`, `/tax-health-check`)  
 - 세션: idle 30분 슬라이딩 · absolute 12시간 (`sessionStartedAt`)  
 - 소유권: Simulation · Portfolio · Diagnosis `/me` 스코프
 

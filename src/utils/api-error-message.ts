@@ -7,6 +7,7 @@ const SPECIFIC_MESSAGES: Record<string, string> = {
   DIAGNOSIS_REQUIRED: '노후 진단을 먼저 완료해 주세요',
   ACCOUNT_ASSETS_REQUIRED: '계좌 자산을 1개 이상 입력해 주세요',
   REPORT_NOT_FOUND: '리포트를 찾을 수 없어요. 삭제되었을 수 있어요',
+  CONSENT_REQUIRED: '계좌 잔액·과세구분 저장에 동의해 주세요',
 };
 
 // ApiError(errorCode) 형태만 인식 — client.ts의 store·router 의존을 끌어오지 않기 위함

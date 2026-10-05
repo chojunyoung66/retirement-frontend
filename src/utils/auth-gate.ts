@@ -27,6 +27,7 @@ export function resolveAuthGateReason(state: unknown): AuthGateReason | null {
 export function reasonFromPath(path: string): AuthGateReason | null {
   if (
     path === "/account-assets" ||
+    path === "/tax-health-check" ||
     path.startsWith("/withdrawal-") ||
     path.startsWith("/report/")
   ) {

@@ -82,6 +82,9 @@ export default function ProfileScreen() {
   const [retirementAgeInput, setRetirementAgeInput] = useState<string>(
     String(state.retirementAge ?? DEFAULT_RETIREMENT_AGE),
   );
+  const [retirementMonthInput, setRetirementMonthInput] = useState<string>(
+    state.retirementMonth ? String(state.retirementMonth) : '',
+  );
   const [spouseBirthYearInput, setSpouseBirthYearInput] = useState<string>(
     spouse.birthYear ? String(spouse.birthYear) : '',
   );
@@ -208,6 +211,7 @@ export default function ProfileScreen() {
       payload: {
         birthYear: selfResult.data.birthYear,
         retirementAge: selfResult.data.retirementAge,
+        retirementMonth: retirementMonthInput ? Number(retirementMonthInput) : null,
         ...(isCouple && spouseResult?.success
           ? {
               spouse: {
@@ -282,6 +286,26 @@ export default function ProfileScreen() {
           error={errors.retirementAge}
           hint={retirementHint}
         />
+
+        <div className="form-group">
+          <label className="form-label" htmlFor="profile-retirement-month">
+            퇴직 예정 월 (선택)
+          </label>
+          <select
+            id="profile-retirement-month"
+            className="input"
+            value={retirementMonthInput}
+            onChange={(e) => setRetirementMonthInput(e.target.value)}
+          >
+            <option value="">모름 (1월로 계산)</option>
+            {Array.from({ length: 12 }, (_, i) => (
+              <option key={i + 1} value={String(i + 1)}>
+                {i + 1}월
+              </option>
+            ))}
+          </select>
+          <p className="form-hint">인출 시나리오를 퇴직한 달부터 월 단위로 계산할 때 써요.</p>
+        </div>
 
         {renderIncomeOptions(
           'self',

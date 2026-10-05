@@ -6,6 +6,7 @@ import {
   assumptionsSchema,
   basisDateSchema,
   inputSummarySchema,
+  isaStrategySchema,
   planItemSchema,
   scenarioBaseSchema,
   scenarioTypeSchema,
@@ -43,6 +44,7 @@ const reportContentSchema = z.object({
   ),
   scenario: scenarioBaseSchema,
   accountChecks: z.array(accountCheckSchema),
+  isaStrategy: z.array(isaStrategySchema).default([]),
   disclaimers: z.array(z.string()),
 });
 
@@ -61,7 +63,7 @@ export type ReportContent = z.infer<typeof reportContentSchema>;
 export type ReportSummary = z.infer<typeof reportSummarySchema>;
 export type Report = z.infer<typeof reportSchema>;
 
-const parseOrThrow = <T>(schema: z.ZodType<T>, data: unknown): T => {
+const parseOrThrow = <T>(schema: z.ZodType<T, z.ZodTypeDef, unknown>, data: unknown): T => {
   const parsed = schema.safeParse(data);
   if (!parsed.success) throw new Error('유효하지 않은 응답 형식입니다');
   return parsed.data;

@@ -76,12 +76,18 @@ export const getAccountAssets = async (): Promise<AccountAsset[]> => {
   }
 };
 
-// 계좌 추가
-export const createAccountAsset = async (data: AccountAssetRequest): Promise<AccountAsset> => {
+// 계좌 추가 — 첫 계좌는 상세 저장 동의를 함께 보낸다
+export const createAccountAsset = async (
+  data: AccountAssetRequest,
+  options: { detailDataConsent?: boolean } = {},
+): Promise<AccountAsset> => {
   try {
     const parsedReq = accountAssetReqSchema.safeParse(data);
     if (!parsedReq.success) throw new ApiError('VALIDATION_ERROR');
-    const res = await client.post('/account-assets', parsedReq.data);
+    const body = options.detailDataConsent
+      ? { ...parsedReq.data, detailDataConsent: true }
+      : parsedReq.data;
+    const res = await client.post('/account-assets', body);
     return parseOrThrow(accountAssetSchema, res.data.data);
   } catch (err: unknown) {
     throw toApiError(err);

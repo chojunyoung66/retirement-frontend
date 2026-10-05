@@ -2,6 +2,8 @@ import { useId, useState } from 'react';
 import Button from '../components/Button';
 import { useSimulation } from '../hooks/useSimulation';
 import { ApiError } from '../api/client';
+import { PREMIUM_COMPARISON_TEXT, comparePremium } from '../utils/tax-health-check-form';
+import RuleBasisNote from '../components/RuleBasisNote';
 
 function formatWon(won: number): string {
   return won.toLocaleString('ko-KR');
@@ -55,6 +57,8 @@ export default function HealthInsuranceSimulationScreen() {
   const [carValue, setCarValue] = useState('');
   const [formError, setFormError] = useState<string | undefined>();
   const [loadNotice, setLoadNotice] = useState<string | undefined>();
+  const [actualPremium, setActualPremium] = useState('');
+  const actualPremiumId = useId();
 
   const toWon = (v: string) => Number(v) * 10000;
 
@@ -107,6 +111,7 @@ export default function HealthInsuranceSimulationScreen() {
         notice: string;
       }
     | undefined;
+  const actualWon = actualPremium === '' ? null : Number(actualPremium);
 
   return (
     <div className="screen-content">
@@ -228,7 +233,32 @@ export default function HealthInsuranceSimulationScreen() {
             <span className="simulation-delta">{formatWon(output.estimatedMonthlyPremium * 12)}원</span>
           </div>
 
+          <div className="mt-8">
+            <label className="form-label" htmlFor={actualPremiumId}>실제 고지 월 보험료 (선택, 원)</label>
+            <input
+              id={actualPremiumId}
+              className="input"
+              inputMode="numeric"
+              placeholder="고지서 금액 — 저장하지 않아요"
+              value={actualPremium}
+              onChange={(e) => setActualPremium(e.target.value.replace(/[^0-9]/g, ''))}
+            />
+            {actualWon !== null && (
+              <div className="simulation-card mt-4">
+                <span className="simulation-label">추정치와 차이</span>
+                <span className="simulation-delta">
+                  {actualWon - output.estimatedMonthlyPremium >= 0 ? '+' : ''}
+                  {formatWon(actualWon - output.estimatedMonthlyPremium)}원
+                </span>
+              </div>
+            )}
+            <p className="form-hint mt-4">
+              {PREMIUM_COMPARISON_TEXT[comparePremium(output.estimatedMonthlyPremium, actualWon)]}
+            </p>
+          </div>
+
           <p className="form-hint mt-8">{output.notice}</p>
+          <RuleBasisNote output={output} />
         </div>
       )}
 

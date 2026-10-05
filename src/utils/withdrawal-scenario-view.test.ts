@@ -1,9 +1,47 @@
 import { describe, expect, it } from 'vitest';
 import {
+  dependentReasonText,
   formatPeriod,
   formatYm,
+  groupMonthlyByYear,
   summarizeScenarioCard,
 } from './withdrawal-scenario-view';
+
+describe('dependentReasonText', () => {
+  it('사유 코드를 문구로 잇고 모르는 코드는 건너뛴다', () => {
+    expect(dependentReasonText(['INCOME_OVER', 'UNKNOWN', 'PROPERTY_MID'])).toBe(
+      '연 소득이 2,000만원 기준을 넘음, 재산 5.4억 초과 구간(연 소득 1,000만원 이하만 가능)',
+    );
+    expect(dependentReasonText([])).toBe('');
+  });
+});
+
+describe('groupMonthlyByYear', () => {
+  it('연도별로 묶고 net이 없으면 세전−세금으로 채운다', () => {
+    const groups = groupMonthlyByYear({
+      ym: ['2030-11', '2030-12', '2031-01'],
+      gross: [100, 200, 300],
+      tax: [10, 20, 30],
+      shortfall: [0, 0, 5],
+      balance: [900, 700, 400],
+    });
+    expect(groups.map((g) => g.year)).toEqual([2030, 2031]);
+    expect(groups[0]?.rows[1]).toEqual({ ym: '2030-12', gross: 200, tax: 20, net: 180, shortfall: 0, balance: 700 });
+    expect(groups[1]?.rows[0]?.shortfall).toBe(5);
+  });
+
+  it('서버가 준 net을 우선한다', () => {
+    const [group] = groupMonthlyByYear({
+      ym: ['2030-11'],
+      gross: [100],
+      tax: [10],
+      net: [85],
+      shortfall: [0],
+      balance: [0],
+    });
+    expect(group?.rows[0]?.net).toBe(85);
+  });
+});
 
 const summary = {
   grossWithdrawal: 764_529_652,

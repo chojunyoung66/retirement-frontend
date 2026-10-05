@@ -1,6 +1,6 @@
 # Tracking Plan v1.1 · 은퇴현금 설계센터
 
-갱신: 2026-08-11 · Amplitude (행동) + GA4 (유입·미러)
+갱신: 2026-10-05 · Amplitude (행동) + GA4 (유입·미러)
 
 ## 1. 공통 속성 (모든 이벤트)
 
@@ -38,7 +38,7 @@
 | `result_saved` | PUT diagnosis 성공 | `household_type` | diagnosis_id 1회 · HTTP+SDK |
 
 `step_name`: `type` \| `profile` \| `cashflow` \| `scenario` \| `medical`  
-`cta_name`: `save_result` \| `cashflow_plan`  
+`cta_name`: `save_result` \| `cashflow_plan` \| `withdrawal_scenarios`  
 `cta_placement`: `primary` \| `secondary`
 
 ### P1
@@ -46,8 +46,19 @@
 | 이벤트 | Trigger | 추가 속성 | 중복 규칙 |
 |--------|---------|-----------|-----------|
 | `auth_gate_shown` | 기능 버튼(결과 저장·시나리오 비교)이나 보호 화면 직접 접근으로 `/signin` 진입 (헤더 "로그인" 등 일반 진입 제외) | `gate_reason`=`scenarios`\|`save_result`, `google_available`(boolean) | 로그인 화면 진입마다 1회 |
+| `scenario_compare_view` | 4개 시나리오 세트 표시 | `diagnosis_type`, `has_spouse`, `asset_bucket`(구간) | 세트당 1회 |
+| `scenario_selected` | 시나리오 카드 선택 | `scenario_type`=`A`~`D` | 선택마다 |
+| `withdrawal_plan_view` | 실행안 화면 로드 | `scenario_type` | 세트×유형 1회 |
+| `report_created` | 리포트 생성 성공 | `scenario_type` | 생성마다 |
+| `report_preview_view` | 리포트 화면 표시 | `report_type`=`withdrawal_plan`, `device_mode`=`pc`\|`mobile` | 화면 진입마다 |
+| `report_downloaded` | PDF 공유·저장·인쇄 | `report_format`=`pdf`, `method`=`share`\|`download`\|`print` | 동작마다 |
+| `tax_health_check_run` | 세금·건보 체크 결과 수신 | `has_property_input`, `has_financial_income_input`, `has_actual_premium_input` (모두 boolean) | 실행마다 |
+| `expert_review_requested` | 전문가 검토 버튼 클릭(외부 폼) | `scenario_type`, `cta_placement`=`withdrawal_plan`\|`report` | 클릭마다 |
 
-퍼널: `design_cta_clicked` → `auth_gate_shown` → (가입·로그인) → `result_saved` → `/account-assets` `page_view`
+퍼널: `design_cta_clicked` → `auth_gate_shown` → (가입·로그인) → `result_saved` → `/account-assets` `page_view`  
+고도화 퍼널: `scenario_compare_view` → `scenario_selected` → `withdrawal_plan_view` → `report_created` → `report_downloaded` / `expert_review_requested`
+
+모든 P1 이벤트는 금액을 보내지 않는다. 자산은 `asset_bucket` 구간, 세금·건보 체크는 입력 여부(boolean)만 보낸다 (AC-13).
 
 미구현 · 후보: `field_validation_failed`, `recalculation_started`
 

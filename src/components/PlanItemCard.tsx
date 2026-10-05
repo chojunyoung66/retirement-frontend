@@ -41,11 +41,16 @@ export default function PlanItemCard({ item }: { item: PlanItem }) {
         <strong>건강보험</strong> {item.healthInsuranceNote}
       </p>
       {item.cautions.length > 0 && (
-        <ul className="form-hint" style={{ color: '#e67e22', paddingLeft: 18, marginBottom: 0 }}>
-          {item.cautions.map((text) => (
-            <li key={text}>{text}</li>
-          ))}
-        </ul>
+        <>
+          <p className="form-hint mt-8" style={{ marginBottom: 0 }}>
+            <strong>운영 메모</strong>
+          </p>
+          <ul className="form-hint" style={{ color: '#e67e22', paddingLeft: 18, marginBottom: 0, marginTop: 2 }}>
+            {item.cautions.map((text) => (
+              <li key={text}>{text}</li>
+            ))}
+          </ul>
+        </>
       )}
     </div>
   );

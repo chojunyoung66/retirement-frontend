@@ -17,6 +17,7 @@ export type DiagnosisDraft = {
   householdSize: number;
   birthYear: number | null;
   retirementAge: number | null;
+  retirementMonth?: number | null;
   incomeStatus: IncomeStatus;
   pension: PensionState;
   spouse: PersonProfile | null;
@@ -24,6 +25,14 @@ export type DiagnosisDraft = {
   medicalExpense: MedicalExpenseState;
   needsPensionReinput?: boolean;
 };
+
+function isRetirementMonth(value: unknown): boolean {
+  return (
+    value === undefined ||
+    value === null ||
+    (typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 12)
+  );
+}
 
 function isDiagnosisType(value: unknown): value is DiagnosisType {
   return value === "individual" || value === "couple";
@@ -90,6 +99,7 @@ function isDiagnosisDraft(value: unknown): value is DiagnosisDraft {
     typeof v.householdSize === "number" &&
     (v.birthYear === null || typeof v.birthYear === "number") &&
     (v.retirementAge === null || typeof v.retirementAge === "number") &&
+    isRetirementMonth(v.retirementMonth) &&
     isIncomeStatus(v.incomeStatus) &&
     isPension(v.pension) &&
     spouseOk &&
@@ -153,6 +163,7 @@ export function persistDiagnosisState(state: DiagnosisState): void {
     householdSize: state.householdSize,
     birthYear: state.birthYear,
     retirementAge: state.retirementAge,
+    ...(state.retirementMonth != null ? { retirementMonth: state.retirementMonth } : {}),
     incomeStatus: state.incomeStatus,
     pension: state.pension,
     spouse: state.spouse,

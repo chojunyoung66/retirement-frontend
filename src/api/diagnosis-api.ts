@@ -9,6 +9,7 @@ const diagnosisRecordSchema = z.object({
   householdSize: z.number().int().default(1),
   birthYear: z.number(),
   retirementYear: z.number(),
+  retirementMonth: z.number().nullable().optional().default(null),
   spouseBirthYear: z.number().nullable().optional().default(null),
   spouseRetirementYear: z.number().nullable().optional().default(null),
   nationalPension: z.number(),
@@ -26,6 +27,7 @@ const diagnosisDataSchema = z.object({
   householdSize: z.number().int().min(1).max(5).default(1),
   birthYear: z.number().int().min(1900),
   retirementYear: z.number().int().min(1900),
+  retirementMonth: z.number().int().min(1).max(12).nullable().optional().default(null),
   spouseBirthYear: z.number().int().min(1900).nullable().optional().default(null),
   spouseRetirementYear: z
     .number()
@@ -44,7 +46,7 @@ const diagnosisDataSchema = z.object({
 });
 
 export type DiagnosisRecord = z.infer<typeof diagnosisRecordSchema>;
-export type DiagnosisData = z.infer<typeof diagnosisDataSchema>;
+export type DiagnosisData = z.input<typeof diagnosisDataSchema>;
 
 // 최신 진단 결과 조회 (없으면 null)
 export const getLatestDiagnosis = async (): Promise<DiagnosisRecord | null> => {

@@ -95,8 +95,30 @@ describe("saveLatestDiagnosis — PUT /diagnoses/me/latest", () => {
 
     const result = await saveLatestDiagnosis(payload);
 
-    expect(mockPut).toHaveBeenCalledWith("/diagnoses/me/latest", payload);
+    expect(mockPut).toHaveBeenCalledWith("/diagnoses/me/latest", {
+      ...payload,
+      retirementMonth: null,
+    });
     expect(result.id).toBe(1);
+  });
+
+  it("퇴직 예정 월을 함께 보낸다", async () => {
+    mockPut.mockResolvedValue({ data: { data: { ...SAMPLE_RECORD, retirementMonth: 11 } } });
+    const result = await saveLatestDiagnosis({
+      householdType: "individual",
+      birthYear: 1970,
+      retirementYear: 2030,
+      retirementMonth: 11,
+      nationalPension: 0,
+      retirementPension: 0,
+      personalPension: 0,
+      monthlyExpense: 2000000,
+    });
+    expect(mockPut).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.objectContaining({ retirementMonth: 11 }),
+    );
+    expect(result.retirementMonth).toBe(11);
   });
 });
 

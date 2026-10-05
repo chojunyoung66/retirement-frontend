@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { deleteAllAccountAssets } from '../api/account-asset-api';
+import { deleteAllWithdrawalScenarios } from '../api/withdrawal-scenario-api';
 import type { ReportContent } from '../api/report-api';
 import PlanItemCard from '../components/PlanItemCard';
+import ExpertReviewButton from '../components/ExpertReviewButton';
 import { useReportDeviceMode } from '../hooks/useReportDeviceMode';
 import { useReports } from '../hooks/useReports';
 import { showToast } from '../store/toast-slice';
@@ -228,8 +230,8 @@ export default function ReportScreen() {
   const handleDeleteRawData = async () => {
     setRawDataStep('deleting');
     try {
-      await deleteAllAccountAssets();
-      dispatch(showToast('입력한 계좌 금액을 삭제했어요. 리포트는 그대로 보관돼요'));
+      await Promise.all([deleteAllAccountAssets(), deleteAllWithdrawalScenarios()]);
+      dispatch(showToast('입력한 계좌 금액과 계산 기록을 삭제했어요. 리포트는 그대로 보관돼요'));
     } catch {
       dispatch(showToast('계좌 정보를 삭제하지 못했어요. 계좌 화면에서 다시 시도해 주세요'));
     }
@@ -459,6 +461,12 @@ export default function ReportScreen() {
         </div>
       )}
 
+      {report && (
+        <div className="no-print">
+          <ExpertReviewButton scenarioType={report.scenarioType} placement="report" />
+        </div>
+      )}
+
       <div className="mt-16 no-print">
         <button className="btn-back" onClick={() => navigate('/account-assets')}>
           계좌 화면으로
@@ -525,8 +533,8 @@ export default function ReportScreen() {
               리포트를 보관했어요
             </div>
             <p className="form-hint">
-              리포트는 그대로 두고, 입력한 계좌 금액은 삭제할까요? 삭제하면 다음에 시나리오를 다시 계산할 때 계좌를 새로
-              입력해야 해요.
+              리포트는 그대로 두고, 입력한 계좌 금액과 시나리오 계산 기록은 삭제할까요? 삭제하면 다음에 시나리오를 다시
+              계산할 때 계좌를 새로 입력해야 해요.
             </p>
             <div className="report-sheet-actions">
               <button className="btn-back" onClick={handleKeepRawData} disabled={rawDataStep === 'deleting'}>

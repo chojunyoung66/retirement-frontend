@@ -109,6 +109,39 @@ describe('parseScenarioSet', () => {
     expect(set.result.scenarios.map((s) => s.type)).toEqual(['A', 'B', 'C', 'D']);
   });
 
+  it('고도화 이전 세트는 신규 필드를 기본값으로 채운다', () => {
+    const set = parseScenarioSet({ id: 1, ruleVersion: 'x', selectedType: null, createdAt: 'x', result });
+    const row = set.result.scenarios[0].yearly[0];
+    expect(row).toMatchObject({ healthPremium: 0, spouseNationalPension: 0, dependentReasons: [] });
+    expect(set.result.isaStrategy).toEqual([]);
+    expect(set.result.inputSummary.spouseNationalPensionSource).toBe('none');
+  });
+
+  it('건보료·피부양자 사유·ISA 전략을 파싱한다', () => {
+    const next = structuredClone(result) as typeof result & { isaStrategy: unknown[] };
+    Object.assign(next.scenarios[0].yearly[0], {
+      healthPremium: 1_200_000,
+      spouseNationalPension: 0,
+      dependentReasons: ['INCOME_OVER'],
+    });
+    next.isaStrategy = [
+      {
+        accountId: 4,
+        label: 'ISA',
+        balance: 30_000_000,
+        maturityYm: '2027-03',
+        extraCreditBase: 3_000_000,
+        excessOverCap: 0,
+        maxTaxCreditEstimate: 396_000,
+        effectLimitedAfterRetirement: true,
+        notes: ['60일 이내 전환'],
+      },
+    ];
+    const set = parseScenarioSet({ id: 1, ruleVersion: 'x', selectedType: null, createdAt: 'x', result: next });
+    expect(set.result.scenarios[0].yearly[0].dependentReasons).toEqual(['INCOME_OVER']);
+    expect(set.result.isaStrategy[0].extraCreditBase).toBe(3_000_000);
+  });
+
   it('피부양자 상태가 3단계 밖이면 거부한다 (AC-09)', () => {
     const broken = structuredClone(result);
     (broken.scenarios[0].yearly[0] as { dependentStatus: string }).dependentStatus = 'OK';

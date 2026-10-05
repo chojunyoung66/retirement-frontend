@@ -23,8 +23,12 @@ export type AnalyticsEventName =
   | "withdrawal_plan_view"
   | "report_created"
   | "report_preview_view"
-  | "report_downloaded";
+  | "report_downloaded"
+  | "tax_health_check_run"
+  | "expert_review_requested";
 
 export type ReportDownloadMethod = "share" | "download" | "print";
+
+export type ExpertReviewPlacement = "withdrawal_plan" | "report";
 
 export type EventProps = Record<string, string | number | boolean | null | undefined>;

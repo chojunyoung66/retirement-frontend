@@ -251,19 +251,26 @@ function AccountAssetCard({
 
 export default function AccountAssetsScreen() {
   const navigate = useNavigate();
-  const { assets, isLoading, error, fetchAssets, addAsset, editAsset, removeAsset, removeAll } =
+  const { assets, isLoading, error, setError, fetchAssets, addAsset, editAsset, removeAsset, removeAll } =
     useAccountAssets();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [consentChecked, setConsentChecked] = useState(false);
+  const consentId = useId();
 
   useEffect(() => {
     fetchAssets().catch(() => undefined);
   }, [fetchAssets]);
 
   const totalBalance = assets.reduce((sum, a) => sum + a.balance, 0);
+  const needsConsent = assets.length === 0;
 
   const handleCreate = async (data: AccountAssetRequest) => {
-    await addAsset(data);
+    if (needsConsent && !consentChecked) {
+      setError('계좌 잔액·과세구분 저장에 동의해 주세요');
+      throw new Error('CONSENT_REQUIRED');
+    }
+    await addAsset(data, { detailDataConsent: needsConsent && consentChecked });
     setShowForm(false);
   };
 
@@ -342,7 +349,27 @@ export default function AccountAssetsScreen() {
           )}
 
           {showForm ? (
-            <AccountAssetForm onSubmit={handleCreate} onCancel={() => setShowForm(false)} isLoading={isLoading} />
+            <>
+              {needsConsent && (
+                <div className="card" style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                  <input
+                    id={consentId}
+                    type="checkbox"
+                    checked={consentChecked}
+                    onChange={(e) => {
+                      setConsentChecked(e.target.checked);
+                      if (e.target.checked) setError(null);
+                    }}
+                    style={{ marginTop: 4 }}
+                  />
+                  <label htmlFor={consentId} className="form-hint" style={{ margin: 0 }}>
+                    (필수) 인출 시나리오 계산을 위해 계좌별 잔액·과세구분을 서버에 저장하는 데 동의해요. 계좌번호는
+                    받지 않으며, 언제든 전체 삭제할 수 있어요.
+                  </label>
+                </div>
+              )}
+              <AccountAssetForm onSubmit={handleCreate} onCancel={() => setShowForm(false)} isLoading={isLoading} />
+            </>
           ) : (
             <button
               className="btn-back"
@@ -364,6 +391,9 @@ export default function AccountAssetsScreen() {
           >
             4개 인출 시나리오 비교하기
           </button>
+          <p className="form-hint mt-8" style={{ textAlign: 'center' }}>
+            피부양자 유지 여부와 지역보험료가 궁금하면 <Link to="/tax-health-check">세금·건보 체크</Link>
+          </p>
         </>
       )}
 

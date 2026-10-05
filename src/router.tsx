@@ -28,6 +28,7 @@ import WithdrawalScenariosScreen from "./screens/WithdrawalScenariosScreen";
 import WithdrawalPlanScreen from "./screens/WithdrawalPlanScreen";
 import ReportScreen from "./screens/ReportScreen";
 import TermsScreen from "./screens/TermsScreen";
+import TaxHealthCheckScreen from "./screens/TaxHealthCheckScreen";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
 
@@ -142,6 +143,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <WithdrawalScenariosScreen />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "tax-health-check",
+        element: (
+          <ProtectedRoute>
+            <TaxHealthCheckScreen />
           </ProtectedRoute>
         ),
       },

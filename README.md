@@ -66,6 +66,7 @@ src/
 | `/withdrawal-scenarios` | 4개 인출 시나리오(A~D) 비교·선택 |
 | `/withdrawal-plan/:setId/:type` | 선택 시나리오의 계좌별 실행안 |
 | `/report/:id` | 실행계획 리포트 (휴대폰: PDF 공유·저장 / PC: 인쇄·PDF 저장) |
+| `/tax-health-check` | 세금·건강보험 체크 (피부양자 3단계·사유, 지역보험료 추정·실제 고지액 비교, 무저장) |
 | `/simulation` | 시뮬레이션 메뉴 |
 | `/simulation/dashboard` | 대시보드 |
 | `/simulation/{health-insurance,national-pension,isa,irp,severance-pay,unemployment-benefit}` | 개별 시뮬 |
@@ -91,6 +92,9 @@ VITE_AMPLITUDE_API_KEY=
 
 # GA4 Measurement ID
 VITE_GA4_MEASUREMENT_ID=
+
+# 전문가 검토 요청 외부 폼 (http/https만 · 없으면 버튼 숨김)
+# VITE_EXPERT_REVIEW_URL=
 ```
 
 Vercel 프로젝트 `retirement-frontend-y2dn` Production/Preview에 Amplitude·GA4·Google Client ID가 등록되어 있다.
@@ -147,6 +151,12 @@ CI(`.github/workflows/ci.yml`)는 `npm ci` → lint → test → build 순서로
   - 분석 이벤트 `report_created`(scenario_type), `report_preview_view`(report_type·device_mode),
     `report_downloaded`(report_format·method: share/download/print) — 금액 없음
   - 실제 공유 시트(iOS·Android)와 Safari·Firefox 인쇄 결과는 자동 점검 범위 밖이라 배포 전 기기에서 확인
+  - 생성 직후 삭제 시트는 계좌 정보와 시나리오 세트(`DELETE /withdrawal-scenarios`)를 함께 지움
+  - `VITE_EXPERT_REVIEW_URL`이 있으면 실행안·리포트 화면에 "전문가 검토 요청하기"(외부 폼, 서버 미저장) 노출 ·
+    이벤트 `expert_review_requested`(scenario_type·cta_placement)
+- **PRD v1.1 고도화** — 첫 계좌 저장 시 상세 저장 동의 체크, 실행안 연간표에 세전 인출·국민연금·실업급여·
+  건보료·피부양자 사유와 월별 상세, `/cashflow-plan`에 선택 시나리오 서버값 오버레이(재계산 없음),
+  `/tax-health-check`(이벤트 `tax_health_check_run`은 입력 여부 boolean만), 시뮬레이션·결과 화면 기준일 표시
 - **진단 draft** — `sessionStorage`로 리로드·로그인 복귀 복구
 - **연금 재입력 안내** — 서버는 연금 금액을 저장하지 않으므로, 저장 진단 복원 시 연금이 비어 있으면
   `needsPensionReinput` 플래그로 결과 대신 "연금 재입력" 카드를 보여주고 `/cashflow`로 안내
