@@ -127,7 +127,13 @@ CI(`.github/workflows/ci.yml`)는 `npm ci` → lint → test → build 순서로
 - **4개 인출 시나리오** — 진단 결과 화면 CTA 또는 포트폴리오 화면에서 `/account-assets`로 진입해
   계좌를 입력하면 BE가 A~D 시나리오(세후 인출·세금·자산 소진·피부양자 기간)를 계산하고,
   선택한 안의 계좌별 인출 순서·연도별 흐름을 보여줌. 분석 이벤트 `scenario_compare_view`,
-  `scenario_selected`, `withdrawal_plan_view`는 금액 대신 `asset_bucket` 구간만 보냄
+  `scenario_selected`, `withdrawal_plan_view`는 금액 대신 `asset_bucket` 구간만 보냄.
+  시나리오 계산은 서버에 저장된 진단을 쓰므로 결과 화면 버튼은 현재 진단을 먼저 저장하고 이동하며,
+  비로그인이면 "로그인하고 …" 문구로 로그인 후 자동 저장 → `/account-assets`로 이어감
+- **로그인 게이트** — 결과 저장·시나리오 비교 버튼이나 보호 화면 직접 접근으로 로그인 화면에 오면
+  이유 배너(`src/utils/auth-gate.ts`)를 고정으로 보여주고 Google(신규면 자동 가입) → 이메일 가입 →
+  이메일 로그인 순서로 배치. 헤더 "로그인" 등 일반 진입은 기존 화면. 이벤트 `auth_gate_shown`
+  (`gate_reason`, `google_available`)
 - **실행계획 리포트** — 실행안 화면의 "이 실행안으로 리포트 만들기"로 결과를 스냅샷으로 고정하고
   `/report/:id`로 이동. 생성 직후 "입력한 계좌 금액은 삭제할까요?" 시트를 띄움(리포트는 유지).
   - 휴대폰: "지금 할 일"을 먼저 보여주고 비교·연도별 표는 접어 둠. 연도별 표는 4열 요약 후

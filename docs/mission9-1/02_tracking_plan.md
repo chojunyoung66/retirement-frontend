@@ -41,9 +41,15 @@
 `cta_name`: `save_result` \| `cashflow_plan`  
 `cta_placement`: `primary` \| `secondary`
 
-### P1 (미구현 · 9-2 후보)
+### P1
 
-`field_validation_failed`, `auth_gate_shown`, `recalculation_started`
+| 이벤트 | Trigger | 추가 속성 | 중복 규칙 |
+|--------|---------|-----------|-----------|
+| `auth_gate_shown` | 기능 버튼(결과 저장·시나리오 비교)이나 보호 화면 직접 접근으로 `/signin` 진입 (헤더 "로그인" 등 일반 진입 제외) | `gate_reason`=`scenarios`\|`save_result`, `google_available`(boolean) | 로그인 화면 진입마다 1회 |
+
+퍼널: `design_cta_clicked` → `auth_gate_shown` → (가입·로그인) → `result_saved` → `/account-assets` `page_view`
+
+미구현 · 후보: `field_validation_failed`, `recalculation_started`
 
 ## 4. step ↔ 라우트
 

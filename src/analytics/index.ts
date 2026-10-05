@@ -31,4 +31,6 @@ export {
   trackReportPreviewView,
   buildReportDownloadedProps,
   trackReportDownloaded,
+  buildAuthGateProps,
+  trackAuthGateShown,
 } from "./trackers";

@@ -2,6 +2,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useAuth } from "../hooks/useAuth";
 import Button from "./Button";
+import { reasonFromPath } from "../utils/auth-gate";
 
 export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isLoggedIn, authStatus, checkAuth } = useAuth();
@@ -43,6 +44,10 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   return isLoggedIn ? (
     <>{children}</>
   ) : (
-    <Navigate to="/signin" state={{ from: location.pathname }} replace />
+    <Navigate
+      to="/signin"
+      state={{ from: location.pathname, reason: reasonFromPath(location.pathname) }}
+      replace
+    />
   );
 }

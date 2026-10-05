@@ -22,7 +22,10 @@ import {
   clearPendingSave,
   hasPendingSave,
   markPendingSave,
+  pendingSaveNext,
+  type PendingSaveNext,
 } from "../utils/pending-save";
+import type { AuthGateReason } from "../utils/auth-gate";
 import type { DiagnosisState } from "../domain/plan";
 import { calculateProjection } from "../service/retirement-service";
 import {
@@ -102,7 +105,9 @@ export default function ProjectionScreen() {
     };
   }, [projection]);
 
-  const handleSave = async () => {
+  // 시나리오 계산은 서버에 저장된 진단을 쓰므로, 시나리오로 갈 때도 먼저 저장한다
+  const handleSave = async (next: PendingSaveNext = "/summary") => {
+    const toScenarios = next === "/account-assets";
     // 로그인 리다이렉트·리로드로 메모리가 비었으면 세션 초안에서 동기 복구
     let snap: DiagnosisState = state;
     if (!snap.birthYear) {
@@ -129,10 +134,11 @@ export default function ProjectionScreen() {
     }
 
     if (!isLoggedIn) {
-      markPendingSave();
-      dispatch(showToast("로그인 후 결과를 저장할 수 있어요"));
+      markPendingSave(next);
+      // 로그인 화면이 진입 시 토스트를 지우므로 안내는 로그인 화면 배너(reason)로 한다
+      const reason: AuthGateReason = toScenarios ? "scenarios" : "save_result";
       navigate("/signin", {
-        state: { from: "/result", intent: "save" satisfies "save" },
+        state: { from: "/result", intent: "save" satisfies "save", reason },
       });
       return;
     }
@@ -172,10 +178,12 @@ export default function ProjectionScreen() {
       }
       dispatch(
         showToast(
-          "진단 요약을 저장했어요. 예상 은퇴 소득 금액은 서버에 저장하지 않아요",
+          toScenarios
+            ? "진단을 저장했어요. 계좌를 입력하면 4개 시나리오를 비교할 수 있어요"
+            : "진단 요약을 저장했어요. 예상 은퇴 소득 금액은 서버에 저장하지 않아요",
         ),
       );
-      navigate("/summary");
+      navigate(next);
     } catch (err) {
       // 실패한 저장 의도가 다음 진입 때 자동 재시도되지 않도록 정리
       clearPendingSave();
@@ -208,10 +216,11 @@ export default function ProjectionScreen() {
 
     if (autoSaveStarted.current || isSaving) return;
     autoSaveStarted.current = true;
+    const next = pendingSaveNext();
     if (locState?.intent === "save") {
       navigate("/result", { replace: true, state: {} });
     }
-    void handleSave();
+    void handleSave(next);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authStatus, isLoggedIn, location.state, projection, state.birthYear]);
 
@@ -491,10 +500,13 @@ export default function ProjectionScreen() {
           style={{ marginBottom: 12, background: "var(--primary-dark)" }}
           onClick={() => {
             trackDesignCtaClicked("withdrawal_scenarios", "secondary");
-            navigate("/account-assets");
+            void handleSave("/account-assets");
           }}
+          disabled={isSaving}
         >
-          🧾 4개 인출 시나리오 비교하기
+          {isLoggedIn
+            ? "🧾 4개 인출 시나리오 비교하기"
+            : "🧾 로그인하고 4개 인출 시나리오 비교하기"}
         </button>
 
         <div className="button-row">

@@ -16,6 +16,7 @@ import {
 } from "./session";
 import { toAssetBucket } from "./buckets";
 import type { CtaName, EventProps, ReportDownloadMethod, StepName } from "./types";
+import type { AuthGateReason } from "../utils/auth-gate";
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
   return new Promise((resolve) => {
@@ -118,6 +119,15 @@ export function buildReportDownloadedProps(method: ReportDownloadMethod): EventP
 
 export function trackReportDownloaded(method: ReportDownloadMethod): void {
   track("report_downloaded", buildReportDownloadedProps(method));
+}
+
+export function buildAuthGateProps(reason: AuthGateReason, googleAvailable: boolean): EventProps {
+  return { gate_reason: reason, google_available: googleAvailable };
+}
+
+/** 기능 버튼·보호 화면에서 로그인 화면으로 넘어온 경우만 (일반 로그인 진입 제외) */
+export function trackAuthGateShown(reason: AuthGateReason, googleAvailable: boolean): void {
+  track("auth_gate_shown", buildAuthGateProps(reason, googleAvailable));
 }
 
 /** 저장 성공 — diagnosis_id당 1회만 전송 */

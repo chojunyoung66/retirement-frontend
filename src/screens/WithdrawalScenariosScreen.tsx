@@ -174,7 +174,12 @@ export default function WithdrawalScenariosScreen() {
         {error && (
           <div className="form-error mb-8" role="alert">
             {error}
-            {error.includes('진단') && <> · <Link to="/diagnosis">진단하러 가기</Link></>}
+            {error.includes('진단') &&
+              (state.projection ? (
+                <> · <Link to="/result">결과 화면에서 진단 저장하기</Link></>
+              ) : (
+                <> · <Link to="/diagnosis">진단하러 가기</Link></>
+              ))}
             {error.includes('계좌') && <> · <Link to="/account-assets">계좌 입력하기</Link></>}
           </div>
         )}

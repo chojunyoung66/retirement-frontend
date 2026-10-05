@@ -9,6 +9,8 @@ import Button from '../components/Button';
 import { showToast } from '../store/toast-slice';
 import type { AppDispatch } from '../store/store';
 import { resolveSafeReturnTo } from '../utils/safe-return-to';
+import { resolveAuthGateReason } from '../utils/auth-gate';
+import AuthGateBanner from '../components/AuthGateBanner';
 
 function getSignUpErrorMessage(code: string): string {
   // 서버는 존재·가입 방식을 구분하지 않음 (열거 방지)
@@ -41,6 +43,7 @@ export default function SignUpScreen() {
   const [searchParams] = useSearchParams();
   const { signup } = useAuth();
   const dispatch = useDispatch<AppDispatch>();
+  const gateReason = resolveAuthGateReason(location.state);
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -106,10 +109,13 @@ export default function SignUpScreen() {
 
   return (
     <div className="screen-content">
+      {gateReason && <AuthGateBanner reason={gateReason} />}
       <h2 className="card-title mb-8">회원가입</h2>
-      <p className="card-subtitle mb-16">
-        결과 확인은 로그인 없이 가능해요. 저장하려면 계정을 만들어주세요.
-      </p>
+      {!gateReason && (
+        <p className="card-subtitle mb-16">
+          결과 확인은 로그인 없이 가능해요. 저장하려면 계정을 만들어주세요.
+        </p>
+      )}
 
       <Input
         label="이름"

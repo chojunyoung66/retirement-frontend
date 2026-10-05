@@ -10,6 +10,9 @@ import { showToast, hideToast } from "../store/toast-slice";
 import type { AppDispatch } from "../store/store";
 import { resolveSafeReturnTo } from "../utils/safe-return-to";
 import { warmBackend } from "../utils/warm-backend";
+import { resolveAuthGateReason } from "../utils/auth-gate";
+import AuthGateBanner from "../components/AuthGateBanner";
+import { trackAuthGateShown } from "../analytics";
 
 function getAuthErrorMessage(code: string): string {
   if (code === "INVALID_CREDENTIALS")
@@ -95,11 +98,19 @@ export default function SignInScreen() {
     import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
   )?.trim();
 
+  // 기능 버튼·보호 화면에서 넘어온 경우 — 배너를 보여주고 신규 가입 경로를 앞에 둔다
+  const gateReason = resolveAuthGateReason(location.state);
+  const gateTracked = useRef(false);
+
   useEffect(() => {
     // Render 슬립 대비 — 로그인 화면 진입 시 백엔드 깨우기
     warmBackend();
     // 이전 화면에서 남은 지속 토스트가 비밀번호 패널 없이 메시지만 남는 현상 방지
     dispatch(hideToast());
+    if (gateReason && !gateTracked.current) {
+      gateTracked.current = true;
+      trackAuthGateShown(gateReason, Boolean(googleClientId));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -200,7 +211,8 @@ export default function SignInScreen() {
       window.google.accounts.id.renderButton(container, {
         theme: "outline",
         size: "large",
-        text: "signin_with",
+        // 게이트 진입은 신규가 많아 "계속하기"(신규면 바로 가입)로 표시
+        text: gateReason ? "continue_with" : "signin_with",
         shape: "rectangular",
         logo_alignment: "left",
         locale: "ko",
@@ -242,7 +254,7 @@ export default function SignInScreen() {
       cancelled = true;
       if (pollTimer) clearInterval(pollTimer);
     };
-  }, [googleClientId, pendingGoogleIdToken]);
+  }, [googleClientId, pendingGoogleIdToken, gateReason]);
 
   const handleSubmit = async () => {
     const result = signInSchema.safeParse({ email, password });
@@ -301,14 +313,10 @@ export default function SignInScreen() {
     }
   };
 
-  return (
-    <div className="screen-content">
-      <h2 className="card-title mb-8">로그인</h2>
+  const goSignUp = () => navigate("/signup", { state: location.state });
 
-      <p className="card-subtitle mb-16">
-        결과 확인은 로그인 없이 가능해요. 저장하려면 로그인해주세요.
-      </p>
-
+  const emailForm = (
+    <>
       <Input
         label="이메일"
         type="text"
@@ -327,9 +335,18 @@ export default function SignInScreen() {
       />
 
       <div className="mt-16">
-        <Button onClick={handleSubmit}>로그인</Button>
+        <Button
+          onClick={handleSubmit}
+          variant={gateReason ? "secondary" : "primary"}
+        >
+          로그인
+        </Button>
       </div>
+    </>
+  );
 
+  const googleBlock = (
+    <>
       {googleClientId && !pendingGoogleIdToken && (
         <div className="mt-8" style={{ position: "relative" }}>
           <p className="form-hint mb-8" style={{ textAlign: "center" }}>
@@ -435,20 +452,59 @@ export default function SignInScreen() {
           </div>
         </div>
       )}
+    </>
+  );
+
+  const homeButton = (
+    <div className="mt-8">
+      <Button variant="secondary" onClick={() => navigate("/")}>
+        홈으로
+      </Button>
+    </div>
+  );
+
+  if (gateReason) {
+    return (
+      <div className="screen-content">
+        <AuthGateBanner reason={gateReason} />
+        <h2 className="card-title mb-8">로그인 또는 가입</h2>
+
+        {googleBlock}
+
+        <div className="mt-16">
+          <Button onClick={goSignUp}>처음이에요 · 이메일로 가입하기</Button>
+        </div>
+
+        <p
+          className="form-hint mt-16 mb-8"
+          style={{ textAlign: "center", fontWeight: 600 }}
+        >
+          이미 계정이 있다면 이메일로 로그인
+        </p>
+        {emailForm}
+
+        {homeButton}
+      </div>
+    );
+  }
+
+  return (
+    <div className="screen-content">
+      <h2 className="card-title mb-8">로그인</h2>
+
+      <p className="card-subtitle mb-16">
+        결과 확인은 로그인 없이 가능해요. 저장하려면 로그인해주세요.
+      </p>
+
+      {emailForm}
+      {googleBlock}
 
       <div className="mt-8">
-        <Button
-          variant="secondary"
-          onClick={() => navigate("/signup", { state: location.state })}
-        >
+        <Button variant="secondary" onClick={goSignUp}>
           회원가입
         </Button>
       </div>
-      <div className="mt-8">
-        <Button variant="secondary" onClick={() => navigate("/")}>
-          홈으로
-        </Button>
-      </div>
+      {homeButton}
     </div>
   );
 }
