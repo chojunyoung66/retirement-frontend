@@ -7,7 +7,10 @@ const KEYS = {
   diagnosisDone: "rc_diagnosis_completed",
   resultSaved: "rc_result_saved",
   utm: "rc_utm",
+  scenarioCompareViewed: "rc_scenario_compare_viewed",
 } as const;
+
+const MAX_VIEWED_SCENARIO_SETS = 20;
 
 function newId(): string {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
@@ -107,6 +110,20 @@ export function wasResultSaved(): boolean {
   const saved = read(KEYS.resultSaved);
   const current = read(KEYS.diagnosisId);
   return Boolean(saved && current && saved === current);
+}
+
+/** 비교 화면 노출은 세트 id당 1회 — 처음이면 기록하고 true, 이미 보냈으면 false (화면 재진입에도 유지) */
+export function claimScenarioCompareView(setId: number): boolean {
+  let viewed: number[] = [];
+  try {
+    const parsed: unknown = JSON.parse(read(KEYS.scenarioCompareViewed) ?? "[]");
+    if (Array.isArray(parsed)) viewed = parsed.filter((v): v is number => typeof v === "number");
+  } catch {
+    viewed = [];
+  }
+  if (viewed.includes(setId)) return false;
+  write(KEYS.scenarioCompareViewed, JSON.stringify([...viewed, setId].slice(-MAX_VIEWED_SCENARIO_SETS)));
+  return true;
 }
 
 export type UtmBag = {

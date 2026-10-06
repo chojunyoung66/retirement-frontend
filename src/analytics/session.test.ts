@@ -1,5 +1,32 @@
-import { describe, it, expect } from 'vitest';
-import { readUtmFromSearch } from './session';
+import { beforeEach, describe, it, expect } from 'vitest';
+import { claimScenarioCompareView, readUtmFromSearch } from './session';
+
+describe('claimScenarioCompareView', () => {
+  beforeEach(() => sessionStorage.clear());
+
+  it('같은 세트는 처음 한 번만 true — 화면 재진입(재호출)에도 유지', () => {
+    expect(claimScenarioCompareView(16)).toBe(true);
+    expect(claimScenarioCompareView(16)).toBe(false);
+  });
+
+  it('다시 계산해 새 세트가 생기면 다시 true', () => {
+    expect(claimScenarioCompareView(16)).toBe(true);
+    expect(claimScenarioCompareView(17)).toBe(true);
+    expect(claimScenarioCompareView(16)).toBe(false);
+  });
+
+  it('최근 20개 세트까지만 보관', () => {
+    for (let id = 1; id <= 21; id++) claimScenarioCompareView(id);
+    expect(claimScenarioCompareView(1)).toBe(true);
+    expect(claimScenarioCompareView(21)).toBe(false);
+  });
+
+  it('저장값이 깨져 있으면 새로 시작', () => {
+    sessionStorage.setItem('rc_scenario_compare_viewed', '{broken');
+    expect(claimScenarioCompareView(5)).toBe(true);
+    expect(claimScenarioCompareView(5)).toBe(false);
+  });
+});
 
 describe('readUtmFromSearch', () => {
   it('URL의 UTM 값을 읽음', () => {

@@ -11,6 +11,7 @@ export {
   wasDiagnosisCompleted,
   markStepCompleted,
   wasStepCompleted,
+  claimScenarioCompareView,
 } from "./session";
 export { toAssetBucket, toExpenseBucket, toWanBucket } from "./buckets";
 export type {

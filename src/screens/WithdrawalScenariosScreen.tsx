@@ -17,7 +17,7 @@ import type {
   ScenarioSet,
   ScenarioType,
 } from '../api/withdrawal-scenario-api';
-import { trackScenarioCompareView, trackScenarioSelected } from '../analytics';
+import { claimScenarioCompareView, trackScenarioCompareView, trackScenarioSelected } from '../analytics';
 
 type UnemploymentMode = 'simulation' | 'none';
 
@@ -44,10 +44,11 @@ export default function WithdrawalScenariosScreen() {
     fetchLatest().catch(() => undefined);
   }, [fetchAssets, fetchLatest]);
 
-  // 비교 화면 노출은 세트당 1회
+  // 비교 화면 노출은 세트당 1회 — 화면을 다시 열어도 같은 세트는 보내지 않는다
   useEffect(() => {
     if (!scenarioSet || viewedSetId.current === scenarioSet.id) return;
     viewedSetId.current = scenarioSet.id;
+    if (!claimScenarioCompareView(scenarioSet.id)) return;
     trackScenarioCompareView({
       diagnosisType: state.diagnosisType,
       hasSpouse: state.spouse != null,
