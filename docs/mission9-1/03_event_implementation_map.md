@@ -32,11 +32,16 @@
 | `scenario_compare_view` | `WithdrawalScenariosScreen.tsx` | 세트 표시, 세트 id당 1회 |
 | `scenario_selected` | `WithdrawalScenariosScreen.tsx` | `handleSelect` |
 | `withdrawal_plan_view` | `WithdrawalPlanScreen.tsx` | 실행안 로드, 세트×유형 1회 |
-| `report_created` | `WithdrawalPlanScreen.tsx` | 리포트 생성 성공 직후 |
+| `report_created` | `WithdrawalPlanScreen.tsx`, `PaymentSuccessScreen.tsx` | 무료 생성 성공 직후 · 결제 승인 후 리포트가 만들어졌을 때 |
 | `report_preview_view` | `ReportScreen.tsx` | 리포트 표시 |
-| `report_downloaded` | `ReportScreen.tsx` | 공유(`share`)·파일 받기(`download`)·인쇄(`print`) |
+| `report_downloaded` | `ReportScreen.tsx`, `ReportsScreen.tsx` | 공유(`share`)·파일 받기(`download`)·인쇄(`print`), 엑셀은 `report_format: xlsx` |
 | `tax_health_check_run` | `TaxHealthCheckScreen.tsx` | `runTaxHealthCheck` 성공 직후 |
-| `expert_review_requested` | `components/ExpertReviewButton.tsx` | 실행안·리포트 화면 버튼 클릭 (`VITE_EXPERT_REVIEW_URL` 설정 시에만 노출) |
+| `expert_review_requested` | `components/ReviewRequestCard.tsx` | 검토 요청 시트 제출 성공 직후 |
+| `report_checkout_started` | `WithdrawalPlanScreen.tsx` | `CheckoutSheet` "결제하기" (환불 동의 후) |
+| `report_purchased` | `PaymentSuccessScreen.tsx` | `confirmPayment` 성공 직후 |
+| `report_purchase_failed` | `PaymentSuccessScreen.tsx`, `PaymentFailScreen.tsx` | 승인 실패 · 결제창 실패/취소 복귀 (화면당 1회) |
+| `execution_plan_started` | `components/ExecutionPlanCard.tsx` | `startExecutionPlan` 성공 직후 |
+| `execution_item_completed` | `ExecutionPlanScreen.tsx` | 항목을 완료로 저장한 직후 |
 
 속성 빌더(`build*Props`)는 `src/analytics/trackers.ts`에 있고, 금액이 섞이지 않는지 `*-events.test.ts`에서 확인한다.
 

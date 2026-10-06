@@ -49,16 +49,23 @@
 | `scenario_compare_view` | 4개 시나리오 세트 표시 | `diagnosis_type`, `has_spouse`, `asset_bucket`(구간) | 세트당 1회 |
 | `scenario_selected` | 시나리오 카드 선택 | `scenario_type`=`A`~`D` | 선택마다 |
 | `withdrawal_plan_view` | 실행안 화면 로드 | `scenario_type` | 세트×유형 1회 |
-| `report_created` | 리포트 생성 성공 | `scenario_type` | 생성마다 |
+| `report_created` | 리포트 생성 성공 (무료 생성, 결제 승인 후 생성 모두) | `scenario_type` | 생성마다 |
 | `report_preview_view` | 리포트 화면 표시 | `report_type`=`withdrawal_plan`, `device_mode`=`pc`\|`mobile` | 화면 진입마다 |
-| `report_downloaded` | PDF 공유·저장·인쇄 | `report_format`=`pdf`, `method`=`share`\|`download`\|`print` | 동작마다 |
+| `report_downloaded` | PDF 공유·저장·인쇄, 엑셀 받기 | `report_format`=`pdf`\|`xlsx`, `method`=`share`\|`download`\|`print` | 동작마다 |
 | `tax_health_check_run` | 세금·건보 체크 결과 수신 | `has_property_input`, `has_financial_income_input`, `has_actual_premium_input` (모두 boolean) | 실행마다 |
-| `expert_review_requested` | 전문가 검토 버튼 클릭(외부 폼) | `scenario_type`, `cta_placement`=`withdrawal_plan`\|`report` | 클릭마다 |
+| `expert_review_requested` | 앱 안 검토 요청 **제출 성공** | `scenario_type`, `cta_placement`=`report` | 제출마다 |
+| `report_checkout_started` | 결제 시트에서 환불 규정 동의 후 "결제하기" | `scenario_type` | 클릭마다 |
+| `report_purchased` | 결제 승인 성공(`/payments/success`) | `scenario_type`, `payment_method_type`=`card`\|`easy_pay`\|`other` | 승인마다 |
+| `report_purchase_failed` | 결제창 실패·취소 복귀, 또는 승인 실패 | `reason_code`(토스·서버 오류 코드, 형식 밖이면 `UNKNOWN`) | 실패마다 |
+| `execution_plan_started` | "100일 실행 시작" 성공 | `scenario_type` | 리포트당 시작 시 |
+| `execution_item_completed` | 체크리스트 항목 완료 체크 | `due_week`(마감 주차 1~15) | 체크마다 (해제는 미전송) |
 
 퍼널: `design_cta_clicked` → `auth_gate_shown` → (가입·로그인) → `result_saved` → `/account-assets` `page_view`  
-고도화 퍼널: `scenario_compare_view` → `scenario_selected` → `withdrawal_plan_view` → `report_created` → `report_downloaded` / `expert_review_requested`
+고도화 퍼널: `scenario_compare_view` → `scenario_selected` → `withdrawal_plan_view` → `report_checkout_started` → `report_purchased` → `report_created` → `report_downloaded` / `expert_review_requested` / `execution_plan_started` → `execution_item_completed`  
+(결제가 꺼져 있으면 `withdrawal_plan_view` → `report_created`로 바로 이어진다.)
 
 모든 P1 이벤트는 금액을 보내지 않는다. 자산은 `asset_bucket` 구간, 세금·건보 체크는 입력 여부(boolean)만 보낸다 (AC-13).
+결제 이벤트에는 가격·결제 금액·주문번호·결제키를 넣지 않는다. 가격은 서버 설정(`REPORT_PRICE`)으로 따로 본다.
 
 미구현 · 후보: `field_validation_failed`, `recalculation_started`
 

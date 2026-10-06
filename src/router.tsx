@@ -29,6 +29,14 @@ import WithdrawalPlanScreen from "./screens/WithdrawalPlanScreen";
 import ReportScreen from "./screens/ReportScreen";
 import TermsScreen from "./screens/TermsScreen";
 import TaxHealthCheckScreen from "./screens/TaxHealthCheckScreen";
+import PaymentSuccessScreen from "./screens/PaymentSuccessScreen";
+import PaymentFailScreen from "./screens/PaymentFailScreen";
+import ReportsScreen from "./screens/ReportsScreen";
+import ExecutionPlanScreen from "./screens/ExecutionPlanScreen";
+import AdminReviewsScreen from "./screens/admin/AdminReviewsScreen";
+import AdminReviewDetailScreen from "./screens/admin/AdminReviewDetailScreen";
+import AdminPaymentsScreen from "./screens/admin/AdminPaymentsScreen";
+import OperatorRoute from "./components/OperatorRoute";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
 
@@ -167,6 +175,62 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <ReportScreen />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "reports",
+        element: (
+          <ProtectedRoute>
+            <ReportsScreen />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "report/:id/execution",
+        element: (
+          <ProtectedRoute>
+            <ExecutionPlanScreen />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "admin/reviews",
+        element: (
+          <OperatorRoute>
+            <AdminReviewsScreen />
+          </OperatorRoute>
+        ),
+      },
+      {
+        path: "admin/reviews/:id",
+        element: (
+          <OperatorRoute>
+            <AdminReviewDetailScreen />
+          </OperatorRoute>
+        ),
+      },
+      {
+        path: "admin/payments",
+        element: (
+          <OperatorRoute>
+            <AdminPaymentsScreen />
+          </OperatorRoute>
+        ),
+      },
+      {
+        path: "payments/success",
+        element: (
+          <ProtectedRoute>
+            <PaymentSuccessScreen />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "payments/fail",
+        element: (
+          <ProtectedRoute>
+            <PaymentFailScreen />
           </ProtectedRoute>
         ),
       },

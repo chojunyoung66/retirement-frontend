@@ -19,6 +19,8 @@ export type {
   StepName,
   CtaName,
   ReportDownloadMethod,
+  ReportFormat,
+  PaymentMethodType,
   ExpertReviewPlacement,
 } from "./types";
 export { trackPageView } from "./trackers";
@@ -44,4 +46,15 @@ export {
   trackTaxHealthCheckRun,
   buildExpertReviewProps,
   trackExpertReviewRequested,
+  buildReportCheckoutProps,
+  trackReportCheckoutStarted,
+  toPaymentMethodType,
+  buildReportPurchasedProps,
+  trackReportPurchased,
+  toPurchaseFailReason,
+  buildReportPurchaseFailedProps,
+  trackReportPurchaseFailed,
+  trackExecutionPlanStarted,
+  buildExecutionItemCompletedProps,
+  trackExecutionItemCompleted,
 } from "./trackers";

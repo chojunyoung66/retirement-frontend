@@ -7,6 +7,7 @@ import {
   basisDateSchema,
   inputSummarySchema,
   isaStrategySchema,
+  monthlySchema,
   planItemSchema,
   scenarioBaseSchema,
   scenarioTypeSchema,
@@ -22,7 +23,7 @@ const nextActionSchema = z.object({
   monthlyNet: z.number(),
 });
 
-const reportContentSchema = z.object({
+export const reportContentSchema = z.object({
   title: z.string(),
   generatedAt: z.string(),
   ruleVersion: z.string(),
@@ -42,11 +43,14 @@ const reportContentSchema = z.object({
       summary: summarySchema,
     }),
   ),
-  scenario: scenarioBaseSchema,
+  // 월별 데이터는 v1.1 이후 리포트에만 있다
+  scenario: scenarioBaseSchema.extend({ monthly: monthlySchema.optional() }),
   accountChecks: z.array(accountCheckSchema),
   isaStrategy: z.array(isaStrategySchema).default([]),
   disclaimers: z.array(z.string()),
 });
+
+export const REPORT_TITLE_MAX = 40;
 
 const reportSummarySchema = z.object({
   id: z.number(),
@@ -54,6 +58,10 @@ const reportSummarySchema = z.object({
   scenarioType: scenarioTypeSchema,
   ruleVersion: z.string(),
   generatedAt: z.string(),
+  title: z.string().nullable().default(null),
+  firstDownloadedAt: z.string().nullable().default(null),
+  updatedAt: z.string().optional(),
+  isOutdated: z.boolean().default(false),
 });
 
 const reportSchema = reportSummarySchema.extend({ content: reportContentSchema });
@@ -90,6 +98,11 @@ const toApiError = (err: unknown): unknown =>
     : err;
 
 export const reportPdfFileName = (id: number): string => `retirement-plan-${id}.pdf`;
+export const reportXlsxFileName = (id: number): string => `retirement-plan-${id}.xlsx`;
+
+const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+export const parseReportSummary = (data: unknown): ReportSummary => parseOrThrow(reportSummarySchema, data);
 
 // 선택한 시나리오로 리포트 스냅샷 생성
 export const createReport = async (
@@ -131,14 +144,28 @@ export const deleteReport = async (id: number): Promise<void> => {
   }
 };
 
-// 서버에서 만든 PDF — 콜드스타트를 고려해 넉넉히 기다린다
-export const downloadReportPdf = async (id: number): Promise<File> => {
+/** 이름을 비우면(null·빈 문자열) 기본 제목으로 돌아간다 */
+export const renameReport = async (id: number, title: string | null): Promise<ReportSummary> => {
   try {
-    const res = await client.get<Blob>(`/reports/${id}/pdf`, {
+    const res = await client.patch(`/reports/${id}`, { title });
+    return parseReportSummary(res.data.data);
+  } catch (err: unknown) {
+    throw toApiError(err);
+  }
+};
+
+const downloadReportFile = async (
+  id: number,
+  format: 'pdf' | 'xlsx',
+): Promise<File> => {
+  try {
+    const res = await client.get<Blob>(`/reports/${id}/${format}`, {
       responseType: 'blob',
       timeout: 90_000,
     });
-    return new File([res.data], reportPdfFileName(id), { type: 'application/pdf' });
+    return format === 'pdf'
+      ? new File([res.data], reportPdfFileName(id), { type: 'application/pdf' })
+      : new File([res.data], reportXlsxFileName(id), { type: XLSX_MIME });
   } catch (err: unknown) {
     if (isAxiosError(err)) {
       throw new ApiError(await errorCodeFromBlobBody(err.response?.data), err.response?.status);
@@ -146,3 +173,14 @@ export const downloadReportPdf = async (id: number): Promise<File> => {
     throw err;
   }
 };
+
+// 서버에서 만든 PDF — 콜드스타트를 고려해 넉넉히 기다린다
+export const downloadReportPdf = (id: number): Promise<File> => downloadReportFile(id, 'pdf');
+
+export const downloadReportXlsx = (id: number): Promise<File> => downloadReportFile(id, 'xlsx');
+
+/** 목록·화면에 보일 이름 — 직접 붙인 이름이 없으면 날짜와 시나리오로 만든다 */
+export const reportDisplayTitle = (
+  report: Pick<ReportSummary, 'title' | 'scenarioType'>,
+  formattedDate: string,
+): string => report.title ?? `${formattedDate} · ${report.scenarioType}안 실행계획`;

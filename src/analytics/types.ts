@@ -25,9 +25,18 @@ export type AnalyticsEventName =
   | "report_preview_view"
   | "report_downloaded"
   | "tax_health_check_run"
-  | "expert_review_requested";
+  | "expert_review_requested"
+  | "report_checkout_started"
+  | "report_purchased"
+  | "report_purchase_failed"
+  | "execution_plan_started"
+  | "execution_item_completed";
 
 export type ReportDownloadMethod = "share" | "download" | "print";
+
+export type ReportFormat = "pdf" | "xlsx";
+
+export type PaymentMethodType = "card" | "easy_pay" | "other";
 
 export type ExpertReviewPlacement = "withdrawal_plan" | "report";
 

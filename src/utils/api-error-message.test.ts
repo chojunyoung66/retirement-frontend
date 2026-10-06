@@ -27,6 +27,15 @@ describe('getApiErrorMessage', () => {
     expect(message).not.toContain('INTERNAL_SERVER_ERROR');
   });
 
+  it.each(['PAYMENT_REQUIRED', 'PAYMENT_REJECTED', 'REPORT_LIMIT', 'REVIEW_LIMIT', 'OPERATOR_ONLY'])(
+    '%s는 전용 안내 문구',
+    (code) => {
+      const message = getApiErrorMessage(apiError(code), FALLBACK);
+      expect(message).not.toBe(FALLBACK);
+      expect(message).not.toContain(code);
+    },
+  );
+
   it('ApiError가 아닌 에러는 기본 문구', () => {
     expect(getApiErrorMessage(new Error('network'), FALLBACK)).toBe(FALLBACK);
     expect(getApiErrorMessage(undefined, FALLBACK)).toBe(FALLBACK);

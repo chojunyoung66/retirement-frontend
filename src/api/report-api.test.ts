@@ -11,7 +11,14 @@ vi.mock('./client', () => ({
   },
 }));
 
-import { errorCodeFromBlobBody, parseReport, parseReportList, reportPdfFileName } from './report-api';
+import {
+  errorCodeFromBlobBody,
+  parseReport,
+  parseReportList,
+  reportDisplayTitle,
+  reportPdfFileName,
+  reportXlsxFileName,
+} from './report-api';
 
 const summary = {
   grossWithdrawal: 100,
@@ -89,16 +96,49 @@ describe('parseReport', () => {
 });
 
 describe('parseReportList', () => {
-  it('본문 없는 요약 목록을 파싱한다', () => {
-    const summaryRow = {
-      id: report.id,
-      scenarioSetId: report.scenarioSetId,
-      scenarioType: report.scenarioType,
-      ruleVersion: report.ruleVersion,
-      generatedAt: report.generatedAt,
+  const summaryRow = {
+    id: report.id,
+    scenarioSetId: report.scenarioSetId,
+    scenarioType: report.scenarioType,
+    ruleVersion: report.ruleVersion,
+    generatedAt: report.generatedAt,
+  };
+
+  it('관리 필드(이름·첫 다운로드·기준 변경)를 읽는다', () => {
+    const row = {
+      ...summaryRow,
+      title: '아내와 상의용',
+      firstDownloadedAt: '2026-10-07T01:00:00.000Z',
+      updatedAt: '2026-10-07T01:00:00.000Z',
+      isOutdated: true,
     };
-    expect(parseReportList([summaryRow])).toEqual([summaryRow]);
+    expect(parseReportList([row])).toEqual([row]);
+  });
+
+  it('관리 필드가 없는 구버전 응답은 기본값으로 채운다', () => {
+    expect(parseReportList([summaryRow])).toEqual([
+      { ...summaryRow, title: null, firstDownloadedAt: null, isOutdated: false },
+    ]);
     expect(() => parseReportList([{ ...summaryRow, scenarioType: 'E' }])).toThrow();
+  });
+});
+
+describe('parseReport 월별 데이터', () => {
+  it('v1.1 이후 리포트는 월별 시계열을 읽고, 이전 리포트는 없어도 된다', () => {
+    const monthly = { ym: ['2026-11'], gross: [1], tax: [0], net: [1], shortfall: [0], balance: [9] };
+    const withMonthly = structuredClone(report);
+    (withMonthly.content.scenario as Record<string, unknown>).monthly = monthly;
+    expect(parseReport(withMonthly).content.scenario.monthly?.ym).toEqual(['2026-11']);
+    expect(parseReport(report).content.scenario.monthly).toBeUndefined();
+  });
+});
+
+describe('reportDisplayTitle', () => {
+  it('직접 붙인 이름이 있으면 그 이름, 없으면 날짜·시나리오', () => {
+    expect(reportDisplayTitle({ title: '상의용', scenarioType: 'D' }, '2026-10-06')).toBe('상의용');
+    expect(reportDisplayTitle({ title: null, scenarioType: 'D' }, '2026-10-06')).toBe(
+      '2026-10-06 · D안 실행계획',
+    );
   });
 });
 
@@ -119,5 +159,6 @@ describe('errorCodeFromBlobBody', () => {
 describe('reportPdfFileName', () => {
   it('파일명에 개인정보 없이 id만 넣는다', () => {
     expect(reportPdfFileName(12)).toBe('retirement-plan-12.pdf');
+    expect(reportXlsxFileName(12)).toBe('retirement-plan-12.xlsx');
   });
 });

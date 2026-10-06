@@ -43,11 +43,25 @@ describe("getMe — GET /auth/me", () => {
     const result = await getMe();
 
     expect(mockGet).toHaveBeenCalledWith("/auth/me");
+    // 구버전 BE처럼 role이 없으면 일반 사용자
     expect(result).toEqual({
       id: 1,
       email: "test@example.com",
       name: "테스트",
+      role: "USER",
     });
+  });
+
+  it("운영자 역할을 읽고, 모르는 역할은 일반 사용자로 본다", async () => {
+    mockGet.mockResolvedValueOnce({
+      data: { data: { id: 1, email: "op@example.com", name: "운영", role: "OPERATOR" } },
+    });
+    await expect(getMe()).resolves.toMatchObject({ role: "OPERATOR" });
+
+    mockGet.mockResolvedValueOnce({
+      data: { data: { id: 1, email: "x@example.com", name: "x", role: "ADMIN" } },
+    });
+    await expect(getMe()).resolves.toMatchObject({ role: "USER" });
   });
 });
 

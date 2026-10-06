@@ -45,7 +45,11 @@ flowchart LR
 | Portfolio | `/api/pension-portfolios` | `/portfolio` | CRUD + IDOR 방지 |
 | AccountAsset | `/api/account-assets` | `/account-assets` | 계좌별 잔액·과세구분 · 최대 20개 · 첫 저장 시 상세 저장 동의(`CONSENT_REQUIRED`) · 전체 삭제 |
 | WithdrawalScenario | `/api/withdrawal-scenarios` (`generate`, `latest`, `:id/plans/:type`, `:id/selection`, `DELETE /`) | `/withdrawal-scenarios`, `/withdrawal-plan/:setId/:type` | A~D 월 단위 엔진 · 규칙 기반 추천 · 연도별 건보료·피부양자 사유 · ISA 전환 · 최근 5세트 보관 |
-| Report | `/api/reports` (`POST`, `GET /:id`, `GET /:id/pdf`) | `/report/:id` | 생성 시점 스냅샷 · PDF만 · 세트 삭제 후에도 유지(SetNull) |
+| Report | `/api/reports` (`POST`, `GET`, `GET/PATCH/DELETE /:id`, `GET /:id/pdf`, `GET /:id/xlsx`) | `/report/:id`, `/reports` | 생성 시점 스냅샷(월별 포함) · PDF·엑셀 · 이름 변경 · 최대 50건 · `isOutdated` · 세트 삭제 후에도 유지(SetNull) |
+| Payment | `/api/payments` (`config`, `report-orders`, `confirm`, `fail`) | `/withdrawal-plan/…` 결제 시트, `/payments/success`, `/payments/fail` | 토스 v2 카드·간편결제 · 서버가 금액 결정 · 승인 멱등 · `REPORT_PAYMENT_ENABLED` 스위치 |
+| ReviewRequest | `/api/review-requests` | `/report/:id` 검토 카드 | 열람 동의 필수 · 리포트당 진행 1건 · 사용자당 3건 |
+| ExecutionPlan | `/api/reports/:id/execution-plan`, `/api/execution-plans/:id/items/:key` | `/report/:id/execution` | 100일 체크리스트 · 주차별 진행률 |
+| Admin | `/api/admin/review-requests`, `/api/admin/payments` | `/admin/reviews`, `/admin/reviews/:id`, `/admin/payments` | `role=OPERATOR`만 · 스냅샷만 열람 · 환불 |
 | TaxHealthCheck | `POST /api/tax-health-check` | `/tax-health-check` | 무저장 · 피부양자 3단계+사유 · 지역보험료 추정·실제 고지액 비교 |
 | Health | `GET /health` | `warmBackend` | 콜드스타트 완화 |
 
@@ -104,7 +108,10 @@ sequenceDiagram
 1. `/account-assets` 계좌 입력 (첫 저장 시 동의 체크) · 필요하면 `/tax-health-check`에서 재산 기준 확인 후 재산값을 시나리오 화면으로 전달  
 2. `/withdrawal-scenarios` → `POST generate` (국민연금·배우자 연금·실업급여 시작월·재산은 요청 본문) → 4개 비교 · 규칙 기반 추천  
 3. 시나리오 선택 → `/withdrawal-plan/:setId/:type` 연간표(세전·세금·세후·연금·실업급여·건보료·피부양자 사유) + 월별 상세  
-4. 리포트 생성 → `/report/:id` · 생성 직후 시트에서 계좌·시나리오 세트 삭제 선택(리포트는 유지) · 전문가 검토 외부 폼(`VITE_EXPERT_REVIEW_URL`)
+4. 리포트 생성 → `/report/:id` · 생성 직후 시트에서 계좌·시나리오 세트 삭제 선택(리포트는 유지)  
+   - 결제가 켜져 있으면: 환불 규정 동의 시트 → `POST /payments/report-orders` → 토스 결제창 → `/payments/success` → `POST /payments/confirm`(승인 + 리포트 생성) → `/report/:id`  
+5. 리포트 화면에서 엑셀 받기 · 앱 안 무료 검토 요청(동의 + 질문, 상태·답변 표시) · "100일 실행 시작" → `/report/:id/execution`  
+6. `/reports`에서 이름 변경·삭제·PDF/엑셀 · 운영자는 `/admin/*`에서 답변·환불
 
 ### 4.5 탈퇴
 

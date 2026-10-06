@@ -46,7 +46,11 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   ) : (
     <Navigate
       to="/signin"
-      state={{ from: location.pathname, reason: reasonFromPath(location.pathname) }}
+      state={{
+        // 결제 성공 주소처럼 쿼리가 필요한 화면은 로그인 후 그대로 돌아온다
+        from: location.pathname + location.search,
+        reason: reasonFromPath(location.pathname),
+      }}
       replace
     />
   );

@@ -5,13 +5,15 @@ import { deleteAllAccountAssets } from '../api/account-asset-api';
 import { deleteAllWithdrawalScenarios } from '../api/withdrawal-scenario-api';
 import type { ReportContent } from '../api/report-api';
 import PlanItemCard from '../components/PlanItemCard';
-import ExpertReviewButton from '../components/ExpertReviewButton';
+import ExecutionPlanCard from '../components/ExecutionPlanCard';
+import ReviewRequestCard from '../components/ReviewRequestCard';
 import { useReportDeviceMode } from '../hooks/useReportDeviceMode';
 import { useReports } from '../hooks/useReports';
 import { showToast } from '../store/toast-slice';
 import type { AppDispatch } from '../store/store';
 import { getApiErrorMessage } from '../utils/api-error-message';
 import { formatWan } from '../utils/format';
+import { triggerDownload } from '../utils/download-file';
 import {
   canShareFile,
   DEPENDENT_COLOR,
@@ -31,18 +33,6 @@ import {
 import { trackReportDownloaded, trackReportPreviewView } from '../analytics';
 
 type ShareStep = 'idle' | 'confirm' | 'ready';
-
-function triggerDownload(file: File) {
-  const url = URL.createObjectURL(file);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = file.name;
-  anchor.rel = 'noopener';
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
-}
 
 function SummaryCard({ content }: { content: ReportContent }) {
   const { scenario, inputSummary } = content;
@@ -114,7 +104,7 @@ export default function ReportScreen() {
   const validId = Number.isSafeInteger(id) && id > 0;
   const mode = useReportDeviceMode();
   const isPc = mode === 'pc';
-  const { report, isLoading, isPdfLoading, error, fetchReport, fetchPdf } = useReports();
+  const { report, isLoading, isPdfLoading, isXlsxLoading, error, fetchReport, fetchPdf, fetchXlsx } = useReports();
 
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [shareStep, setShareStep] = useState<ShareStep>('idle');
@@ -193,6 +183,16 @@ export default function ReportScreen() {
     trackReportDownloaded('download');
   };
 
+  const handleSaveXlsx = async () => {
+    if (!report) return;
+    try {
+      triggerDownload(await fetchXlsx(report.id));
+      trackReportDownloaded('download', 'xlsx');
+    } catch (err) {
+      dispatch(showToast(getApiErrorMessage(err, '엑셀 파일을 만들지 못했어요. 잠시 후 다시 시도해 주세요')));
+    }
+  };
+
   // 공유 전에 금융정보 안내를 한 번 보여주고, 그동안 PDF를 미리 받아 둔다
   const handleShareStart = () => {
     setShareStep('confirm');
@@ -263,13 +263,25 @@ export default function ReportScreen() {
       {report && content && (
         <div ref={reportRef}>
           <section className="hero report-hero">
-            <h1 className="hero-title">{content.title}</h1>
+            <h1 className="hero-title">{report.title ?? content.title}</h1>
             <p className="hero-subtitle">
               생성일 {formatReportDate(content.generatedAt)} · 규칙 버전 {content.ruleVersion}
               <br />
               계산 기간 {formatPeriod(content.startYm, content.endYm)}
             </p>
           </section>
+
+          {report.isOutdated && (
+            <div className="card no-print" style={{ background: 'var(--primary-light)' }} role="note">
+              <p className="form-hint" style={{ margin: 0 }}>
+                <span className="badge badge-warning" style={{ marginRight: 6 }}>
+                  기준 변경됨
+                </span>
+                세법·건보 기준이 바뀌었거나 만든 지 6개월이 지났어요. 실행 전에{' '}
+                <Link to="/withdrawal-scenarios">최신 기준으로 다시 계산</Link>해 보세요.
+              </p>
+            </div>
+          )}
 
           {isPc && (
             <div className="card report-toolbar no-print">
@@ -279,6 +291,9 @@ export default function ReportScreen() {
                 </button>
                 <button className="btn-back" onClick={() => void handleSaveFile()} disabled={isPdfLoading}>
                   {isPdfLoading ? 'PDF 만드는 중...' : 'PDF 파일 받기'}
+                </button>
+                <button className="btn-back" onClick={() => void handleSaveXlsx()} disabled={isXlsxLoading}>
+                  {isXlsxLoading ? '엑셀 만드는 중...' : '엑셀 받기'}
                 </button>
               </div>
               <p className="form-hint" style={{ margin: '8px 0 0' }}>
@@ -462,14 +477,34 @@ export default function ReportScreen() {
       )}
 
       {report && (
-        <div className="no-print">
-          <ExpertReviewButton scenarioType={report.scenarioType} placement="report" />
+        <>
+          <ExecutionPlanCard reportId={report.id} scenarioType={report.scenarioType} />
+          <ReviewRequestCard reportId={report.id} scenarioType={report.scenarioType} />
+        </>
+      )}
+
+      {report && !isPc && (
+        <div className="card no-print">
+          <button
+            className="btn-back"
+            style={{ width: '100%' }}
+            onClick={() => void handleSaveXlsx()}
+            disabled={isXlsxLoading}
+          >
+            {isXlsxLoading ? '엑셀 만드는 중...' : '엑셀 파일 받기 (xlsx)'}
+          </button>
+          <p className="form-hint" style={{ marginBottom: 0 }}>
+            월별 현금흐름까지 표로 정리돼 있어 PC에서 보기 좋아요.
+          </p>
         </div>
       )}
 
-      <div className="mt-16 no-print">
+      <div className="mt-16 no-print report-sheet-actions">
         <button className="btn-back" onClick={() => navigate('/account-assets')}>
           계좌 화면으로
+        </button>
+        <button className="btn-back" onClick={() => navigate('/reports')}>
+          내 리포트 전체
         </button>
       </div>
 

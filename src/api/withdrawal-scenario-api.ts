@@ -81,7 +81,7 @@ export const scenarioBaseSchema = z.object({
   notes: z.array(z.string()),
 });
 
-const monthlySchema = z.object({
+export const monthlySchema = z.object({
   ym: z.array(z.string()),
   gross: z.array(z.number()),
   tax: z.array(z.number()),

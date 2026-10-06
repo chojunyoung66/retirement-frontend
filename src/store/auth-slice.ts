@@ -1,9 +1,11 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
-interface AuthUser {
+export interface AuthUser {
   id: number;
   email: string;
   name: string;
+  /** /auth/me로 확인한 뒤에만 채워진다 (로그인 응답에는 없음) */
+  role?: "USER" | "OPERATOR";
 }
 
 interface AuthState {

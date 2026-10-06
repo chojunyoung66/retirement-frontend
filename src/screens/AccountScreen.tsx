@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { useAuth } from "../hooks/useAuth";
 import { useDiagnosis } from "../hooks/useDiagnosis";
@@ -122,6 +122,29 @@ export default function AccountScreen() {
       <p className="card-subtitle mb-16">
         {profile.name} · {profile.email}
       </p>
+
+      <div className="card mb-16">
+        <div className="item-row">
+          <Link to="/reports" className="item-row-label">
+            내 리포트
+          </Link>
+          <span className="item-row-value">이름 바꾸기·다운로드·삭제</span>
+        </div>
+        {profile.role === "OPERATOR" && (
+          <>
+            <div className="item-row">
+              <Link to="/admin/reviews" className="item-row-label">
+                운영: 검토 요청
+              </Link>
+            </div>
+            <div className="item-row">
+              <Link to="/admin/payments" className="item-row-label">
+                운영: 결제·환불
+              </Link>
+            </div>
+          </>
+        )}
+      </div>
 
       <h3 className="card-title mb-8" style={{ fontSize: "1.1rem" }}>
         회원 탈퇴

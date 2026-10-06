@@ -104,11 +104,19 @@ export const signInRequest = async (
   }
 };
 
+// /auth/me만 역할을 돌려준다 — 모르는 값은 일반 사용자로 본다
+const meResSchema = signInResSchema.extend({
+  role: z.enum(["USER", "OPERATOR"]).catch("USER").default("USER"),
+});
+
+export type UserRole = "USER" | "OPERATOR";
+export type MeResponse = z.infer<typeof meResSchema>;
+
 // 사용자 프로필 조회
-export const getMe = async (): Promise<SignInResponse> => {
+export const getMe = async (): Promise<MeResponse> => {
   try {
     const res = await client.get("/auth/me");
-    const parsed = signInResSchema.safeParse(res.data.data);
+    const parsed = meResSchema.safeParse(res.data.data);
     if (!parsed.success) {
       throw new Error("유효하지 않은 응답 형식입니다");
     }

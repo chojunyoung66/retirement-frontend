@@ -93,9 +93,13 @@ VITE_AMPLITUDE_API_KEY=
 # GA4 Measurement ID
 VITE_GA4_MEASUREMENT_ID=
 
-# 전문가 검토 요청 외부 폼 (http/https만 · 없으면 버튼 숨김)
-# VITE_EXPERT_REVIEW_URL=
+# 토스페이먼츠 클라이언트 키 (test_ck_… / live_ck_…) — BE REPORT_PAYMENT_ENABLED=true일 때 필요
+# 시크릿 키(TOSS_SECRET_KEY)는 BE에만 둔다. 없으면 결제창을 열지 않고 안내만 보여 줌
+VITE_TOSS_CLIENT_KEY=
 ```
+
+결제 성공·실패 복귀 주소는 `{현재 출처}/payments/success`, `/payments/fail`입니다. 토스 개발자센터에
+별도 등록할 필요는 없지만, 배포 도메인이 BE `FRONTEND_ORIGIN`과 같아야 쿠키 인증이 유지됩니다.
 
 Vercel 프로젝트 `retirement-frontend-y2dn` Production/Preview에 Amplitude·GA4·Google Client ID가 등록되어 있다.
 
@@ -147,13 +151,24 @@ CI(`.github/workflows/ci.yml`)는 `npm ci` → lint → test → build 순서로
     "인쇄 / PDF로 저장"(`window.print`)을 기본으로, 서버 PDF 받기를 보조로 둠. User-Agent는 보지 않음
   - 인쇄(`@media print`): 머리글·바닥글·버튼을 숨기고 A4·표 머리행 반복. 인쇄 직전 접힌 구역을 모두
     펼치고 문서 제목을 `retirement-plan-<id>`로 바꿨다가 복구
-  - 내 리포트 목록(최근 10건)은 `/account-assets` 하단에서 열기·삭제
+  - `/account-assets` 하단 카드는 최근 3건과 "전체 보기"만. `/reports`에서 이름 바꾸기·삭제(시트 확인)·
+    PDF·엑셀 받기, 최대 50건. 기준이 바뀌었거나 180일이 지난 리포트는 "기준 변경됨" 배지와 다시 계산 링크
+  - 리포트 화면에 "엑셀 받기"(PC 툴바, 휴대폰은 하단 카드) — 월별 현금흐름까지 시트로 정리
   - 분석 이벤트 `report_created`(scenario_type), `report_preview_view`(report_type·device_mode),
-    `report_downloaded`(report_format·method: share/download/print) — 금액 없음
+    `report_downloaded`(report_format: pdf/xlsx · method: share/download/print) — 금액 없음
   - 실제 공유 시트(iOS·Android)와 Safari·Firefox 인쇄 결과는 자동 점검 범위 밖이라 배포 전 기기에서 확인
   - 생성 직후 삭제 시트는 계좌 정보와 시나리오 세트(`DELETE /withdrawal-scenarios`)를 함께 지움
-  - `VITE_EXPERT_REVIEW_URL`이 있으면 실행안·리포트 화면에 "전문가 검토 요청하기"(외부 폼, 서버 미저장) 노출 ·
-    이벤트 `expert_review_requested`(scenario_type·cta_placement)
+- **유료 리포트 (토스페이먼츠)** — BE `/api/payments/config`가 `enabled: true`이면 실행안 버튼이
+  "리포트 만들기 · 9,900원"으로 바뀌고, 환불 규정 동의 시트 → 토스 카드·간편결제 창 → `/payments/success`에서
+  승인·리포트 생성 → `/report/:id`. 승인 실패 시 "다시 시도"(같은 결제는 두 번 청구되지 않음),
+  `/payments/fail`은 주문을 닫고 실행안으로 돌려보냄. 이벤트 `report_checkout_started`·`report_purchased`·
+  `report_purchase_failed`에는 금액을 넣지 않음. 약관 5조(환불), 개인정보 처리 위탁·결제 기록 5년 보관 반영
+- **무료 검토 요청·100일 실행** — 리포트 화면에서 열람 동의 + 질문으로 앱 안 검토 요청(상태 단계·답변 표시,
+  처리 전 취소, 제출 시 `expert_review_requested`). "100일 실행 시작"으로 `/report/:id/execution` 주차별
+  체크리스트(`execution_plan_started`, `execution_item_completed{due_week}`)
+- **운영자 화면** — `/admin/reviews`, `/admin/reviews/:id`(동의한 리포트 스냅샷·답변·메모),
+  `/admin/payments`(환불 대상 표시·환불). `OperatorRoute`가 `/auth/me`의 `role`을 확인하고, 계정 화면에
+  운영자 링크가 보임. 운영자 지정은 BE `npm run grant-operator -- <email>`
 - **PRD v1.1 고도화** — 첫 계좌 저장 시 상세 저장 동의 체크, 실행안 연간표에 세전 인출·국민연금·실업급여·
   건보료·피부양자 사유와 월별 상세, `/cashflow-plan`에 선택 시나리오 서버값 오버레이(재계산 없음),
   `/tax-health-check`(이벤트 `tax_health_check_run`은 입력 여부 boolean만), 시뮬레이션·결과 화면 기준일 표시

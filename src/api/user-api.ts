@@ -8,6 +8,7 @@ const userProfileSchema = z.object({
   name: z.string(),
   // 구버전 BE는 hasPassword 없음 — 없으면 비밀번호 확인 UI로 폴백
   hasPassword: z.boolean().optional().default(true),
+  role: z.enum(["USER", "OPERATOR"]).catch("USER").default("USER"),
 });
 
 export type UserProfile = z.infer<typeof userProfileSchema>;

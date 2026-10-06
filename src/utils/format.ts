@@ -4,6 +4,11 @@ export function formatWan(amount: number): string {
   return `${wan.toLocaleString()}만원`;
 }
 
+/** 결제 금액처럼 원 단위 그대로 보여 줄 때 (9900 → 9,900원) */
+export function formatWon(amount: number): string {
+  return `${Math.round(amount).toLocaleString('ko-KR')}원`;
+}
+
 // 앱이 "출생연도"만 입력받으므로(생일 월/일 미수집) 정확한 만 나이 계산은 원천적으로 불가능하다.
 // currentYear - birthYear는 해당 연도 생일이 지난 뒤의 만 나이와 같으며, 생일 이전이면 실제보다
 // 최대 1세 높게 표시될 수 있다. 생일 데이터 없이는 이 이상의 정확도를 낼 수 없어 의도적으로 유지.

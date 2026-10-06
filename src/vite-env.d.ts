@@ -6,7 +6,7 @@ interface ImportMetaEnv {
   readonly VITE_AMPLITUDE_API_KEY?: string;
   readonly VITE_GA4_MEASUREMENT_ID?: string;
   readonly VITE_APP_VERSION?: string;
-  readonly VITE_EXPERT_REVIEW_URL?: string;
+  readonly VITE_TOSS_CLIENT_KEY?: string;
 }
 
 interface ImportMeta {

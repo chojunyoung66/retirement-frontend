@@ -19,7 +19,9 @@ import type {
   CtaName,
   EventProps,
   ExpertReviewPlacement,
+  PaymentMethodType,
   ReportDownloadMethod,
+  ReportFormat,
   StepName,
 } from "./types";
 import type { AuthGateReason } from "../utils/auth-gate";
@@ -119,12 +121,72 @@ export function trackReportPreviewView(deviceMode: "pc" | "mobile"): void {
 }
 
 /** print는 인쇄 창을 연 횟수 — 브라우저는 실제 PDF 저장 여부를 알려주지 않는다 */
-export function buildReportDownloadedProps(method: ReportDownloadMethod): EventProps {
-  return { report_format: "pdf", method };
+export function buildReportDownloadedProps(
+  method: ReportDownloadMethod,
+  format: ReportFormat = "pdf",
+): EventProps {
+  return { report_format: format, method };
 }
 
-export function trackReportDownloaded(method: ReportDownloadMethod): void {
-  track("report_downloaded", buildReportDownloadedProps(method));
+export function trackReportDownloaded(
+  method: ReportDownloadMethod,
+  format: ReportFormat = "pdf",
+): void {
+  track("report_downloaded", buildReportDownloadedProps(method, format));
+}
+
+/** 결제 이벤트에는 금액·주문번호를 넣지 않는다 — 가격은 서버 설정으로 따로 본다 */
+export function buildReportCheckoutProps(scenarioType: string): EventProps {
+  return { scenario_type: scenarioType };
+}
+
+export function trackReportCheckoutStarted(scenarioType: string): void {
+  track("report_checkout_started", buildReportCheckoutProps(scenarioType));
+}
+
+/** 결제사 결제수단 이름(카드·간편결제 등)을 고정 값으로 바꾼다 */
+export function toPaymentMethodType(method: string | null | undefined): PaymentMethodType {
+  if (method === "카드") return "card";
+  if (method === "간편결제") return "easy_pay";
+  return "other";
+}
+
+export function buildReportPurchasedProps(
+  scenarioType: string,
+  method: string | null | undefined,
+): EventProps {
+  return { scenario_type: scenarioType, payment_method_type: toPaymentMethodType(method) };
+}
+
+export function trackReportPurchased(scenarioType: string, method: string | null | undefined): void {
+  track("report_purchased", buildReportPurchasedProps(scenarioType, method));
+}
+
+/** 오류 코드만 보낸다 — 결제사 안내 문구는 자유 텍스트라 제외 */
+export function toPurchaseFailReason(code: string | null | undefined): string {
+  if (!code || !/^[A-Za-z0-9_]{1,60}$/.test(code)) return "UNKNOWN";
+  return code.toUpperCase();
+}
+
+export function buildReportPurchaseFailedProps(code: string | null | undefined): EventProps {
+  return { reason_code: toPurchaseFailReason(code) };
+}
+
+export function trackReportPurchaseFailed(code: string | null | undefined): void {
+  track("report_purchase_failed", buildReportPurchaseFailedProps(code));
+}
+
+export function trackExecutionPlanStarted(scenarioType: string): void {
+  track("execution_plan_started", { scenario_type: scenarioType });
+}
+
+/** 마감일은 주차로만 보낸다 (1주차 = D1~D7) */
+export function buildExecutionItemCompletedProps(dueDay: number): EventProps {
+  return { due_week: Math.max(1, Math.ceil(dueDay / 7)) };
+}
+
+export function trackExecutionItemCompleted(dueDay: number): void {
+  track("execution_item_completed", buildExecutionItemCompletedProps(dueDay));
 }
 
 /** 입력 여부만 보낸다 — 소득·재산 금액은 보내지 않는다 (AC-13) */

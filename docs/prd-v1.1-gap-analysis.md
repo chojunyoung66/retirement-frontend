@@ -92,7 +92,9 @@ PRD에서 "신규"로 정의한 기능 대부분은 이미 구현돼 있다. 계
 | scenario_compare_view, scenario_selected, withdrawal_plan_view | 구현 |
 | report_preview_view, report_downloaded | 구현 |
 | tax_health_check_run | 반영 |
-| expert_review_requested | 반영(외부 폼 링크 방식) |
+| expert_review_requested | 구현(앱 안 검토 요청 제출 시점) |
+| report_checkout_started, report_purchased, report_purchase_failed | 구현(금액 제외) |
+| execution_plan_started, execution_item_completed | 구현 |
 
 금액 원문은 이벤트에 보내지 않는다(자산은 구간 버킷만 전송).
 
@@ -116,7 +118,7 @@ PRD에서 "신규"로 정의한 기능 대부분은 이미 구현돼 있다. 계
 1. **`/api` 유지**: 프론트 `client.ts`와 배포 프록시가 `/api`를 쓰며, 버저닝 필요가 생기면 그때 도입한다.
 2. **스냅샷 JSON**: 시나리오 결과는 생성 시점 규칙으로 고정돼야 하고, 개별 행 수정 요구가 없다.
 3. **RuleVersion 상수**: 제도 수치 변경은 코드 리뷰·테스트를 거쳐야 하므로 DB 편집보다 안전하다.
-4. **PDF 단일 포맷**: PRD MVP 기준(PDF 또는 DOCX 1개)을 충족한다.
+4. **PDF + 엑셀**: PRD MVP 기준(PDF 또는 DOCX 1개)에 더해, 월별 현금흐름을 다루기 쉬운 엑셀을 추가했다.
 
 ## 10. 고도화 로드맵
 
@@ -126,7 +128,8 @@ PRD에서 "신규"로 정의한 기능 대부분은 이미 구현돼 있다. 계
 | 2 | 세금·건보 체크 API·화면, 실제 보험료 비교 | 완료 |
 | 3 | 상세 저장 동의, 시나리오 원자료 삭제, 기준일 표시 확대 | 완료 |
 | 4 | 실행안 월별/세전 표시, 20년 현금흐름에 선택 시나리오 반영 | 완료 |
-| 5 | 전문가 검토 요청, 무거운 API rate limit, 문서 갱신 | 완료 (`VITE_EXPERT_REVIEW_URL` 설정 필요) |
+| 5 | 전문가 검토 요청, 무거운 API rate limit, 문서 갱신 | 완료 → 6단계에서 앱 안 요청으로 교체 |
+| 6 | 리포트 유료화(토스), 엑셀, PDF 보강, 리포트 관리, 앱 안 검토 요청·100일 실행·운영자 화면 | 완료 (결제는 `REPORT_PAYMENT_ENABLED`로 켬, 마이그레이션 `20261009_add_payments_reviews_execution_plans`) |
 
 배포 전 확인: 마이그레이션 2건(`20261007_add_retirement_month`, `20261008_add_detail_data_consent`)은
 `npm start`의 `prisma migrate deploy`로 적용된다. 엔진 변경으로 기존 회귀 정답값(세금·소진 시점)이 바뀌었고

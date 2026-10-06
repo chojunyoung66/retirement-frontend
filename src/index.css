@@ -695,6 +695,16 @@ a:focus-visible {
   color: var(--success);
 }
 
+.badge-warning {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.badge-neutral {
+  background: #e5e7eb;
+  color: #374151;
+}
+
 .text-center {
   text-align: center;
 }
@@ -1386,9 +1396,95 @@ details.report-section:not(.card) {
   gap: 8px;
 }
 
-.report-sheet-actions > button {
+.report-sheet-actions > button,
+.report-sheet-actions > a {
   flex: 1;
   min-height: 48px;
+}
+
+.report-sheet-actions > a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.report-list-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.report-list-actions > button {
+  min-height: 44px;
+  width: 100%;
+  padding: 8px 12px;
+}
+
+@media (min-width: 600px) {
+  .report-list-actions {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.status-steps {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0;
+}
+
+.status-steps > span {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border, #e5e7eb);
+}
+
+.status-steps > span.done {
+  background: var(--primary);
+}
+
+.progress-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--border, #e5e7eb);
+  overflow: hidden;
+}
+
+.progress-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+  transition: width 0.2s ease;
+}
+
+.check-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border, #eee);
+  cursor: pointer;
+}
+
+.check-item:last-child {
+  border-bottom: none;
+}
+
+.check-item input {
+  margin-top: 3px;
+  width: 18px;
+  height: 18px;
+}
+
+.check-item.done .check-item-label {
+  color: var(--text-secondary);
+  text-decoration: line-through;
+}
+
+.admin-table td,
+.admin-table th {
+  white-space: nowrap;
 }
 
 @media (min-width: 1024px) and (hover: hover) and (pointer: fine) {

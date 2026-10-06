@@ -1,11 +1,12 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useWithdrawalScenarios } from '../hooks/useWithdrawalScenarios';
 import { useReports } from '../hooks/useReports';
+import { usePayment, usePaymentConfig } from '../hooks/usePayment';
 import { isScenarioType } from '../api/withdrawal-scenario-api';
 import PlanItemCard from '../components/PlanItemCard';
-import ExpertReviewButton from '../components/ExpertReviewButton';
-import { formatWan } from '../utils/format';
+import CheckoutSheet from '../components/CheckoutSheet';
+import { formatWan, formatWon } from '../utils/format';
 import {
   DEPENDENT_STATUS_LABEL,
   dependentReasonText,
@@ -13,7 +14,7 @@ import {
   groupMonthlyByYear,
 } from '../utils/withdrawal-scenario-view';
 import { DEPENDENT_COLOR } from '../utils/report-view';
-import { trackReportCreated, trackWithdrawalPlanView } from '../analytics';
+import { trackReportCheckoutStarted, trackReportCreated, trackWithdrawalPlanView } from '../analytics';
 
 export default function WithdrawalPlanScreen() {
   const navigate = useNavigate();
@@ -23,14 +24,33 @@ export default function WithdrawalPlanScreen() {
   const validParams = Number.isSafeInteger(setId) && setId > 0 && isScenarioType(type);
   const { plan, isLoading, error, fetchPlan } = useWithdrawalScenarios();
   const { create: createReport, isLoading: isCreatingReport, error: reportError } = useReports();
+  const { config: paymentConfig, isLoaded: isPaymentConfigLoaded } = usePaymentConfig();
+  const { startCheckout, isStarting, error: checkoutError } = usePayment();
+  const [showCheckout, setShowCheckout] = useState(false);
   const tracked = useRef<string | null>(null);
+  const isPaid = paymentConfig?.enabled === true;
 
   const handleCreateReport = async () => {
     if (!plan) return;
+    if (isPaid) {
+      setShowCheckout(true);
+      return;
+    }
     const report = await createReport(plan.setId, plan.scenario.type).catch(() => null);
     if (!report) return;
     trackReportCreated(report.scenarioType);
     navigate(`/report/${report.id}`, { state: { justCreated: true } });
+  };
+
+  const handleCheckout = async () => {
+    if (!plan) return;
+    trackReportCheckoutStarted(plan.scenario.type);
+    const opened = await startCheckout(
+      plan.setId,
+      plan.scenario.type,
+      `/withdrawal-plan/${plan.setId}/${plan.scenario.type}`,
+    );
+    if (opened) setShowCheckout(false);
   };
 
   useEffect(() => {
@@ -236,14 +256,32 @@ export default function WithdrawalPlanScreen() {
           </div>
 
           {reportError && <div className="form-error mb-8" role="alert">{reportError}</div>}
-          <button className="btn-cta" onClick={() => void handleCreateReport()} disabled={isCreatingReport}>
-            {isCreatingReport ? '리포트 만드는 중...' : '이 실행안으로 리포트 만들기'}
+          <button
+            className="btn-cta"
+            onClick={() => void handleCreateReport()}
+            disabled={isCreatingReport || !isPaymentConfigLoaded}
+          >
+            {isCreatingReport
+              ? '리포트 만드는 중...'
+              : isPaid && paymentConfig
+                ? `리포트 만들기 · ${formatWon(paymentConfig.price)}`
+                : '이 실행안으로 리포트 만들기'}
           </button>
           <p className="form-hint mt-8">
-            지금 결과를 리포트로 고정해 보관해요. 휴대폰에서는 PDF로 공유하고, PC에서는 인쇄해 PDF로 저장할 수 있어요.
+            지금 결과를 리포트로 고정해 보관해요. PDF·엑셀로 받거나 PC에서 인쇄할 수 있고, 리포트에서 100일 실행
+            체크리스트와 무료 검토 요청을 이용할 수 있어요.
           </p>
-          <ExpertReviewButton scenarioType={scenario.type} placement="withdrawal_plan" />
         </>
+      )}
+
+      {showCheckout && paymentConfig && (
+        <CheckoutSheet
+          price={paymentConfig.price}
+          isStarting={isStarting}
+          error={checkoutError}
+          onClose={() => setShowCheckout(false)}
+          onConfirm={() => void handleCheckout()}
+        />
       )}
 
       <div className="mt-16">

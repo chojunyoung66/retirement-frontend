@@ -3,8 +3,10 @@ import {
   createReport,
   deleteReport,
   downloadReportPdf,
+  downloadReportXlsx,
   getReport,
   getReports,
+  renameReport,
   type Report,
   type ReportSummary,
 } from '../api/report-api';
@@ -16,6 +18,7 @@ export function useReports() {
   const [reports, setReports] = useState<ReportSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isPdfLoading, setIsPdfLoading] = useState(false);
+  const [isXlsxLoading, setIsXlsxLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const run = useCallback(async <T,>(task: () => Promise<T>, fallback: string): Promise<T> => {
@@ -70,30 +73,76 @@ export function useReports() {
     [run],
   );
 
-  // PDF는 화면 전체 로딩과 분리해 버튼만 잠근다
-  const fetchPdf = useCallback(async (id: number): Promise<File> => {
-    setIsPdfLoading(true);
-    setError(null);
-    try {
-      return await downloadReportPdf(id);
-    } catch (err) {
-      setError(getApiErrorMessage(err, 'PDF를 만들지 못했어요. 잠시 후 다시 시도해 주세요'));
-      throw err;
-    } finally {
-      setIsPdfLoading(false);
-    }
+  const rename = useCallback(
+    (id: number, title: string | null) =>
+      run(async () => {
+        const updated = await renameReport(id, title);
+        setReports((prev) => prev.map((r) => (r.id === id ? updated : r)));
+        setReport((prev) => (prev && prev.id === id ? { ...prev, ...updated } : prev));
+        return updated;
+      }, '이름을 바꾸지 못했어요'),
+    [run],
+  );
+
+  /** 첫 다운로드 시각을 목록에 반영 — 환불 가능 여부 표시에 쓴다 */
+  const markDownloaded = useCallback((id: number) => {
+    const now = new Date().toISOString();
+    const apply = <T extends ReportSummary>(r: T): T =>
+      r.id === id && !r.firstDownloadedAt ? { ...r, firstDownloadedAt: now } : r;
+    setReports((prev) => prev.map(apply));
+    setReport((prev) => (prev ? apply(prev) : prev));
   }, []);
+
+  // 파일은 화면 전체 로딩과 분리해 버튼만 잠근다
+  const fetchPdf = useCallback(
+    async (id: number): Promise<File> => {
+      setIsPdfLoading(true);
+      setError(null);
+      try {
+        const file = await downloadReportPdf(id);
+        markDownloaded(id);
+        return file;
+      } catch (err) {
+        setError(getApiErrorMessage(err, 'PDF를 만들지 못했어요. 잠시 후 다시 시도해 주세요'));
+        throw err;
+      } finally {
+        setIsPdfLoading(false);
+      }
+    },
+    [markDownloaded],
+  );
+
+  const fetchXlsx = useCallback(
+    async (id: number): Promise<File> => {
+      setIsXlsxLoading(true);
+      setError(null);
+      try {
+        const file = await downloadReportXlsx(id);
+        markDownloaded(id);
+        return file;
+      } catch (err) {
+        setError(getApiErrorMessage(err, '엑셀 파일을 만들지 못했어요. 잠시 후 다시 시도해 주세요'));
+        throw err;
+      } finally {
+        setIsXlsxLoading(false);
+      }
+    },
+    [markDownloaded],
+  );
 
   return {
     report,
     reports,
     isLoading,
     isPdfLoading,
+    isXlsxLoading,
     error,
     create,
     fetchReport,
     fetchReports,
     remove,
+    rename,
     fetchPdf,
+    fetchXlsx,
   };
 }
