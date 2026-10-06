@@ -26,7 +26,7 @@ MVP(은퇴현금 설계센터) 유입·핵심 행동 수집 체계. 9-2 분석 �
 | 항목 | 값 |
 |------|-----|
 | Frontend | https://retirement-frontend-y2dn.vercel.app |
-| Backend | https://retirement-backend-ph7y.onrender.com |
+| Backend | https://retirement-backend-sg.onrender.com |
 | Amplitude | org `long-shadow-923551` · project `은퇴현금 설계센터` (`850754`) |
 | Save Funnel | https://app.amplitude.com/analytics/long-shadow-923551/chart/rz0rpnvs |
 | GA4 Debug (운영) | `/?debug_mode=1` |

@@ -4,7 +4,7 @@
 단계별 진단으로 국민연금·퇴직연금·개인연금 수입과 생활비·의료비를 분석하고, 20년 현금 흐름을 시각화합니다.
 
 - **배포:** https://retirement-frontend-y2dn.vercel.app
-- **백엔드:** https://retirement-backend-ph7y.onrender.com
+- **백엔드:** https://retirement-backend-sg.onrender.com
 - **흐름 정의서:** [`docs/feature-design-flow.md`](docs/feature-design-flow.md)
 - **미션 9-1 (지표·Tracking·증빙):** [`docs/mission9-1/README.md`](docs/mission9-1/README.md)
 
