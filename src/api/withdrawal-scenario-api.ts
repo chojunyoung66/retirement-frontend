@@ -7,6 +7,22 @@ export const scenarioTypeSchema = z.enum(SCENARIO_TYPES);
 const valueSourceSchema = z.enum(['request', 'simulation', 'default', 'none']);
 const dependentStatusSchema = z.enum(['LIKELY', 'CAUTION', 'CHECK_NEEDED']);
 
+export const annuityLimitSchema = z.object({
+  baseYear: z.number(),
+  legacy: z.boolean(),
+  years: z.array(
+    z.object({
+      year: z.number(),
+      receiptYear: z.number(),
+      openingBalance: z.number(),
+      limit: z.number(),
+      planned: z.number(),
+    }),
+  ),
+  exceededYears: z.array(z.number()),
+});
+
+// 계좌 총액·수령한도·지방소득세는 이전에 저장된 세트·리포트에 없다 (undefined면 표시하지 않음)
 export const planItemSchema = z.object({
   accountId: z.number().nullable(),
   accountType: z.string(),
@@ -19,6 +35,9 @@ export const planItemSchema = z.object({
   monthlyNet: z.number(),
   totalGross: z.number(),
   totalTax: z.number(),
+  localIncomeTax: z.number().optional(),
+  startBalance: z.number().nullable().optional(),
+  annuityLimit: annuityLimitSchema.nullable().optional(),
   method: z.string(),
   taxNote: z.string(),
   healthInsuranceNote: z.string(),
@@ -50,6 +69,7 @@ export const yearRowSchema = z.object({
   healthPremium: z.number().default(0),
   grossWithdrawal: z.number(),
   tax: z.number(),
+  localIncomeTax: z.number().optional(),
   netWithdrawal: z.number(),
   shortfall: z.number(),
   endingBalance: z.number(),
@@ -61,6 +81,7 @@ export const yearRowSchema = z.object({
 export const summarySchema = z.object({
   grossWithdrawal: z.number(),
   totalTax: z.number(),
+  localIncomeTax: z.number().optional(),
   netWithdrawal: z.number(),
   depletionAge: z.number().nullable(),
   shortfallMonths: z.number(),
@@ -208,6 +229,7 @@ export type ScenarioType = z.infer<typeof scenarioTypeSchema>;
 export type ValueSource = z.infer<typeof valueSourceSchema>;
 export type DependentStatus = z.infer<typeof dependentStatusSchema>;
 export type PlanItem = z.infer<typeof planItemSchema>;
+export type AnnuityLimit = z.infer<typeof annuityLimitSchema>;
 export type YearRow = z.infer<typeof yearRowSchema>;
 export type DependentReason = z.infer<typeof dependentReasonSchema>;
 export type IsaStrategy = z.infer<typeof isaStrategySchema>;

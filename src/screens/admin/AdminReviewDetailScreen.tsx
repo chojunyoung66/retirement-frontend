@@ -8,7 +8,13 @@ import { getApiErrorMessage } from '../../utils/api-error-message';
 import { dueDateLabel, progressPercent, REVIEW_STATUS_LABEL } from '../../utils/concierge-view';
 import { formatWan } from '../../utils/format';
 import { formatReportDate } from '../../utils/report-view';
-import { ACTION_LABEL, formatPeriod, formatYm, summarizeScenarioCard } from '../../utils/withdrawal-scenario-view';
+import {
+  ACTION_LABEL,
+  formatPeriod,
+  formatYm,
+  summarizeScenarioCard,
+  taxBreakdownText,
+} from '../../utils/withdrawal-scenario-view';
 
 /** 동의받은 리포트 스냅샷만 보여 준다 — 원본 계좌 데이터는 서버가 내려주지 않는다 */
 function ReportSnapshot({ detail }: { detail: AdminReviewDetail }) {
@@ -30,6 +36,11 @@ function ReportSnapshot({ detail }: { detail: AdminReviewDetail }) {
           <span className="item-row-label">세후 총 인출 / 추정 세금</span>
           <span className="item-row-value">
             {summary.netWithdrawal} / {summary.totalTax}
+            {content.scenario.summary.totalTax > 0 && (
+              <span className="item-row-sub">
+                {taxBreakdownText(content.scenario.summary.totalTax, content.scenario.summary.localIncomeTax)}
+              </span>
+            )}
           </span>
         </div>
         <div className="item-row">

@@ -12,6 +12,8 @@ import {
   dependentReasonText,
   formatYm,
   groupMonthlyByYear,
+  taxBreakdown,
+  taxBreakdownText,
 } from '../utils/withdrawal-scenario-view';
 import { DEPENDENT_COLOR } from '../utils/report-view';
 import { trackReportCheckoutStarted, trackReportCreated, trackWithdrawalPlanView } from '../analytics';
@@ -112,6 +114,11 @@ export default function WithdrawalPlanScreen() {
               <span className="item-row-label">세후 총 인출 / 추정 세금</span>
               <span className="item-row-value">
                 {formatWan(scenario.summary.netWithdrawal)} / {formatWan(scenario.summary.totalTax)}
+                {scenario.summary.totalTax > 0 && (
+                  <span className="item-row-sub">
+                    {taxBreakdownText(scenario.summary.totalTax, scenario.summary.localIncomeTax)}
+                  </span>
+                )}
               </span>
             </div>
             <div className="item-row">
@@ -147,6 +154,7 @@ export default function WithdrawalPlanScreen() {
                     <th>지출</th>
                     <th>세전 인출</th>
                     <th>세금</th>
+                    <th>지방소득세</th>
                     <th>세후 인출</th>
                     <th>국민연금</th>
                     {hasSpousePension && <th>배우자 연금</th>}
@@ -169,6 +177,7 @@ export default function WithdrawalPlanScreen() {
                         <td>{formatWan(row.expense)}</td>
                         <td>{formatWan(row.grossWithdrawal)}</td>
                         <td>{formatWan(row.tax)}</td>
+                        <td>{formatWan(taxBreakdown(row.tax, row.localIncomeTax).localIncomeTax)}</td>
                         <td>{formatWan(row.netWithdrawal)}</td>
                         <td>{formatWan(row.nationalPension)}</td>
                         {hasSpousePension && <td>{formatWan(row.spouseNationalPension)}</td>}

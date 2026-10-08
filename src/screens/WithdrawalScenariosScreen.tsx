@@ -282,6 +282,7 @@ export default function WithdrawalScenariosScreen() {
                     [
                       ['세후 총 인출', 'netWithdrawal'],
                       ['추정 세금', 'totalTax'],
+                      ['지방소득세(포함)', 'localIncomeTax'],
                       ['자산 소진', 'depletion'],
                       ['피부양자 추정', 'dependentYears'],
                     ] as const

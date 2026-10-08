@@ -97,9 +97,103 @@ export function formatPeriod(startYm: string | null, endYm: string | null): stri
   return `${formatYm(startYm)} ~ ${formatYm(endYm)}`;
 }
 
+/** 세금 합계를 소득세·지방소득세로 — 이전 데이터는 값이 없어 합계 ÷ 11(국세의 10%)로 나눈다 */
+export function taxBreakdown(
+  totalTax: number,
+  localIncomeTax?: number,
+): { incomeTax: number; localIncomeTax: number } {
+  const local = localIncomeTax ?? Math.round(totalTax / 11);
+  return { incomeTax: totalTax - local, localIncomeTax: local };
+}
+
+/** "소득세 1,565만원 · 지방소득세 157만원", 세금이 없으면 빈 문자열 */
+export function taxBreakdownText(totalTax: number, localIncomeTax?: number): string {
+  if (totalTax <= 0) return '';
+  const split = taxBreakdown(totalTax, localIncomeTax);
+  return `소득세 ${formatWan(split.incomeTax)} · 지방소득세 ${formatWan(split.localIncomeTax)}`;
+}
+
+/** 오름차순 연도를 "2027~2030년, 2033년"으로 묶는다 */
+export function yearRanges(years: readonly number[]): string {
+  const groups: { start: number; end: number }[] = [];
+  for (const year of years) {
+    const last = groups[groups.length - 1];
+    if (last && last.end === year - 1) last.end = year;
+    else groups.push({ start: year, end: year });
+  }
+  return groups.map((g) => (g.start === g.end ? `${g.start}년` : `${g.start}~${g.end}년`)).join(', ');
+}
+
+/** 계좌 총액 행 — 이전 데이터(필드 없음)와 잉여 적립 항목은 숨긴다 */
+export function startBalanceLabel(item: PlanItem): { label: string; value: string } | null {
+  if (item.startBalance === undefined) return null;
+  if (item.accountType === 'UNEMPLOYMENT') return { label: '총 수급액', value: formatWan(item.totalGross) };
+  if (item.startBalance === null) return null;
+  return { label: '계좌 총액 (시작 시점)', value: formatWan(item.startBalance) };
+}
+
+const PENSION_ACCOUNT_TYPES: ReadonlySet<string> = new Set(['DC', 'PENSION_SAVINGS', 'IRP']);
+
+export interface AnnuityLimitRowView {
+  year: number;
+  receiptYear: string;
+  limit: string;
+  planned: string;
+  exceeded: boolean;
+}
+
+export type AnnuityLimitView =
+  | { kind: 'none'; text: string }
+  | {
+      kind: 'limit';
+      label: string;
+      value: string;
+      planned: string;
+      exceededText: string | null;
+      rows: AnnuityLimitRowView[];
+    };
+
+/** 연간 수령한도 행 — 대표 연도는 첫 인출 연도, 인출이 없으면 첫해. 이전 데이터는 null */
+export function annuityLimitView(item: PlanItem): AnnuityLimitView | null {
+  if (item.annuityLimit === undefined || item.accountType === 'UNEMPLOYMENT') return null;
+  const limit = item.annuityLimit;
+  if (limit === null) {
+    return {
+      kind: 'none',
+      text: PENSION_ACCOUNT_TYPES.has(item.accountType)
+        ? '일시금 수령 (수령한도 해당 없음)'
+        : '수령한도 없음 (연금계좌 아님)',
+    };
+  }
+  const focus = limit.years.find((y) => y.planned > 0) ?? limit.years[0];
+  if (!focus) return { kind: 'none', text: '잔액이 없어 수령한도 없음' };
+  const last = limit.years[limit.years.length - 1];
+  if (focus.planned === 0 && item.actionType !== 'HOLD' && last?.receiptYear === 10) {
+    return { kind: 'none', text: `11년차(${last.year + 1}년) 이후 인출이라 수령한도 없음` };
+  }
+  return {
+    kind: 'limit',
+    label: `연간 수령한도 (${focus.year}년 · ${focus.receiptYear}년차)`,
+    value: formatWan(focus.limit),
+    planned: `계획 인출 ${formatWan(focus.planned)}`,
+    exceededText:
+      limit.exceededYears.length > 0
+        ? `${yearRanges(limit.exceededYears)} 계획 인출이 연금수령한도를 넘습니다. 초과분은 연금외수령으로 과세될 수 있어요.`
+        : null,
+    rows: limit.years.map((y) => ({
+      year: y.year,
+      receiptYear: `${y.receiptYear}년차`,
+      limit: formatWan(y.limit),
+      planned: formatWan(y.planned),
+      exceeded: y.planned > y.limit,
+    })),
+  };
+}
+
 export interface ScenarioCardSummary {
   netWithdrawal: string;
   totalTax: string;
+  localIncomeTax: string;
   depletion: string;
   dependentYears: string;
 }
@@ -113,6 +207,7 @@ export function summarizeScenarioCard(
   return {
     netWithdrawal: formatWan(summary.netWithdrawal),
     totalTax: formatWan(summary.totalTax),
+    localIncomeTax: formatWan(taxBreakdown(summary.totalTax, summary.localIncomeTax).localIncomeTax),
     depletion: summary.depletionAge === null ? '계산 기간 내 소진 없음' : `${summary.depletionAge}세에 소진`,
     dependentYears: propertyProvided ? `${summary.dependentLikelyYears}년` : '재산 입력 시 표시',
   };

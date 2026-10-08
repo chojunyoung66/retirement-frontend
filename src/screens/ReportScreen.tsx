@@ -29,6 +29,8 @@ import {
   formatPeriod,
   formatYm,
   summarizeScenarioCard,
+  taxBreakdown,
+  taxBreakdownText,
 } from '../utils/withdrawal-scenario-view';
 import { trackReportDownloaded, trackReportPreviewView } from '../analytics';
 
@@ -37,6 +39,7 @@ type ShareStep = 'idle' | 'confirm' | 'ready';
 function SummaryCard({ content }: { content: ReportContent }) {
   const { scenario, inputSummary } = content;
   const summary = summarizeScenarioCard(scenario, inputSummary.propertyProvided);
+  const taxSplit = taxBreakdownText(scenario.summary.totalTax, scenario.summary.localIncomeTax);
   return (
     <div className="card">
       <div className="card-title">
@@ -54,7 +57,10 @@ function SummaryCard({ content }: { content: ReportContent }) {
       </div>
       <div className="item-row">
         <span className="item-row-label">추정 세금 합계</span>
-        <span className="item-row-value">{summary.totalTax}</span>
+        <span className="item-row-value">
+          {summary.totalTax}
+          {taxSplit && <span className="item-row-sub">{taxSplit}</span>}
+        </span>
       </div>
       <div className="item-row">
         <span className="item-row-label">자산 소진</span>
@@ -327,6 +333,7 @@ export default function ReportScreen() {
                     [
                       ['netWithdrawal', '세후 총 인출'],
                       ['totalTax', '추정 세금'],
+                      ['localIncomeTax', '지방소득세(포함)'],
                       ['depletion', '자산 소진'],
                       ['dependentYears', '피부양자 추정'],
                     ] as const
@@ -408,6 +415,7 @@ export default function ReportScreen() {
                       <th>지출</th>
                       <th>세후 인출</th>
                       <th>세금</th>
+                      <th>지방소득세</th>
                       <th>부족</th>
                       <th>연말 잔액</th>
                       <th>피부양자</th>
@@ -423,6 +431,7 @@ export default function ReportScreen() {
                         <td>{formatWan(row.expense)}</td>
                         <td>{formatWan(row.netWithdrawal)}</td>
                         <td>{formatWan(row.tax)}</td>
+                        <td>{formatWan(taxBreakdown(row.tax, row.localIncomeTax).localIncomeTax)}</td>
                         <td style={row.shortfall > 0 ? { color: '#e74c3c' } : undefined}>
                           {formatWan(row.shortfall)}
                         </td>

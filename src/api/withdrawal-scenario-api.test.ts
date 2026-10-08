@@ -142,6 +142,32 @@ describe('parseScenarioSet', () => {
     expect(set.result.isaStrategy[0].extraCreditBase).toBe(3_000_000);
   });
 
+  it('계좌 총액·수령한도·지방소득세를 파싱하고, 없는 이전 세트는 undefined로 둔다', () => {
+    const legacy = parseScenarioSet({ id: 1, ruleVersion: 'x', selectedType: null, createdAt: 'x', result });
+    const legacyItem = legacy.result.scenarios[0].planItems[0];
+    expect(legacyItem.startBalance).toBeUndefined();
+    expect(legacyItem.annuityLimit).toBeUndefined();
+    expect(legacy.result.scenarios[0].summary.localIncomeTax).toBeUndefined();
+
+    const next = structuredClone(result);
+    Object.assign(next.scenarios[0].planItems[0], {
+      localIncomeTax: 0,
+      startBalance: 300_000_000,
+      annuityLimit: {
+        baseYear: 2026,
+        legacy: false,
+        years: [{ year: 2026, receiptYear: 1, openingBalance: 300_000_000, limit: 36_000_000, planned: 0 }],
+        exceededYears: [],
+      },
+    });
+    Object.assign(next.scenarios[1].planItems[0], { startBalance: null, annuityLimit: null });
+    Object.assign(next.scenarios[0].summary, { localIncomeTax: 1 });
+    const set = parseScenarioSet({ id: 1, ruleVersion: 'x', selectedType: null, createdAt: 'x', result: next });
+    expect(set.result.scenarios[0].planItems[0].annuityLimit?.years[0]?.limit).toBe(36_000_000);
+    expect(set.result.scenarios[1].planItems[0].annuityLimit).toBeNull();
+    expect(set.result.scenarios[0].summary.localIncomeTax).toBe(1);
+  });
+
   it('피부양자 상태가 3단계 밖이면 거부한다 (AC-09)', () => {
     const broken = structuredClone(result);
     (broken.scenarios[0].yearly[0] as { dependentStatus: string }).dependentStatus = 'OK';
