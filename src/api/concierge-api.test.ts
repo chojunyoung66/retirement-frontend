@@ -57,7 +57,12 @@ describe('100일 실행', () => {
     expect(parseExecutionPlan(plan).items[0].dueDay).toBe(7);
   });
 
-  it('시작 전(EXECUTION_PLAN_NOT_FOUND)이면 null', async () => {
+  it('시작 전(data: null)이면 null', async () => {
+    get.mockResolvedValue({ data: { success: true, data: null } });
+    await expect(getExecutionPlan(7)).resolves.toBeNull();
+  });
+
+  it('이전 서버의 EXECUTION_PLAN_NOT_FOUND 404도 null', async () => {
     get.mockRejectedValue(
       Object.assign(new Error('x'), {
         isAxiosError: true,

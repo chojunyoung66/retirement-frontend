@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@tosspayments/tosspayments-sdk', () => ({ ANONYMOUS: '@@ANONYMOUS', loadTossPayments: vi.fn() }));
 
@@ -9,11 +9,21 @@ beforeEach(() => {
   sessionStorage.clear();
 });
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 describe('toss-checkout', () => {
   it('클라이언트 키가 비어 있으면 결제창을 열지 않는다', () => {
     expect(isTossConfigured('test_ck_123')).toBe(true);
     expect(isTossConfigured('  ')).toBe(false);
+  });
+
+  it('인자가 없으면 환경변수 키를 쓴다', () => {
+    vi.stubEnv('VITE_TOSS_CLIENT_KEY', '');
     expect(isTossConfigured(undefined)).toBe(false);
+    vi.stubEnv('VITE_TOSS_CLIENT_KEY', 'test_ck_env');
+    expect(isTossConfigured()).toBe(true);
   });
 
   it('돌아갈 실행안 주소는 한 번만 꺼내고, 실행안 경로만 허용한다', () => {

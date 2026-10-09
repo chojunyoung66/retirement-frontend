@@ -107,11 +107,11 @@ export const startExecutionPlan = async (reportId: number): Promise<ExecutionPla
   }
 };
 
-/** 아직 시작하지 않았으면 null */
+/** 아직 시작하지 않았으면 null — 이전 서버는 EXECUTION_PLAN_NOT_FOUND 404로 응답한다 */
 export const getExecutionPlan = async (reportId: number): Promise<ExecutionPlan | null> => {
   try {
     const res = await client.get(`/reports/${reportId}/execution-plan`);
-    return parseExecutionPlan(res.data.data);
+    return res.data.data === null ? null : parseExecutionPlan(res.data.data);
   } catch (err: unknown) {
     const apiErr = toApiError(err);
     if (apiErr instanceof ApiError && apiErr.errorCode === 'EXECUTION_PLAN_NOT_FOUND') return null;
