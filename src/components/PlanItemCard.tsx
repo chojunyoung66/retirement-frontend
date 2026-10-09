@@ -77,7 +77,7 @@ export default function PlanItemCard({ item }: { item: PlanItem }) {
             연차별 한도 보기
           </summary>
           <div className="cfp-table-wrap">
-            <table className="cfp-table">
+            <table className="cfp-table" style={{ minWidth: 0 }}>
               <thead>
                 <tr>
                   <th>연도</th>
